@@ -10,7 +10,7 @@ services:
     startCommand: gunicorn automotive_backend.wsgi:application
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.9
+        value: 3.13.0
       - key: DEBUG
         value: "False"
       - key: ALLOWED_HOSTS
