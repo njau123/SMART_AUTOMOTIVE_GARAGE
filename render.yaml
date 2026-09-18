@@ -6,7 +6,7 @@ services:
     plan: free
     branch: main
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate && python create_superuser.py
     startCommand: gunicorn automotive_backend.wsgi:application
     envVars:
       - key: PYTHON_VERSION
@@ -23,6 +23,12 @@ services:
         value: https://smart-garage-user.vercel.app,https://smart-garage-mechanic.vercel.app,https://smart-garage-admin.vercel.app
       - key: CSRF_TRUSTED_ORIGINS
         value: https://smart-garage-backend.onrender.com
+      - key: DJANGO_SUPERUSER_USERNAME
+        value: njau
+      - key: DJANGO_SUPERUSER_EMAIL
+        value: njaufredrick0@gmail.com
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
       - key: SECRET_KEY
         sync: false          # utaiweka kwa mkono kwenye dashboard
       - key: DATABASE_URL
