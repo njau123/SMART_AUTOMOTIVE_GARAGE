@@ -46,3 +46,5 @@ mechanic_app_new/
 
 # Git backups
 /tmp/git_backups/
+*.backup
+*.bak
