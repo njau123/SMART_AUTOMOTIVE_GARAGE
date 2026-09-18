@@ -8,8 +8,11 @@ from apps.mechanics import views as mechanics_views
 from apps.spare_parts import views as spare_parts_views
 from apps.advertisements import views as advertisements_views
 from apps.notifications import views as notifications_views
+from . import views as root_views
 
 urlpatterns = [
+    path('', root_views.home, name='home'),
+    path('health/', root_views.health, name='health'),
     path('api/v1/notifications/devices/register/', notifications_views.register_device),
     path('admin/', admin.site.urls),
     # === SPECIFIC routes (lazima ziwe KABLA ya api.urls ili zisimezwa) ===
