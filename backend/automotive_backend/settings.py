@@ -1,5 +1,4 @@
-from .firebase_config import *
-from .firebase_config import *
+from .firebase_config import *  # noqa
 import os
 from pathlib import Path
 import os
@@ -19,6 +18,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ============ FIREBASE ADMIN ============
 FIREBASE_CREDENTIALS = os.path.join(BASE_DIR, 'firebase-service-account.json')
+
+# Firebase Admin env vars (production)
+FIREBASE_PROJECT_ID = env('FIREBASE_PROJECT_ID', default='smart-automotive-garage')
+FIREBASE_CLIENT_EMAIL = env('FIREBASE_CLIENT_EMAIL', default='')
+FIREBASE_PRIVATE_KEY = env('FIREBASE_PRIVATE_KEY', default='')
+FIREBASE_STORAGE_BUCKET = env('FIREBASE_STORAGE_BUCKET', default='smart-automotive-garage.appspot.com')
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
