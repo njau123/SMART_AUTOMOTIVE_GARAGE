@@ -21,8 +21,8 @@ db.sqlite3-journal
 !.env.example
 
 # Static / media
-staticfiles/
-media/
+/staticfiles/
+/media/
 uploads/
 
 # IDE
@@ -57,8 +57,8 @@ firebase-service-account.json
 __pycache__/
 *.py[cod]
 *.sqlite3
-media/
-staticfiles/
+/media/
+/staticfiles/
 # Firebase Admin SDK (USIWEKE GITHUB)
 firebase-service-account.json
 *.bak_*
