@@ -1,0 +1,55 @@
+name: mechanic_app
+description: Mechanic App for Smart Automotive Garage
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  http: ^1.6.0
+  flutter:
+    sdk: flutter
+
+  # Networking
+  dio: ^5.11.0
+  connectivity_plus: ^6.0.0
+
+  # State Management
+  provider: ^6.1.5+1
+  google_fonts: ^8.2.1
+
+  # Storage
+  shared_preferences: ^2.5.5
+  flutter_secure_storage: ^11.0.0
+
+  # Firebase
+  firebase_messaging: ^16.6.0
+
+  # Bluetooth (OBD-II ELM327)
+  flutter_blue_plus: ^1.32.0
+
+  # UI
+  flutter_svg: ^2.0.9
+  image_picker: ^1.2.3
+  cached_network_image: ^3.3.1
+
+  # Utilities
+  intl: ^0.18.1
+  url_launcher: ^6.2.1
+  permission_handler: ^11.0.0
+  geolocator: ^10.1.0
+  firebase_auth: ^6.5.7
+  flutter_animate: ^4.5.2
+  shimmer: ^3.0.0
+  firebase_core: ^4.14.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/

@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.venv/
+*.sqlite3
+db.sqlite3
+
+# Django
+media/
+staticfiles/
+*.log
+.env
+.env.local
+
+# Firebase (USIWEKE GITHUB)
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+
+# Flutter
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups
+*.bak
+*.bak_*
+_backups_*/
+mechanic_app_backup/
+mechanic_app_new/
+
+# Git backups
+/tmp/git_backups/

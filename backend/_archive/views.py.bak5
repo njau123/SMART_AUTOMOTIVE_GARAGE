@@ -1,0 +1,435 @@
+from django.utils.timezone import now
+from django.utils.timezone import now
+from rest_framework import viewsets, generics, permissions, status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
+
+from apps.vehicles.models import Vehicle
+from apps.mechanics.models import MechanicProfile
+from apps.services.models import Service, ServiceCategory
+from apps.spare_parts.models import SparePart, Category, Brand
+from apps.bookings.models import Booking
+from apps.diagnosis.models import DTCCode, DiagnosisSession
+from apps.wallet.models import Wallet, Transaction
+from apps.payments.models import Payment
+from apps.news.models import News
+from apps.advertisements.models import Advertisement
+
+from .serializers import (
+    UserSerializer, UserProfileSerializer, MechanicProfileSerializer,
+    VehicleSerializer, ServiceSerializer, SparePartSerializer,
+    BookingSerializer, DTCCodeSerializer, WalletSerializer,
+    TransactionSerializer, PaymentSerializer, NewsSerializer,
+    AdvertisementSerializer
+)
+
+User = get_user_model()
+
+# ============ AUTH ============
+class RegisterView(generics.CreateAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response({
+            "success": True,
+            "message": "Registration successful! You may continue to login.",
+            "data": UserSerializer(user).data
+        })
+
+# ============ USER PROFILE ============
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserProfileSerializer(request.user)
+        return Response({
+            "success": True,
+            "message": "Profile retrieved",
+            "data": serializer.data
+        })
+
+# ============ MECHANIC ============
+class MechanicProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            mechanic = MechanicProfile.objects.get(user=request.user)
+            serializer = MechanicProfileSerializer(mechanic)
+            return Response({
+                "success": True,
+                "message": "Mechanic profile retrieved",
+                "data": serializer.data
+            })
+        except MechanicProfile.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "You are not registered as a mechanic."
+            }, status=404)
+
+class MechanicViewSet(viewsets.ModelViewSet):
+    queryset = MechanicProfile.objects.all()
+    serializer_class = MechanicProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return MechanicProfile.objects.filter(is_available=True)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+# ============ VEHICLES ============
+class VehicleViewSet(viewsets.ModelViewSet):
+    serializer_class = VehicleSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Vehicle.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+# ============ SERVICES ============
+class ServiceViewSet(viewsets.ModelViewSet):
+    queryset = Service.objects.all()
+    serializer_class = ServiceSerializer
+    permission_classes = [IsAuthenticated]
+
+# ============ SPARE PARTS ============
+class SparePartViewSet(viewsets.ModelViewSet):
+    queryset = SparePart.objects.filter(stock_quantity__gt=0)
+    serializer_class = SparePartSerializer
+    permission_classes = [IsAuthenticated]
+
+# ============ BOOKINGS ============
+class BookingViewSet(viewsets.ModelViewSet):
+    serializer_class = BookingSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'MECHANIC':
+            return Booking.objects.filter(mechanic__user=user)
+        return Booking.objects.filter(customer=user)
+
+    def perform_create(self, serializer):
+        serializer.save(customer=self.request.user)
+
+# ============ DIAGNOSIS (DTC) ============
+class DTCCodeViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = DTCCode.objects.all()
+    serializer_class = DTCCodeSerializer
+    permission_classes = [IsAuthenticated]
+
+class DiagnosisViewSet(viewsets.ModelViewSet):
+    queryset = DiagnosisSession.objects.all()
+    permission_classes = [IsAuthenticated]
+    # simplified for now
+
+# ============ WALLET ============
+class WalletViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = WalletSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Wallet.objects.filter(user=self.request.user)
+
+class TransactionViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = TransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Transaction.objects.filter(wallet__user=self.request.user)
+
+# ============ PAYMENTS ============
+class PaymentViewSet(viewsets.ModelViewSet):
+    serializer_class = PaymentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Payment.objects.filter(user=self.request.user)
+
+# ============ NEWS ============
+class NewsViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = News.objects.filter(status="published")
+    serializer_class = NewsSerializer
+    permission_classes = [AllowAny]
+
+# ============ ADVERTISEMENTS ============
+class AdvertisementViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Advertisement.objects.filter(status="active")
+    serializer_class = AdvertisementSerializer
+    permission_classes = [AllowAny]
+
+# ============ DIAGNOSIS VIEWSETS ============
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from apps.diagnosis.models import DiagnosisSession, DiagnosisDTC, OBDReading, OBDScanEvent, DTCCode
+from .serializers import (
+    DiagnosisSessionSerializer, DiagnosisDTCSerializer,
+    OBDReadingSerializer, OBDScanEventSerializer, DTCCodeSerializer
+)
+
+def decode_dtc_from_raw(raw_hex: str):
+    """
+    Convert raw hex response to list of DTC codes (e.g., '430300' -> ['P0300'])
+    """
+    # Simplified: implement real decoding based on OBD spec
+    # For demo, we just extract codes from raw hex
+    codes = []
+    if not raw_hex:
+        return codes
+    # Example: '430300' -> 'P0300' (actual decoding is more complex)
+    # For now, we'll just return a placeholder
+    # In real implementation, use a library or custom logic
+    return codes
+
+class DiagnosisSessionViewSet(viewsets.ModelViewSet):
+    serializer_class = DiagnosisSessionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return DiagnosisSession.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def connect(self, request, pk=None):
+        session = self.get_object()
+        vin = request.data.get('vin')
+        protocol = request.data.get('protocol')
+        adapter_name = request.data.get('adapter_name')
+        battery_voltage = request.data.get('battery_voltage')
+        connected = request.data.get('connected', False)
+
+        # Update session
+        if vin:
+            session.vin = vin
+        if protocol:
+            session.protocol = protocol
+        if adapter_name:
+            session.adapter_name = adapter_name
+        if battery_voltage is not None:
+            session.battery_voltage = battery_voltage
+        session.ecu_connected = connected
+        session.status = 'CONNECTED' if connected else 'PENDING'
+        session.save()
+
+        return Response(DiagnosisSessionSerializer(session).data)
+
+    @action(detail=True, methods=['post'])
+    def start(self, request, pk=None):
+        session = self.get_object()
+        session.status = 'SCANNING'
+        session.started_at = now()
+        session.save()
+        return Response(DiagnosisSessionSerializer(session).data)
+
+    @action(detail=True, methods=['post'])
+    def process(self, request, pk=None):
+        session = self.get_object()
+        responses = request.data.get('responses', {})
+
+        # Simulate processing
+        # Extract raw DTC response
+        raw_dtc = responses.get('raw_dtc_response', '')
+        dtc_codes = decode_dtc_from_raw(raw_dtc)
+
+        # Save DTCs
+        for code in dtc_codes:
+            dtc, _ = DTCCode.objects.get_or_create(code=code)
+            DiagnosisDTC.objects.create(
+                session=session,
+                dtc_code=dtc,
+                status='ACTIVE'
+            )
+
+        # Save live data
+        live_data = request.data.get('live_data', {})
+        for pid, value in live_data.items():
+            OBDReading.objects.create(
+                session=session,
+                pid=pid,
+                value=value,
+                unit=''  # determine unit from pid
+            )
+
+        session.dtc_count = len(dtc_codes)
+        session.status = 'COMPLETED_WITH_DTC' if dtc_codes else 'COMPLETED'
+        session.completed_at = now()
+        session.duration_seconds = (session.completed_at - session.started_at).seconds
+        session.save()
+
+        # Return response with report
+        return Response({
+            'session': DiagnosisSessionSerializer(session).data,
+            'dtcs': DiagnosisDTCSerializer(DiagnosisDTC.objects.filter(session=session), many=True).data,
+            'readings': OBDReadingSerializer(OBDReading.objects.filter(session=session), many=True).data
+        })
+
+    @action(detail=True, methods=['get'])
+    def status(self, request, pk=None):
+        session = self.get_object()
+        return Response(DiagnosisSessionSerializer(session).data)
+
+    @action(detail=True, methods=['get'])
+    def report(self, request, pk=None):
+        session = self.get_object()
+        dtcs = DiagnosisDTC.objects.filter(session=session)
+        readings = OBDReading.objects.filter(session=session)
+        return Response({
+            'session': DiagnosisSessionSerializer(session).data,
+            'dtcs': DiagnosisDTCSerializer(dtcs, many=True).data,
+            'readings': OBDReadingSerializer(readings, many=True).data
+        })
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        session = self.get_object()
+        session.status = 'CANCELLED'
+        session.save()
+        return Response(DiagnosisSessionSerializer(session).data)
+
+class DiagnosisHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = DiagnosisSessionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return DiagnosisSession.objects.filter(user=self.request.user).order_by('-created_at')
+
+# ============ DIAGNOSIS VIEWSETS ============
+from rest_framework.decorators import action
+from apps.diagnosis.models import DiagnosisSession, DiagnosisDTC, OBDReading, OBDScanEvent, DTCCode
+from .serializers import (
+    DiagnosisSessionSerializer, DiagnosisDTCSerializer,
+    OBDReadingSerializer, OBDScanEventSerializer, DTCCodeSerializer
+)
+
+def decode_dtc_from_raw(raw_hex: str):
+    # Simplified DTC decoding - for demonstration
+    codes = []
+    if not raw_hex:
+        return codes
+    # Example: '430300' -> ['P0300'] (actual decoding is more complex)
+    # For now, we just return a placeholder based on raw_hex
+    # In real implementation, use a library or custom logic
+    return codes
+
+    serializer_class = DiagnosisSessionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return DiagnosisSession.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def connect(self, request, pk=None):
+        session = self.get_object()
+        vin = request.data.get('vin')
+        protocol = request.data.get('protocol')
+        adapter_name = request.data.get('adapter_name')
+        battery_voltage = request.data.get('battery_voltage')
+        connected = request.data.get('connected', False)
+
+        if vin:
+            session.vin = vin
+        if protocol:
+            session.protocol = protocol
+        if adapter_name:
+            session.adapter_name = adapter_name
+        if battery_voltage is not None:
+            session.battery_voltage = battery_voltage
+        session.ecu_connected = connected
+        session.status = 'CONNECTED' if connected else 'PENDING'
+        session.save()
+        return Response(DiagnosisSessionSerializer(session).data)
+
+    @action(detail=True, methods=['post'])
+    def start(self, request, pk=None):
+        session = self.get_object()
+        session.status = 'SCANNING'
+        session.started_at = now()
+        session.save()
+        return Response(DiagnosisSessionSerializer(session).data)
+
+    @action(detail=True, methods=['post'])
+    def process(self, request, pk=None):
+        session = self.get_object()
+        responses = request.data.get('responses', {})
+        raw_dtc = responses.get('raw_dtc_response', '')
+        dtc_codes = decode_dtc_from_raw(raw_dtc)
+
+        for code in dtc_codes:
+            dtc, _ = DTCCode.objects.get_or_create(code=code)
+            DiagnosisDTC.objects.create(
+                session=session,
+                dtc_code=dtc,
+                status='ACTIVE'
+            )
+
+        live_data = request.data.get('live_data', {})
+        for pid, value in live_data.items():
+            OBDReading.objects.create(
+                session=session,
+                pid=pid,
+                value=value,
+                unit=''
+            )
+
+        session.dtc_count = len(dtc_codes)
+        session.status = 'COMPLETED_WITH_DTC' if dtc_codes else 'COMPLETED'
+        session.completed_at = now()
+        session.duration_seconds = (session.completed_at - session.started_at).seconds
+        session.save()
+
+        return Response({
+            'session': DiagnosisSessionSerializer(session).data,
+            'dtcs': DiagnosisDTCSerializer(DiagnosisDTC.objects.filter(session=session), many=True).data,
+            'readings': OBDReadingSerializer(OBDReading.objects.filter(session=session), many=True).data
+        })
+
+    @action(detail=True, methods=['get'])
+    def status(self, request, pk=None):
+        session = self.get_object()
+        return Response(DiagnosisSessionSerializer(session).data)
+
+    @action(detail=True, methods=['get'])
+    def report(self, request, pk=None):
+        session = self.get_object()
+        dtcs = DiagnosisDTC.objects.filter(session=session)
+        readings = OBDReading.objects.filter(session=session)
+        return Response({
+            'session': DiagnosisSessionSerializer(session).data,
+            'dtcs': DiagnosisDTCSerializer(dtcs, many=True).data,
+            'readings': OBDReadingSerializer(readings, many=True).data
+        })
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        session = self.get_object()
+        session.status = 'CANCELLED'
+        session.save()
+        return Response(DiagnosisSessionSerializer(session).data)
+
+class DiagnosisHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = DiagnosisSessionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return DiagnosisSession.objects.filter(user=self.request.user).order_by('-created_at')
+
+class DTCCodeViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = DTCCode.objects.all()
+    serializer_class = DTCCodeSerializer
+    permission_classes = [IsAuthenticated]

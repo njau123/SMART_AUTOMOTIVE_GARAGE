@@ -1,0 +1,406 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_images.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/utils/auth_guard.dart';
+import '../../../shared/widgets/skeleton.dart';
+import '../../bookings/screens/booking_create_screen.dart';
+
+class MechanicsScreen extends StatefulWidget {
+  const MechanicsScreen({super.key});
+
+  @override
+  State<MechanicsScreen> createState() => _MechanicsScreenState();
+}
+
+class _MechanicsScreenState extends State<MechanicsScreen> {
+  bool _loading = true;
+  String? _error;
+  List<dynamic> _mechanics = [];
+  bool _onlyAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await MethodsAPI.getMechanics(onlyAvailable: _onlyAvailable);
+      if (!mounted) return;
+      setState(() {
+        _mechanics = data;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceAll('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
+
+  void _showMechanic(Map<String, dynamic> m) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _mechanicSheet(m),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Find Mechanics'),
+        actions: [
+          IconButton(
+            icon: Icon(_onlyAvailable
+                ? Icons.filter_alt
+                : Icons.filter_alt_outlined),
+            onPressed: () {
+              setState(() => _onlyAvailable = !_onlyAvailable);
+              _load();
+            },
+          ),
+        ],
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(AppImages.findMechanicsBg),
+            fit: BoxFit.cover,
+            opacity: 0.45,
+          ),
+        ),
+        child: RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.primary,
+        child: _loading
+            ? _buildLoading()
+            : _error != null
+                ? _buildError()
+                : _mechanics.isEmpty
+                    ? _buildEmpty()
+                    : _buildList(),
+      )),
+    );
+  }
+
+  Widget _buildLoading() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: const [
+        Skeleton(height: 100),
+        SizedBox(height: 12),
+        Skeleton(height: 100),
+        SizedBox(height: 12),
+        Skeleton(height: 100),
+      ],
+    );
+  }
+
+  Widget _buildError() {
+    return ListView(
+      children: [
+        const SizedBox(height: 80),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                const Icon(Icons.cloud_off_outlined,
+                    size: 64, color: AppColors.textMuted),
+                const SizedBox(height: 16),
+                Text(_error!,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                        color: AppColors.textSecondary)),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Try again'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmpty() {
+    return ListView(
+      children: [
+        const SizedBox(height: 80),
+        Center(
+          child: Column(
+            children: [
+              const Icon(Icons.engineering_outlined,
+                  size: 64, color: AppColors.textMuted),
+              const SizedBox(height: 16),
+              Text('No mechanics available',
+                  style: GoogleFonts.poppins(
+                      fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Text('Try again later',
+                  style: GoogleFonts.poppins(
+                      fontSize: 13, color: AppColors.textSecondary)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildList() {
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _mechanics.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (_, i) {
+        final m = _mechanics[i] as Map<String, dynamic>;
+        return _mechanicCard(m);
+      },
+    );
+  }
+
+  Widget _mechanicCard(Map<String, dynamic> m) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isAvailable = m['is_available'] == true;
+    final rating = double.tryParse(m['rating_average']?.toString() ?? '0') ?? 0;
+
+    return GestureDetector(
+      onTap: () => _showMechanic(m),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1A1F29) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? const Color(0xFF2A3038) : AppColors.border,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Center(
+                child: Text(
+                  (m['full_name']?.toString() ?? 'M')
+                      .substring(0, 1)
+                      .toUpperCase(),
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    m['full_name']?.toString() ?? 'Mechanic',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    m['expertise']?.toString() ?? 'General Mechanic',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      ...List.generate(5, (i) {
+                        return Icon(
+                          i < rating.round()
+                              ? Icons.star
+                              : Icons.star_border,
+                          size: 14,
+                          color: AppColors.accent,
+                        );
+                      }),
+                      const SizedBox(width: 6),
+                      Text(
+                        rating.toStringAsFixed(1),
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isAvailable
+                    ? AppColors.success.withValues(alpha: 0.1)
+                    : AppColors.danger.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                isAvailable ? 'Available' : 'Busy',
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: isAvailable ? AppColors.success : AppColors.danger,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mechanicSheet(Map<String, dynamic> m) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: AppColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Center(
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Center(
+                child: Text(
+                  (m['full_name']?.toString() ?? 'M')
+                      .substring(0, 1)
+                      .toUpperCase(),
+                  style: GoogleFonts.poppins(
+                    fontSize: 34,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(
+              m['full_name']?.toString() ?? 'Mechanic',
+              style: GoogleFonts.poppins(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: Text(
+              m['expertise']?.toString() ?? 'General Mechanic',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _detailRow(Icons.business_outlined, 'Business',
+              m['business_name']?.toString() ?? '-'),
+          _detailRow(Icons.phone_outlined, 'Phone',
+              m['phone_number']?.toString() ?? '-'),
+          _detailRow(Icons.email_outlined, 'Email',
+              m['email']?.toString() ?? '-'),
+          _detailRow(Icons.work_outline, 'Experience',
+              m['experience']?.toString() ?? '-'),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                if (!AuthGuard.requireLogin(context)) return;
+                final mechanicId = int.tryParse(m['id'].toString()) ?? 0;
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BookingCreateScreen(
+                      mechanicId: mechanicId,
+                      mechanicName: m['full_name']?.toString() ?? 'Mechanic',
+                      mechanicExpertise: m['expertise']?.toString() ?? 'General Mechanic',
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.book_online, size: 20),
+              label: const Text('Book Sasa'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.primary),
+          const SizedBox(width: 12),
+          Text(label,
+              style: GoogleFonts.poppins(
+                  fontSize: 13, color: AppColors.textSecondary)),
+          const Spacer(),
+          Flexible(
+            child: Text(value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                    fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+}

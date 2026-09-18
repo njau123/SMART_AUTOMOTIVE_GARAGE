@@ -1,0 +1,210 @@
+from apps.diagnosis.models import DiagnosisSession, DiagnosisDTC, OBDReading, OBDScanEvent, DTCCode
+from apps.diagnosis.models import DiagnosisSession, DiagnosisDTC, OBDReading, OBDScanEvent, DTCCode
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from apps.vehicles.models import Vehicle
+from apps.mechanics.models import MechanicProfile
+from apps.diagnosis.models import DiagnosisSession, DiagnosisDTC, OBDReading, OBDScanEvent, DTCCode
+from apps.diagnosis.models import DiagnosisSession, DiagnosisDTC, OBDReading, OBDScanEvent, DTCCode
+from apps.services.models import Service, ServiceCategory
+from apps.spare_parts.models import SparePart, Category, Brand
+from apps.bookings.models import Booking
+from apps.diagnosis.models import DTCCode
+from apps.wallet.models import Wallet, Transaction
+from apps.payments.models import Payment
+from apps.news.models import News
+from apps.advertisements.models import Advertisement
+
+User = get_user_model()
+
+# ============ USER ============
+class UserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number', 'password']
+
+    def create(self, validated_data):
+        return User.objects.create_user(**validated_data)
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number', 'role', 'created_at']
+        read_only_fields = ['id', 'email', 'created_at']
+
+# ============ MECHANIC ============
+class MechanicProfileSerializer(serializers.ModelSerializer):
+    user = UserProfileSerializer(read_only=True)
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MechanicProfile
+        fields = ['id', 'user', 'business_name', 'expertise', 'is_available',
+                  'latitude', 'longitude', 'rating_average', 'total_reviews', 'full_name']
+
+    def get_full_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}"
+
+# ============ VEHICLE ============
+class VehicleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vehicle
+        fields = ['id', 'make', 'model', 'year', 'license_plate', 'registration_number',
+                  'color', 'image', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+# ============ SERVICE ============
+class ServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Service
+        fields = ['id', 'name', 'description', 'price', 'estimated_duration', 'category']
+
+# ============ SPARE PART ============
+class SparePartSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SparePart
+        fields = ['id', 'name', 'brand', 'category', 'price', 'stock', 'image', 'compatible_vehicles']
+
+# ============ BOOKING ============
+class BookingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Booking
+        fields = ['id', 'customer', 'mechanic', 'vehicle', 'service',
+                  'scheduled_date', 'scheduled_time', 'status', 'notes',
+                  'created_at', 'updated_at']
+        read_only_fields = ['id', 'customer', 'created_at', 'updated_at']
+
+# ============ WALLET ============
+class WalletSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Wallet
+        fields = ['id', 'user', 'balance', 'currency']
+
+class TransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = ['id', 'wallet', 'amount', 'transaction_type', 'status', 'reference', 'created_at']
+
+# ============ PAYMENT ============
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = ['id', 'user', 'amount', 'provider', 'status', 'external_reference', 'created_at']
+
+# ============ NEWS ============
+class NewsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = News
+        fields = ['id', 'title', 'content', 'image', 'category', 'is_published', 'created_at']
+
+# ============ ADVERTISEMENT ============
+class AdvertisementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Advertisement
+        fields = ['id', 'title', 'content', 'image', 'is_active', 'start_at', 'end_at']
+
+class DTCCodeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DTCCode
+        fields = ['id', 'code', 'description', 'possible_causes', 'solutions']
+
+class DiagnosisSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiagnosisSession
+        fields = ['id', 'user', 'vehicle', 'scan_type', 'status', 'vin', 'protocol',
+                  'adapter_name', 'battery_voltage', 'ecu_connected', 'dtc_count',
+                  'started_at', 'completed_at', 'duration_seconds', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at']
+
+class DiagnosisDTCSerializer(serializers.ModelSerializer):
+    dtc_code = DTCCodeSerializer(read_only=True)
+
+    class Meta:
+        model = DiagnosisDTC
+        fields = ['id', 'session', 'dtc_code', 'status', 'created_at']
+
+class OBDReadingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OBDReading
+        fields = ['id', 'session', 'pid', 'value', 'unit', 'timestamp']
+
+class OBDScanEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OBDScanEvent
+        fields = ['id', 'session', 'event_type', 'description', 'data', 'created_at']
+
+class DTCCodeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DTCCode
+        fields = ['id', 'code', 'description', 'possible_causes', 'solutions']
+
+class DiagnosisSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiagnosisSession
+        fields = ['id', 'user', 'vehicle', 'scan_type', 'status', 'vin', 'protocol',
+                  'adapter_name', 'battery_voltage', 'ecu_connected', 'dtc_count',
+                  'started_at', 'completed_at', 'duration_seconds', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at']
+
+class DiagnosisDTCSerializer(serializers.ModelSerializer):
+    dtc_code = DTCCodeSerializer(read_only=True)
+
+    class Meta:
+        model = DiagnosisDTC
+        fields = ['id', 'session', 'dtc_code', 'status', 'created_at']
+
+class OBDReadingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OBDReading
+        fields = ['id', 'session', 'pid', 'value', 'unit', 'timestamp']
+
+class OBDScanEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OBDScanEvent
+        fields = ['id', 'session', 'event_type', 'description', 'data', 'created_at']
+# ============ DIAGNOSIS SERIALIZERS ============
+from rest_framework import serializers
+from apps.diagnosis.models import DiagnosisSession, DiagnosisDTC, OBDReading, OBDScanEvent, DTCCode
+
+class DTCCodeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DTCCode
+        fields = ['id', 'code', 'description', 'possible_causes', 'solutions']
+
+class DiagnosisSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiagnosisSession
+        fields = [
+            'id', 'user', 'vehicle', 'mechanic', 'session_id', 'source',
+            'status', 'started_at', 'completed_at', 'mileage',
+            'battery_voltage', 'protocol', 'device_name', 'device_mac_address',
+            'raw_data', 'summary', 'notes', 'error_message',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+    def create(self, validated_data):
+        # Ensure user is set from request
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['user'] = request.user
+        return super().create(validated_data)
+
+class DiagnosisDTCSerializer(serializers.ModelSerializer):
+    dtc_code = DTCCodeSerializer(read_only=True)
+
+    class Meta:
+        model = DiagnosisDTC
+        fields = ['id', 'session', 'dtc_code', 'status', 'created_at']
+
+class OBDReadingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OBDReading
+        fields = ['id', 'session', 'pid', 'value', 'unit', 'timestamp']
+
+class OBDScanEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OBDScanEvent
+        fields = ['id', 'session', 'event_type', 'description', 'data', 'created_at']

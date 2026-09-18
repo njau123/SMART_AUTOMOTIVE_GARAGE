@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Static / media
+staticfiles/
+media/
+uploads/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+coverage.xml
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# Redis
+dump.rdb
+
+# Secrets
+*.json
+firebase-service-account.json
+serviceAccountKey.json
+
+.env
+firebase-service-account.json
+__pycache__/
+*.py[cod]
+*.sqlite3
+media/
+staticfiles/
+# Firebase Admin SDK (USIWEKE GITHUB)
+firebase-service-account.json
+*.bak_*
+_backups_*/
+db.sqlite3

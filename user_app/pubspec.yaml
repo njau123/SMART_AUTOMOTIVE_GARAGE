@@ -1,0 +1,57 @@
+name: user_app
+description: Smart Automotive Garage - User App
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Networking
+  http: ^1.6.0
+  connectivity_plus: ^6.0.0
+
+  # State Management
+  provider: ^6.1.5+1
+  google_fonts: ^8.2.1
+
+  # Storage
+  shared_preferences: ^2.5.5
+
+  # Firebase
+  firebase_core: ^4.14.0
+  firebase_auth: ^6.5.7
+  firebase_messaging: ^16.6.0
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.0
+
+  # UI
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  carousel_slider: ^5.0.0
+  image_picker: ^1.1.2
+
+  # Bluetooth (OBD-II ELM327)
+  flutter_blue_plus: ^1.32.0
+
+  # Utilities
+  intl: ^0.18.1
+  url_launcher: ^6.2.1
+  geolocator: ^10.1.0
+  permission_handler: ^11.0.0
+  path_provider: ^2.1.4
+  record: ^5.1.2
+  file_picker: ^8.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

@@ -1,0 +1,40 @@
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import (
+    RegisterView, UserProfileView, MechanicProfileView,
+    VehicleViewSet, MechanicViewSet, ServiceViewSet,
+    SparePartViewSet, BookingViewSet,
+    WalletViewSet, TransactionViewSet, PaymentViewSet,
+    NewsViewSet, AdvertisementViewSet,
+    DiagnosisSessionViewSet, DiagnosisHistoryViewSet
+)
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+router = DefaultRouter()
+router.register(r'vehicles', VehicleViewSet, basename='vehicle')
+router.register(r'mechanics', MechanicViewSet, basename='mechanic')
+router.register(r'services', ServiceViewSet, basename='service')
+router.register(r'spare-parts', SparePartViewSet, basename='sparepart')
+router.register(r'bookings', BookingViewSet, basename='booking')
+router.register(r'wallet', WalletViewSet, basename='wallet')
+router.register(r'transactions', TransactionViewSet, basename='transaction')
+router.register(r'payments', PaymentViewSet, basename='payment')
+router.register(r'news', NewsViewSet, basename='news')
+router.register(r'advertisements', AdvertisementViewSet, basename='advertisement')
+router.register(r'diagnosis/scans', DiagnosisSessionViewSet, basename='diagnosis')
+router.register(r'diagnosis/history', DiagnosisHistoryViewSet, basename='diagnosis-history')
+
+urlpatterns = [
+    path('auth/register/', RegisterView.as_view(), name='register'),
+    path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('users/profile/', UserProfileView.as_view(), name='user_profile'),
+    path('mechanics/profile/', MechanicProfileView.as_view(), name='mechanic_profile'),
+]
+
+    path("diagnosis/scans/<int:pk>/status/", diagnosis_status, name="diagnosis-status"),
+urlpatterns += router.urls
+
+# Custom status view
+from .views import DiagnosisSessionViewSet
+diagnosis_status = DiagnosisSessionViewSet.as_view({'get': 'status'})
