@@ -10,6 +10,8 @@ import '../../../core/theme/theme_controller.dart';
 import '../../../shared/widgets/app_drawer.dart';
 import '../../../shared/widgets/top_nav_bar.dart';
 import '../../../shared/widgets/ad_carousel.dart';
+import '../../../shared/widgets/quick_links_bar.dart';
+import '../../../shared/widgets/news_ticker.dart';
 import '../../../shared/widgets/service_card.dart';
 import '../../../shared/widgets/spare_part_card.dart';
 import '../../../shared/widgets/news_card.dart';
@@ -336,6 +338,30 @@ class _HomeScreenState extends State<HomeScreen> {
         KeyedSubtree(key: _aboutKey, child: const SizedBox(height: 1)),
         const SizedBox(height: 20),
 
+        // ===== QUICK LINKS (horizontal) =====
+        const QuickLinksBar(),
+        const SizedBox(height: 16),
+
+        // ===== NEWS TICKER (picha + maandishi yanatembea) =====
+        if (_ads.isNotEmpty || _news.isNotEmpty)
+          NewsTicker(
+            items: [
+              ..._ads.map((a) => {
+                    'title': a['title'] ?? '',
+                    'description': a['description'] ?? '',
+                    'image': a['image'] ?? '',
+                  }),
+              ..._news.map((n) => {
+                    'title': n['title'] ?? '',
+                    'description': n['summary'] ?? n['description'] ?? '',
+                    'image': n['featured_image'] ?? n['image'] ?? '',
+                  }),
+            ],
+            icon: Icons.campaign_outlined,
+          ),
+        if (_ads.isNotEmpty || _news.isNotEmpty)
+          const SizedBox(height: 20),
+
         // ===== ADVERTISEMENTS =====
         if (_ads.isNotEmpty) ...[
           _sectionHeader('Advertisements', subtitle: 'From Smart Garage'),
@@ -457,6 +483,10 @@ class _HomeScreenState extends State<HomeScreen> {
         // ===== LOCATION =====
         KeyedSubtree(key: _locationKey, child: const SizedBox(height: 1)),
         _locationSection(),
+
+        // ===== CONTACT US =====
+        KeyedSubtree(key: _contactKey, child: const SizedBox(height: 1)),
+        _contactSection(),
 
         // ===== FOOTER =====
         _footer(),
