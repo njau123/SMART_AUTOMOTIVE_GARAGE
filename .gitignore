@@ -60,3 +60,6 @@ render_env_payload.json
 *.bak
 .env
 .env.local
+
+# Stray backup files (keep _archive/ but ignore stray .bak)
+*.bak*
