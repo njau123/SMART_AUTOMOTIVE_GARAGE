@@ -1,7 +1,8 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
+from django.views.static import serve
 from apps.dashboard import views as dashboard_views
 from apps.accounts import views as accounts_views
 from apps.mechanics import views as mechanics_views
@@ -26,6 +27,15 @@ urlpatterns = [
     path('api/v1/admin/stats/', dashboard_views.AdminStatsView.as_view()),
     path('api/v1/admin/advertisements/', advertisements_views.admin_ads),
     path('api/v1/admin/advertisements/create/', advertisements_views.admin_create_ad),
+]
+
+# === MEDIA FILES — serve kwenye production (temporary) ===
+# Kumbuka: Render ephemeral — media inafutwa kila redeploy.
+# Suluhisho la kudumu: Cloudinary au S3 (baadaye).
+urlpatterns += [
+    re_path(r'^media/(?P<path>.*)$', serve, {
+        'document_root': settings.MEDIA_ROOT,
+    }),
 ]
 
 if settings.DEBUG:
