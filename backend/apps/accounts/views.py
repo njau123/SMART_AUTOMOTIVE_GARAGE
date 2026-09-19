@@ -29,6 +29,32 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
 class EmailTokenObtainPairView(TokenObtainPairView):
     serializer_class = EmailTokenObtainPairSerializer
 
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Credentials not found",
+                    "data": None,
+                    "errors": {
+                        "detail": "No account found with the given credentials"
+                    },
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        return Response(
+            {
+                "success": True,
+                "message": "Login successful",
+                "data": serializer.validated_data,
+                "errors": None,
+            },
+            status=status.HTTP_200_OK,
+        )
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
