@@ -9,18 +9,21 @@ class AppConstants {
   static const String appVersion = '1.0.0';
 
   /// ============================================
-  /// BACKEND URL — inategemea environment
+  /// BACKEND URL — environment-based
   /// ============================================
-  /// - Web (Chrome): localhost
-  /// - Android Emulator: 10.0.2.2
-  /// - Simu Halisi (WiFi moja): IP ya PC
+  /// - Web (Vercel/Chrome): Render production
+  /// - Android (dev): PC IP (badilisha kama inahitajika)
+  /// - iOS/macOS/Linux (dev): localhost
   /// ============================================
+  static const String productionUrl = 'https://smart-garage-backend.onrender.com/api/v1/';
   static const String _pcIp = '192.168.1.174';
 
   static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:8000/api/v1/';
+    // WEB = production (Vercel)
+    if (kIsWeb) return productionUrl;
+
+    // Mobile/Desktop = dev (local backend)
     if (Platform.isAndroid) {
-      // Simu halisi inatumia IP ya PC
       return 'http://$_pcIp:8000/api/v1/';
     }
     return 'http://localhost:8000/api/v1/';
@@ -30,7 +33,7 @@ class AppConstants {
   static const int userSessionMinutes = 10;
   static const int adminSessionHours = 3;
 
-  /// Payment info (imefichwa kwa UI)
+  /// Payment info
   static const String companyName = 'Automotive Smart Garage';
   static const String companyPhone = 'Automotive Smart Garage Account';
 }

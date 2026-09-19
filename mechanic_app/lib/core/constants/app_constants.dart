@@ -2,24 +2,17 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AppConstants {
+  AppConstants._();
+
   static const String appName = 'Smart Garage Mechanic';
   static const String appVersion = '1.0.0';
 
-  /// Base URL ya backend.
-  ///
-  /// - Web: http://localhost:8000/api/v1/
-  /// - Android emulator: http://10.0.2.2:8000/api/v1/
-  /// - iOS simulator: http://localhost:8000/api/v1/
-  /// - Kifaa halisi: badilisha na IP ya kompyuta yako
+  /// Backend URL — environment-based
+  static const String productionUrl = 'https://smart-garage-backend.onrender.com/api/v1/';
+
   static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:8000/api/v1/';
-    }
-    if (Platform.isAndroid) {
-      // 10.0.2.2 = kompyuta yako kutoka ndani ya emulator
-      return 'http://10.0.2.2:8000/api/v1/';
-    }
-    // iOS, macOS, Windows, Linux
+    if (kIsWeb) return productionUrl;
+    if (Platform.isAndroid) return 'http://10.0.2.2:8000/api/v1/';
     return 'http://localhost:8000/api/v1/';
   }
 }
