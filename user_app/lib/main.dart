@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/update_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'core/constants/app_constants.dart';
@@ -26,6 +27,9 @@ void main() async {
   await ThemeController.instance.init();
   await AuthState.instance.init();
   runApp(const UserApp());
+
+  // Anza auto-update service (bila kusubiri)
+  UpdateService.init();
 }
 
 class UserApp extends StatelessWidget {
