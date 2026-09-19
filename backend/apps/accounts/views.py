@@ -3,6 +3,7 @@ from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -17,7 +18,23 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         attrs['username'] = attrs.get('email')
-        return super().validate(attrs)
+        try:
+            data = super().validate(attrs)
+            return {
+                "success": True,
+                "message": "Login successful",
+                "data": data,
+                "errors": None,
+            }
+        except Exception:
+            raise AuthenticationFailed({
+                "success": False,
+                "message": "Credentials not found",
+                "data": None,
+                "errors": {
+                    "detail": "No account found with the given credentials"
+                },
+            })
 
     def get_token(self, cls, user):
         token = super().get_token(user)
