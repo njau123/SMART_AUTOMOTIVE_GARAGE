@@ -48,3 +48,15 @@ mechanic_app_new/
 /tmp/git_backups/
 *.backup
 *.bak
+
+# === SECRETS — USI-PUSH KAMWE ===
+*.b64
+firebase_key.b64
+render_env_all.json
+render_env_payload.json
+.neon
+*.backup
+*.backup2
+*.bak
+.env
+.env.local
