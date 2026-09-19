@@ -516,6 +516,42 @@ class ContactAPI {
 
 // =================== PAYMENT API ===================
 class PaymentAPI {
+  /// Unified payment — inatumika kwa kila kitu (OBD, bookings, services, spare parts).
+  /// Mfumo unatambua mtandao (Vodacom, Tigo, Airtel, Halotel, TTCL) au benki (NMB, CRDB, n.k.)
+  static Future<Map<String, dynamic>> initiateUnified({
+    required double amount,
+    required String purpose,
+    required String methodType, // 'MOBILE_MONEY' au 'BANK'
+    required String identifier, // phone number au account/card
+    String? networkOverride, // mfano 'Vodacom', 'Tigo/Yas' — kama user anabadilisha
+    String? bankOverride, // mfano 'NMB', 'CRDB' — kama user anabadilisha
+    String description = "",
+    String referenceId = "",
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final body = <String, dynamic>{
+      "amount": amount.toStringAsFixed(2),
+      "purpose": purpose,
+      "method_type": methodType,
+      "identifier": identifier,
+      "description": description,
+      "reference_id": referenceId,
+    };
+    if (networkOverride != null && networkOverride.isNotEmpty) {
+      body["network_override"] = networkOverride;
+    }
+    if (bankOverride != null && bankOverride.isNotEmpty) {
+      body["bank_override"] = bankOverride;
+    }
+    final data = await ApiService.post(
+      "payments/unified/initiate/",
+      body,
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Legacy method — inatumika kwa compatibility.
   static Future<Map<String, dynamic>> initiate({
     required double amount,
     required String purpose,

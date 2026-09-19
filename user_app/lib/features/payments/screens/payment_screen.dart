@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/services/api_service.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -23,33 +23,68 @@ class PaymentScreen extends StatefulWidget {
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
-  final _phoneCtrl = TextEditingController();
+  String _methodType = 'MOBILE_MONEY'; // 'MOBILE_MONEY' au 'BANK'
+  final _identifierCtrl = TextEditingController();
   bool _loading = false;
+
+  // Optional overrides
+  String? _networkOverride;
+  String? _bankOverride;
+
+  final _networks = ['Vodacom', 'Tigo/Yas', 'Airtel', 'Halotel', 'TTCL'];
+  final _banks = ['NMB', 'CRDB', 'Azania', 'NBC'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserPhone();
+  }
 
   @override
   void dispose() {
-    _phoneCtrl.dispose();
+    _identifierCtrl.dispose();
     super.dispose();
   }
 
+  Future<void> _loadUserPhone() async {
+    try {
+      final profile = await AuthAPI.getProfile();
+      if (!mounted) return;
+      final phone = profile['phone_number']?.toString() ?? '';
+      if (phone.isNotEmpty) {
+        _identifierCtrl.text = phone;
+      }
+    } catch (_) {}
+  }
+
   Future<void> _pay() async {
-    final phone = _phoneCtrl.text.trim();
-    if (phone.isEmpty) {
-      _snack("Weka namba yako ya simu", error: true);
+    final identifier = _identifierCtrl.text.trim();
+    if (identifier.isEmpty) {
+      _snack(
+        _methodType == 'MOBILE_MONEY'
+            ? "Weka namba yako ya simu"
+            : "Weka account au card number",
+        error: true,
+      );
       return;
     }
+
     setState(() => _loading = true);
     try {
-      final res = await PaymentAPI.initiate(
+      final res = await PaymentAPI.initiateUnified(
         amount: widget.amount,
         purpose: widget.purpose,
-        phoneNumber: phone,
+        methodType: _methodType,
+        identifier: identifier,
+        networkOverride: _networkOverride,
+        bankOverride: _bankOverride,
         description: widget.title,
         referenceId: widget.referenceId ?? "",
       );
+
       if (!mounted) return;
       if (res["success"] == true) {
-        _showSuccessDialog(res);
+        _showInstructionsDialog(res);
       } else {
         _snack(res["message"]?.toString() ?? "Imeshindikana", error: true);
       }
@@ -73,8 +108,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  void _showSuccessDialog(Map<String, dynamic> res) {
+  void _showInstructionsDialog(Map<String, dynamic> res) {
     final instructions = res["instructions"]?.toString() ?? "";
+    final data = res["data"] as Map? ?? {};
+    final reference = data["reference"]?.toString() ?? "";
+    final detected = data["detected_network_or_bank"]?.toString() ?? "";
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -82,46 +121,92 @@ class _PaymentScreenState extends State<PaymentScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Icon(Icons.info_outline, color: AppColors.primary, size: 28),
+            const Icon(Icons.info_outline, color: AppColors.primary, size: 28),
             const SizedBox(width: 10),
-            Text("Malipo Yameanzishwa",
-                style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+            Expanded(
+              child: Text("Malipo Yameanzishwa",
+                  style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Malipo yameanzishwa kikamilifu.",
-                style: GoogleFonts.poppins(fontSize: 14)),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF3E0),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Maelekezo:",
-                      style: GoogleFonts.poppins(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  Text(
-                    instructions.isNotEmpty
-                        ? instructions
-                        : "Weka namba yako ya Siri ili kuthibitisha malipo kwenda Automotive Smart Garage Account.",
-                    style: GoogleFonts.poppins(fontSize: 12),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (detected.isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ],
+                  child: Text(
+                    "Imegundulika: $detected",
+                    style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Maelekezo:",
+                        style: GoogleFonts.poppins(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    Text(
+                      instructions.isNotEmpty
+                          ? instructions
+                          : "Fuata maelekezo ya malipo.",
+                      style: GoogleFonts.poppins(fontSize: 12, height: 1.6),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Text("Admin atathibitisha malipo yako hivi karibuni.",
+              if (reference.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Kumbukumbu: $reference",
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy, size: 18),
+                      onPressed: () async {
+                        await Clipboard.setData(
+                            ClipboardData(text: reference));
+                        if (mounted) {
+                          _snack("Reference imenakiliwa");
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                "Admin atathibitisha malipo yako hivi karibuni. "
+                "Unaweza kuona hali ya malipo kwenye 'Historia ya Malipo'.",
                 style: GoogleFonts.poppins(
-                    fontSize: 12, color: AppColors.textSecondary)),
-          ],
+                    fontSize: 11, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -149,6 +234,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // ===== AMOUNT CARD =====
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -178,22 +264,127 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              Text("Namba yako ya simu",
+
+              // ===== METHOD TYPE SELECTION =====
+              Text("Chagua njia ya kulipia",
                   style: GoogleFonts.poppins(
                       fontSize: 14, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _methodCard(
+                      title: "Simu",
+                      subtitle: "M-Pesa, Tigo, Airtel, Halotel",
+                      icon: Icons.phone_android,
+                      isSelected: _methodType == 'MOBILE_MONEY',
+                      onTap: () => setState(() {
+                        _methodType = 'MOBILE_MONEY';
+                        _networkOverride = null;
+                        _bankOverride = null;
+                      }),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _methodCard(
+                      title: "Benki",
+                      subtitle: "NMB, CRDB, Azania, NBC",
+                      icon: Icons.account_balance,
+                      isSelected: _methodType == 'BANK',
+                      onTap: () => setState(() {
+                        _methodType = 'BANK';
+                        _networkOverride = null;
+                        _bankOverride = null;
+                      }),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ===== IDENTIFIER FIELD =====
+              Text(
+                _methodType == 'MOBILE_MONEY'
+                    ? "Namba yako ya simu"
+                    : "Account au Card number",
+                style: GoogleFonts.poppins(
+                    fontSize: 14, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 8),
               TextField(
-                controller: _phoneCtrl,
+                controller: _identifierCtrl,
                 keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
-                  hintText: "+255712345678 au 0759212300",
-                  prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                  hintText: _methodType == 'MOBILE_MONEY'
+                      ? "+255712345678 au 0759212300"
+                      : "Mfano: 23210042232",
+                  prefixIcon: Icon(
+                    _methodType == 'MOBILE_MONEY'
+                        ? Icons.phone_outlined
+                        : Icons.credit_card,
+                    size: 20,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+
+              // ===== OVERRIDE DROPDOWN =====
+              if (_methodType == 'MOBILE_MONEY') ...[
+                Text("Mtandao (kama unataka kubadilisha)",
+                    style: GoogleFonts.poppins(
+                        fontSize: 13, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  initialValue: _networkOverride,
+                  decoration: InputDecoration(
+                    hintText: "Auto-detect",
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 14),
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                        value: null, child: Text("Auto-detect")),
+                    ..._networks.map((n) => DropdownMenuItem(
+                          value: n,
+                          child: Text(n),
+                        )),
+                  ],
+                  onChanged: (v) => setState(() => _networkOverride = v),
+                ),
+              ] else ...[
+                Text("Benki (kama unataka kubadilisha)",
+                    style: GoogleFonts.poppins(
+                        fontSize: 13, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  initialValue: _bankOverride,
+                  decoration: InputDecoration(
+                    hintText: "Auto-detect",
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 14),
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                        value: null, child: Text("Auto-detect")),
+                    ..._banks.map((b) => DropdownMenuItem(
+                          value: b,
+                          child: Text(b),
+                        )),
+                  ],
+                  onChanged: (v) => setState(() => _bankOverride = v),
+                ),
+              ],
+              const SizedBox(height: 24),
+
+              // ===== INFO BOX =====
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -215,13 +406,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "1. Bonyeza 'Lipa Sasa'\n2. Utapewa maelekezo ya malipo\n3. Weka namba yako ya Siri\n4. Admin atathibitisha malipo yako",
+                      "1. Bonyeza 'Lipa Sasa'\n"
+                      "2. Utapewa maelekezo ya malipo\n"
+                      "3. Lipa kwa USSD au app ya benki\n"
+                      "4. Admin atathibitisha malipo yako\n"
+                      "5. Utapata notification mara moja",
                       style: GoogleFonts.poppins(fontSize: 12, height: 1.7),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
+
+              // ===== PAY BUTTON =====
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
@@ -249,6 +446,51 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _methodCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primary.withValues(alpha: 0.08)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.border,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon,
+                color: isSelected ? AppColors.primary : AppColors.textMuted,
+                size: 28),
+            const SizedBox(height: 6),
+            Text(title,
+                style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.textPrimary)),
+            const SizedBox(height: 2),
+            Text(subtitle,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                    fontSize: 10, color: AppColors.textSecondary)),
+          ],
         ),
       ),
     );
