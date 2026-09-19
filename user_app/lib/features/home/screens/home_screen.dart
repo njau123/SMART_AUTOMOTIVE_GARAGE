@@ -34,7 +34,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final _homeKey = GlobalKey();
   final _aboutKey = GlobalKey();
   final _whyUsKey = GlobalKey();
@@ -241,7 +240,6 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Column(
         children: [
           TopNavBar(
-            onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
             onHome: () => _scrollTo(_homeKey),
             onAbout: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const AboutScreen())),
@@ -459,10 +457,6 @@ class _HomeScreenState extends State<HomeScreen> {
         // ===== LOCATION =====
         KeyedSubtree(key: _locationKey, child: const SizedBox(height: 1)),
         _locationSection(),
-
-        // ===== CONTACT US =====
-        KeyedSubtree(key: _contactKey, child: const SizedBox(height: 1)),
-        _contactSection(),
 
         // ===== FOOTER =====
         _footer(),
