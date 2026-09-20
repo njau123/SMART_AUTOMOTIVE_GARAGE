@@ -168,3 +168,82 @@ class SparePart(models.Model):
             self.save()
             return True
         return False
+
+
+# ==================== ORDER MODEL ====================
+import uuid as _uuid
+from django.utils import timezone as _tz
+
+
+class SparePartOrder(models.Model):
+    """Oda ya spare part — user anaagiza, anaweka delivery details."""
+
+    class Status(models.TextChoices):
+        PENDING_PAYMENT = "PENDING_PAYMENT", "Pending Payment"
+        PAID = "PAID", "Paid"
+        PROCESSING = "PROCESSING", "Processing"
+        OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY", "Out for Delivery"
+        DELIVERED = "DELIVERED", "Delivered"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    class DeliveryType(models.TextChoices):
+        DELIVERY = "DELIVERY", "Delivery to Location"
+        PICKUP = "PICKUP", "Pickup at Garage"
+
+    order_number = models.CharField(max_length=50, unique=True, editable=False, db_index=True)
+    user = models.ForeignKey(
+        "accounts.User", on_delete=models.PROTECT,
+        related_name="spare_part_orders",
+    )
+    spare_part = models.ForeignKey(
+        SparePart, on_delete=models.PROTECT,
+        related_name="orders",
+    )
+    quantity = models.PositiveIntegerField(default=1)
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2)
+    total_price = models.DecimalField(max_digits=12, decimal_places=2)
+
+    # Delivery details (user anajaza baada ya payment)
+    delivery_type = models.CharField(
+        max_length=20, choices=DeliveryType.choices,
+        default=DeliveryType.DELIVERY,
+    )
+    delivery_location = models.CharField(max_length=255, blank=True)
+    delivery_region = models.CharField(max_length=100, blank=True)
+    delivery_date = models.DateField(null=True, blank=True)
+    delivery_time = models.CharField(max_length=20, blank=True)
+    delivery_notes = models.TextField(blank=True)
+
+    # Contact
+    contact_phone = models.CharField(max_length=20, blank=True)
+
+    # Payment link
+    payment_reference = models.CharField(max_length=100, blank=True, db_index=True)
+    payment_status = models.CharField(max_length=20, default="UNPAID")
+
+    status = models.CharField(
+        max_length=30, choices=Status.choices,
+        default=Status.PENDING_PAYMENT, db_index=True,
+    )
+
+    # Admin
+    admin_notes = models.TextField(blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "spare_part_orders"
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.order_number:
+            self.order_number = f"ORD-{_uuid.uuid4().hex[:10].upper()}"
+        if self.spare_part and self.quantity:
+            self.total_price = self.spare_part.price * self.quantity
+            self.unit_price = self.spare_part.price
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.order_number} - {self.spare_part.name}"

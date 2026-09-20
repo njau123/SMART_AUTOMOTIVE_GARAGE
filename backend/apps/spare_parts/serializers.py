@@ -56,3 +56,62 @@ class SparePartDetailSerializer(serializers.ModelSerializer):
             'is_on_sale', 'is_in_stock', 'views_count', 'orders_count',
             'created_at', 'updated_at'
         ]
+
+
+# ==================== ORDER SERIALIZERS ====================
+from .models import SparePartOrder
+
+
+class SparePartOrderCreateSerializer(serializers.Serializer):
+    """Create order — user anaagiza spare part."""
+    spare_part_id = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=1, default=1)
+    contact_phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+
+
+class SparePartOrderDeliverySerializer(serializers.Serializer):
+    """User anajaza delivery details baada ya payment."""
+    delivery_type = serializers.ChoiceField(
+        choices=["DELIVERY", "PICKUP"],
+        default="DELIVERY",
+    )
+    delivery_location = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    delivery_region = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    delivery_date = serializers.DateField(required=False, allow_null=True)
+    delivery_time = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    delivery_notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class SparePartOrderSerializer(serializers.ModelSerializer):
+    spare_part_name = serializers.CharField(source="spare_part.name", read_only=True)
+    spare_part_image = serializers.SerializerMethodField()
+    user_full_name = serializers.SerializerMethodField()
+    user_email = serializers.CharField(source="user.email", read_only=True)
+
+    class Meta:
+        model = SparePartOrder
+        fields = [
+            "id", "order_number", "user", "user_full_name", "user_email",
+            "spare_part", "spare_part_name", "spare_part_image",
+            "quantity", "unit_price", "total_price",
+            "delivery_type", "delivery_location", "delivery_region",
+            "delivery_date", "delivery_time", "delivery_notes",
+            "contact_phone", "payment_reference", "payment_status",
+            "status", "admin_notes", "delivered_at",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "order_number", "created_at", "updated_at"]
+
+    def get_spare_part_image(self, obj):
+        request = self.context.get("request")
+        if obj.spare_part and obj.spare_part.main_image:
+            url = obj.spare_part.main_image.url
+            if request:
+                return request.build_absolute_uri(url)
+            return url
+        return None
+
+    def get_user_full_name(self, obj):
+        if obj.user:
+            return f"{obj.user.first_name} {obj.user.last_name}".strip() or obj.user.email
+        return ""
