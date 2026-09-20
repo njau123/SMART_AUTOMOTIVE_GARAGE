@@ -1636,10 +1636,18 @@ class MechanicBookingActionView(APIView):
 
 # ============ OBD PAYMENT INITIATE ============
 class OBDPaymentInitiateView(APIView):
+    """
+    OBD payment initiate — inatumia network detection (Vodacom, Tigo, Airtel, n.k.)
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        amount = 30000
+        from decimal import Decimal
+        from django.utils import timezone
+        from apps.payments.detection import get_instructions, detect_network
+        from apps.payments.payment_config import PAYMENT_TIMEOUT_MINUTES
+
+        amount = Decimal("30000")
         phone_number = request.data.get("phone_number")
 
         if not phone_number:
@@ -1648,36 +1656,82 @@ class OBDPaymentInitiateView(APIView):
                     "success": False,
                     "message": "Phone number required",
                     "data": None,
-                    "errors": {
-                        "phone_number": ["This field is required."]
-                    },
+                    "errors": {"phone_number": ["This field is required."]},
                 },
                 status=400,
             )
 
+        # Detect network
+        detected_network = detect_network(phone_number)
+
+        # Unda reference
         reference = f"OBD-{uuid.uuid4().hex[:8].upper()}"
 
+        # Pata maelekezo
+        inst = get_instructions("MOBILE_MONEY", phone_number, amount, reference)
+
+        # Provider
+        try:
+            from apps.payments.models import PaymentProvider
+            if detected_network in [p.value for p in PaymentProvider]:
+                provider_value = detected_network
+            else:
+                provider_value = "MOBILE_MONEY"
+        except Exception:
+            provider_value = "MOBILE_MONEY"
+
+        # Unda payment
         payment = Payment.objects.create(
             user=request.user,
             amount=amount,
             currency="TZS",
-            provider="SANDBOX",
+            provider=provider_value,
             method="MOBILE_MONEY",
             purpose="OBD_DIAGNOSIS",
             reference=reference,
             phone_number=phone_number,
             status="PENDING",
             description="OBD-II vehicle diagnosis payment",
+            expires_at=timezone.now() + timezone.timedelta(minutes=PAYMENT_TIMEOUT_MINUTES),
             metadata={
                 "service": "OBD_DIAGNOSIS",
-                "price_tzs": amount,
+                "price_tzs": str(amount),
+                "detected_network": detected_network,
+                "instructions_text": inst["instructions"],
             },
         )
+
+        # === Notify admin wote ===
+        try:
+            from apps.notifications.models import Notification
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            admins = User.objects.filter(is_staff=True, is_active=True)
+            for admin in admins:
+                try:
+                    Notification.objects.create(
+                        recipient=admin,
+                        notification_type="payment",
+                        title=f"💰 Malipo ya OBD — {payment.reference}",
+                        message=(
+                            f"User: {request.user.email}\n"
+                            f"Kiasi: TSh {amount:,.0f}\n"
+                            f"Mtandao: {detected_network}\n"
+                            f"Namba: {phone_number}\n"
+                            f"Reference: {reference}"
+                        ),
+                        is_sent=True,
+                        metadata={"payment_id": payment.id, "type": "OBD_DIAGNOSIS"},
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
         return Response(
             {
                 "success": True,
-                "message": "OBD diagnosis payment initiated",
+                "message": "Malipo ya OBD yameanzishwa. Fuata maelekezo ya kulipia.",
                 "data": {
                     "payment_id": payment.id,
                     "reference": payment.reference,
@@ -1685,9 +1739,12 @@ class OBDPaymentInitiateView(APIView):
                     "currency": payment.currency,
                     "status": payment.status,
                     "purpose": payment.purpose,
-                    "instructions": "Dial *150*01# and enter code 123456",
-                    "code": "123456",
+                    "detected_network": detected_network,
+                    "is_detected": detected_network != "Unknown",
+                    "expires_at": payment.expires_at.isoformat() if payment.expires_at else None,
+                    "timeout_minutes": PAYMENT_TIMEOUT_MINUTES,
                 },
+                "instructions": inst["instructions"],
             },
             status=201,
         )
