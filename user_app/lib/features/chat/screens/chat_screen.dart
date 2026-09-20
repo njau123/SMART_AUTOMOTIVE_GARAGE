@@ -1,11 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/api_service.dart';
 
@@ -29,23 +27,40 @@ class _ChatScreenState extends State<ChatScreen> {
   List<dynamic> _messages = [];
   bool _loading = true;
   bool _sending = false;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
     _markRead();
+
+    // Polling: angalia messages mpya kila sekunde 3
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => _loadMessages(silent: true),
+    );
   }
 
-  Future<void> _loadMessages() async {
+  Future<void> _loadMessages({bool silent = false}) async {
     try {
       final data = await ChatAPI.getMessages(widget.roomId);
-      if (mounted) {
+      if (!mounted) return;
+
+      // Kama silent (polling) — angalia kama message mpya zimeongezeka
+      if (silent) {
+        if (data.length != _messages.length) {
+          setState(() => _messages = data);
+          _scrollToBottom();
+          // Mark read kwa messages mpya
+          _markRead();
+        }
+      } else {
         setState(() { _messages = data; _loading = false; });
         _scrollToBottom();
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && !silent) setState(() => _loading = false);
     }
   }
 
@@ -255,6 +270,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -300,14 +316,19 @@ class _ChatScreenState extends State<ChatScreen> {
     final content = msg['content']?.toString() ?? '';
     final sender = msg['sender_name']?.toString() ?? '';
     final time = msg['formatted_time']?.toString() ?? '';
+    final msgType = msg['message_type']?.toString() ?? 'text';
+    final mediaUrls = (msg['media_urls'] as List?) ?? [];
 
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: EdgeInsets.symmetric(
+          horizontal: msgType == 'image' || msgType == 'video' ? 6 : 14,
+          vertical: msgType == 'image' || msgType == 'video' ? 6 : 10,
+        ),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
         ),
         decoration: BoxDecoration(
           color: isMine ? AppColors.primary : Colors.white,
@@ -330,24 +351,21 @@ class _ChatScreenState extends State<ChatScreen> {
               isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             if (!isMine && sender.isNotEmpty)
-              Text(
-                sender,
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 4),
+                child: Text(
+                  sender,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
-            Text(
-              content,
-              style: GoogleFonts.poppins(
-                color: isMine ? Colors.white : Colors.black87,
-                fontSize: 14,
-              ),
-            ),
+            _messageContent(msgType, content, mediaUrls, isMine),
             if (time.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: 4, left: 4, right: 4),
                 child: Text(
                   time,
                   style: GoogleFonts.poppins(
@@ -362,6 +380,148 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
+  }
+
+  Widget _messageContent(
+    String msgType,
+    String content,
+    List mediaUrls,
+    bool isMine,
+  ) {
+    // ===== IMAGE =====
+    if (msgType == 'image' && mediaUrls.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          mediaUrls.first.toString(),
+          width: 220,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              width: 220,
+              height: 160,
+              color: Colors.grey.shade200,
+              child: const Center(child: CircularProgressIndicator()),
+            );
+          },
+          errorBuilder: (_, __, ___) => Container(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                const Icon(Icons.broken_image, color: Colors.grey),
+                const SizedBox(height: 4),
+                Text('Picha haipatikani',
+                    style: GoogleFonts.poppins(fontSize: 11)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ===== VIDEO =====
+    if (msgType == 'video' && mediaUrls.isNotEmpty) {
+      return GestureDetector(
+        onTap: () => _openVideo(mediaUrls.first.toString()),
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: 220,
+                height: 140,
+                color: Colors.black26,
+                child: const Center(
+                  child: Icon(Icons.play_circle_fill,
+                      size: 56, color: Colors.white),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 6,
+              left: 6,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text('Video',
+                    style: GoogleFonts.poppins(
+                        fontSize: 10, color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ===== AUDIO =====
+    if (msgType == 'audio' && mediaUrls.isNotEmpty) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.audiotrack,
+              color: isMine ? Colors.white : AppColors.primary),
+          const SizedBox(width: 8),
+          Text('Audio message',
+              style: GoogleFonts.poppins(
+                  color: isMine ? Colors.white : Colors.black87)),
+        ],
+      );
+    }
+
+    // ===== FILE (PDF, DOC, etc) =====
+    if (msgType == 'file' && mediaUrls.isNotEmpty) {
+      return GestureDetector(
+        onTap: () => _openFile(mediaUrls.first.toString()),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.insert_drive_file,
+                color: isMine ? Colors.white : AppColors.primary),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                content.isNotEmpty ? content : 'Faili',
+                style: GoogleFonts.poppins(
+                  color: isMine ? Colors.white : Colors.black87,
+                  decoration: TextDecoration.underline,
+                  fontSize: 13,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ===== TEXT (default) =====
+    return Text(
+      content,
+      style: GoogleFonts.poppins(
+        color: isMine ? Colors.white : Colors.black87,
+        fontSize: 14,
+      ),
+    );
+  }
+
+  void _openVideo(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _openFile(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Widget _inputBar() {

@@ -139,6 +139,21 @@ class ApiService {
     return _handle(r);
   }
 
+  /// DELETE request — kufuta resource.
+  static Future<dynamic> delete(
+    String endpoint, {
+    String? token,
+  }) async {
+    final r = await http.delete(
+      Uri.parse(AppConstants.baseUrl + endpoint),
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+    );
+    return _handle(r);
+  }
+
   /// PATCH multipart - inafanya kazi web na mobile (bytes).
   static Future<dynamic> patchMultipart(
     String endpoint, {
@@ -759,9 +774,18 @@ class ChatAPI {
   static Future<List<dynamic>> getRooms() async {
     final token = await TokenStorage.getAccessToken();
     final data = await ApiService.get('chat/rooms/', token: token);
-    if (data is Map && data['results'] is List) return data['results'];
+    // Format 1: {success, data: {items: [...]}}
+    if (data is Map &&
+        data['data'] is Map &&
+        data['data']['items'] is List) {
+      return data['data']['items'] as List;
+    }
+    // Format 2: {data: [...]}
     if (data is Map && data['data'] is List) return data['data'];
+    // Format 3: [...] directly
     if (data is List) return data;
+    // Format 4: {results: [...]} (paginated)
+    if (data is Map && data['results'] is List) return data['results'];
     return [];
   }
 
@@ -772,6 +796,7 @@ class ChatAPI {
     if (data is Map && data['data'] is Map && data['data']['messages'] is List) {
       return data['data']['messages'];
     }
+    if (data is Map && data['data'] is List) return data['data'];
     if (data is List) return data;
     return [];
   }
@@ -795,6 +820,13 @@ class ChatAPI {
   static Future<void> markRead(int roomId) async {
     final token = await TokenStorage.getAccessToken();
     await ApiService.post('chat/rooms/$roomId/mark_read/', {}, token: token);
+  }
+
+  /// Futa room.
+  static Future<Map<String, dynamic>> deleteRoom(int roomId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.delete('chat/rooms/$roomId/', token: token);
+    return data is Map ? Map<String, dynamic>.from(data) : {};
   }
 
   /// Tengeneza room mpya.
