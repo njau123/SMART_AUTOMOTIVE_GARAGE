@@ -7,7 +7,6 @@ import '../../../shared/widgets/app_drawer.dart';
 import '../../../shared/widgets/hero_dashboard.dart';
 import '../../../shared/widgets/quick_action.dart';
 import '../../../shared/widgets/scrolling_ticker.dart';
-import '../../../shared/widgets/quick_links_bar.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../../services/screens/services_screen.dart';
 import '../../spare_parts/screens/spare_parts_screen.dart';
@@ -181,13 +180,10 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           firstName: _firstName,
           vehicleName: _vehicleName,
           vehicleRegistration: _vehicle?['registration_number']?.toString(),
-          imageUrl: _vehicle?['vehicle_image']?.toString(),
+          imageUrl: _user?['profile_image_url']?.toString() ??
+              _vehicle?['vehicle_image']?.toString(),
           onTap: () => _open(const ProfileScreen()),
         ),
-        const SizedBox(height: 16),
-
-        // Quick links (horizontal)
-        const QuickLinksBar(),
         const SizedBox(height: 16),
 
         // Scrolling ticker
