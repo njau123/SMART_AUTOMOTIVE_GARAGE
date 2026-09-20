@@ -33,11 +33,29 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
   String? _error;
   int? _backendSessionId;
   String _statusMsg = '';
+  bool _hasPaid = false;
+  bool _checkingPayment = true;
 
   @override
   void initState() {
     super.initState();
     _requestPermissions();
+    _checkPaymentStatus();
+  }
+
+  Future<void> _checkPaymentStatus() async {
+    setState(() => _checkingPayment = true);
+    try {
+      final hasPaid = await OBDAPI.hasPaid();
+      if (mounted) {
+        setState(() {
+          _hasPaid = hasPaid;
+          _checkingPayment = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _checkingPayment = false);
+    }
   }
 
   @override
@@ -46,6 +64,196 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
     _obd.stopScan();
     _obd.disconnect();
     super.dispose();
+  }
+
+  Future<bool?> _showPaymentDialog() async {
+    final phoneCtrl = TextEditingController();
+    bool loading = false;
+    Map<String, dynamic>? paymentResult;
+
+    // Load user phone
+    try {
+      final profile = await AuthAPI.getProfile();
+      phoneCtrl.text = profile['phone_number']?.toString() ?? '';
+    } catch (_) {}
+
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.lock_outline, color: AppColors.primary, size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Malipo ya OBD Scan',
+                    style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0D47A1), Color(0xFF1976D2)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Text('Kiasi cha Malipo',
+                          style: GoogleFonts.poppins(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 12)),
+                      const SizedBox(height: 4),
+                      Text('TSh 30,000',
+                          style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text('OBD-II Vehicle Diagnosis',
+                          style: GoogleFonts.poppins(
+                              color: Colors.white, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                if (paymentResult == null) ...[
+                  Text('Namba yako ya simu:',
+                      style: GoogleFonts.poppins(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: phoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    maxLength: 10,
+                    decoration: const InputDecoration(
+                      hintText: '06XXXXXXXX au 07XXXXXXXX',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                      border: OutlineInputBorder(),
+                      counterText: '',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Utapata maelekezo ya kulipia kwa M-Pesa, Tigo, Airtel, n.k.',
+                    style: GoogleFonts.poppins(
+                        fontSize: 11, color: AppColors.textSecondary),
+                  ),
+                ] else ...[
+                  Text('Maelekezo ya Malipo:',
+                      style: GoogleFonts.poppins(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3E0),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      paymentResult!['instructions']?.toString() ?? '',
+                      style: GoogleFonts.poppins(fontSize: 12, height: 1.6),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Baada ya kulipa, bonyeza "Nimelipa" — admin atathibitisha.',
+                    style: GoogleFonts.poppins(
+                        fontSize: 11, color: AppColors.textSecondary),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(context, false),
+              child: const Text('Ghairi'),
+            ),
+            if (paymentResult == null)
+              ElevatedButton(
+                onPressed: loading
+                    ? null
+                    : () async {
+                        final phone = phoneCtrl.text.trim();
+                        if (phone.isEmpty) return;
+                        if (!RegExp(r'^0[67]\d{8}$').hasMatch(phone)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Namba si sahihi (06/07 + digits 8)'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        setDialogState(() => loading = true);
+                        try {
+                          final res = await OBDAPI.initiatePayment(
+                            phoneNumber: phone,
+                          );
+                          if (res['success'] == true) {
+                            setDialogState(() {
+                              paymentResult = res;
+                              loading = false;
+                            });
+                          } else {
+                            setDialogState(() => loading = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(res['message']?.toString() ?? 'Imeshindikana'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setDialogState(() => loading = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(e.toString().replaceAll('Exception: ', '')),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: loading
+                    ? const SizedBox(
+                        width: 18, height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Lipa Sasa'),
+              )
+            else
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context, true);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Nimelipa'),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _requestPermissions() async {
@@ -57,6 +265,12 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
   }
 
   Future<void> _startScan() async {
+    // === CHECK PAYMENT ===
+    if (!_hasPaid) {
+      final paid = await _showPaymentDialog();
+      if (paid != true) return;
+    }
+
     setState(() {
       _state = ScanState.scanning;
       _devices = [];

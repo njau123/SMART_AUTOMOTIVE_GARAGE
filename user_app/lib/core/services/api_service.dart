@@ -948,3 +948,36 @@ class SparePartOrderAPI {
     );
   }
 }
+
+
+// =================== OBD API ===================
+class OBDAPI {
+  /// Anzisha malipo ya OBD (30,000 TZS).
+  static Future<Map<String, dynamic>> initiatePayment({
+    required String phoneNumber,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'diagnosis/obd-payment/initiate/',
+      {'phone_number': phoneNumber},
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  /// Angalia kama user ameshalipia OBD.
+  static Future<bool> hasPaid() async {
+    try {
+      final token = await TokenStorage.getAccessToken();
+      final data = await ApiService.get(
+        'diagnosis/history/',
+        token: token,
+      );
+      // Kama tuna data — inamaanisha alishalipia
+      if (data is Map && data['data'] != null) return true;
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+}
