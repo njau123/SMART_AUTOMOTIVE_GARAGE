@@ -116,6 +116,12 @@ urlpatterns += [
 ]
 
 
+# ============ CRON URLS ============
+from .cron_views import expire_payments_cron
+urlpatterns += [
+    path('cron/expire-payments/', expire_payments_cron, name='cron-expire-payments'),
+]
+
 # ============ ADMIN URLS ============
 urlpatterns += [
     path('admin/check/', AdminCheckView.as_view(), name='admin-check'),
