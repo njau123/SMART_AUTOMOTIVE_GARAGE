@@ -277,11 +277,11 @@ class MessageAttachmentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Kikomo cha size (10 MB)
-        max_size = 10 * 1024 * 1024
+        # Kikomo cha size (50 MB)
+        max_size = 50 * 1024 * 1024
         if uploaded_file.size > max_size:
             return Response(
-                {'success': False, 'message': 'File ni kubwa mno (kikomo 10 MB)'},
+                {'success': False, 'message': 'File ni kubwa mno (kikomo 50 MB)'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
