@@ -14,7 +14,8 @@ class ChatRoomSerializer(serializers.ModelSerializer):
             'id', 'room_type', 'name', 'participants',
             'participants_details', 'participant_count',
             'booking', 'last_message', 'last_message_at',
-            'last_message_sender', 'status', 'unread_count',
+            'last_message_sender', 'last_message_details',
+            'status', 'unread_count',
             'metadata', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
