@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/state/auth_state.dart';
 import '../../features/services/screens/services_screen.dart';
+import '../../features/bookings/screens/my_bookings_screen.dart';
 import '../../features/spare_parts/screens/spare_parts_screen.dart';
 import '../../features/news/screens/news_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
@@ -126,6 +127,8 @@ class AppDrawer extends StatelessWidget {
                           () => _push(context, const ServicesScreen())),
                       _item(Icons.settings_outlined, 'Spare Parts',
                           () => _push(context, const SparePartsScreen())),
+                      _item(Icons.event_note_outlined, 'My Bookings',
+                          () => _push(context, const MyBookingsScreen())),
                       _item(Icons.engineering_outlined, 'Find Mechanics',
                           () => _push(context, const MechanicsScreen())),
                       if (loggedIn)

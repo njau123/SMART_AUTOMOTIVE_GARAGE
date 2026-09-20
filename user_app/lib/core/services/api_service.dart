@@ -626,6 +626,32 @@ class PaymentAPI {
 
 // =================== BOOKING API ===================
 class BookingAPI {
+  /// Booking moja (detail).
+  static Future<Map<String, dynamic>> getDetail(int bookingId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'bookings/$bookingId/',
+      token: token,
+    );
+    if (data is Map && data['data'] is Map) {
+      return Map<String, dynamic>.from(data['data']);
+    }
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  /// Pata countdown ya booking (remaining_seconds, hours, minutes).
+  static Future<Map<String, dynamic>> getCountdown(int bookingId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'bookings/$bookingId/countdown/',
+      token: token,
+    );
+    if (data is Map && data['data'] is Map) {
+      return Map<String, dynamic>.from(data['data']);
+    }
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
   static Future<Map<String, dynamic>> create({
     required int vehicleId,
     required int serviceId,
