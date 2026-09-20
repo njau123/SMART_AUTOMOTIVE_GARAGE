@@ -63,3 +63,21 @@ render_env_payload.json
 
 # Stray backup files (keep _archive/ but ignore stray .bak)
 *.bak*
+
+# Backup files (temporary)
+*.before_*
+*.before_unified
+*.before_update_service
+*.before_media
+*.before_fix
+*.before_p2
+*.before_add_ql
+*.before_ticker
+*.before_c1
+*.before_remove_ql
+*.before_remove_ql
+*.BAD_VERSION
+*.backup_p2
+*.backup_xxx
+*.backup_before_*
+*.bak_*
