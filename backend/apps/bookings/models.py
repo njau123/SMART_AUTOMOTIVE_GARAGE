@@ -214,6 +214,25 @@ class Booking(models.Model):
         auto_now=True,
     )
 
+    # === ETA (Mechanic ana-set baada ya accept) ===
+    travel_hours = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Masaa ya mechanic kumfikia mteja (1-24)",
+    )
+    travel_minutes = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Dakika za ziada (0-59)",
+    )
+    countdown_started_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Mda countdown ilianza",
+    )
+    countdown_ends_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Mda countdown inaisha",
+    )
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         db_table = "bookings"
         ordering = ["-created_at"]

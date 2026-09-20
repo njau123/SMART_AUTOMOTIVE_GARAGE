@@ -3,7 +3,9 @@ from .views import (
     BookingCreateView, MyBookingsView, BookingDetailView,
     PayDepositView, FinalPaymentView, CancelBookingView,
     AvailableJobsView, RequestJobView,
+    MechanicPendingBookingsView,
     MechanicAcceptBookingView, MechanicRejectBookingView,
+    BookingCountdownView,
     AdminBookingListView, AdminBookingAssignMechanicView,
     AdminBookingStatusView,
 )
@@ -11,6 +13,13 @@ from .views import (
 app_name = "bookings"
 
 urlpatterns = [
+    # === MECHANIC ACTIONS ===
+    # === MECHANIC ACTIONS ===
+    path('bookings/mechanic/pending/', MechanicPendingBookingsView.as_view(), name='mechanic-pending'),
+    path('bookings/<int:pk>/accept/', MechanicAcceptBookingView.as_view(), name='booking-accept'),
+    path('bookings/<int:pk>/reject/', MechanicRejectBookingView.as_view(), name='booking-reject'),
+    path('bookings/<int:pk>/countdown/', BookingCountdownView.as_view(), name='booking-countdown'),
+
     # User
     path("bookings/create/", BookingCreateView.as_view(), name="create"),
     path("bookings/my/", MyBookingsView.as_view(), name="my-bookings"),

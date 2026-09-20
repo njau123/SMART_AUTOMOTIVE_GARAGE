@@ -379,156 +379,6 @@ class RequestJobView(APIView):
 
 
 # ==================== MECHANIC ACCEPT/REJECT ====================
-class MechanicAcceptBookingView(APIView):
-    """Mechanic anakubali booking. Ina-assign yeye, inaunda chat, inatuma notification kwa user."""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, pk):
-        try:
-            booking = Booking.objects.get(pk=pk)
-        except Booking.DoesNotExist:
-            return Response(
-                {"success": False, "message": "Booking haipo"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        try:
-            mech = MechanicProfile.objects.get(user=request.user)
-        except MechanicProfile.DoesNotExist:
-            return Response(
-                {"success": False, "message": "Wewe si mechanic"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        # Hakikisha booking ni ya mechanic huyu (kama ilipangwa)
-        if booking.mechanic and booking.mechanic.id != mech.id:
-            return Response(
-                {"success": False, "message": "Booking hii si yako"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        if booking.status != Booking.Status.PENDING:
-            return Response(
-                {"success": False, "message": f"Booking ipo kwenye status {booking.status}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        with transaction.atomic():
-            old_status = booking.status
-            booking.mechanic = mech
-            booking.status = Booking.Status.ACCEPTED
-            booking.mechanic_accepted_at = timezone.now()
-            booking.save()
-
-            _log_status(
-                booking, old_status, booking.status, request.user,
-                f"Mechanic {mech.user.get_full_name()} amekubali kazi"
-            )
-
-            # Tengeneza Chat Room
-            chat_room, _ = ChatRoom.objects.get_or_create(
-                booking=booking,
-                room_type="booking",
-                defaults={"name": f"Kazi ya {booking.booking_number}"},
-            )
-            chat_room.participants.add(booking.customer, mech.user)
-
-        # Notify user
-        try:
-            send_notification_to_user(
-                user=booking.customer,
-                title="Fundi Amekubali Ombi Lako",
-                message=f"{mech.user.get_full_name() or 'Fundi'} amekubali kazi yako. Unaweza kuanza kuchat naye.",
-                notification_type="booking",
-                data={
-                    "type": "job_accepted",
-                    "booking_id": str(booking.id),
-                    "chat_room_id": str(chat_room.id),
-                    "mechanic_name": mech.user.get_full_name() or "Fundi",
-                },
-            )
-        except Exception as e:
-            print(f"[NOTIFY ERROR] {e}")
-
-        return Response({
-            "success": True,
-            "message": "Umekubali kazi. Unaweza kuanza kuchat na mteja.",
-            "data": {
-                "booking_id": booking.id,
-                "chat_room_id": chat_room.id,
-                "status": booking.status,
-                "mechanic_name": mech.user.get_full_name(),
-                "customer_name": booking.customer.get_full_name(),
-            },
-        })
-
-
-class MechanicRejectBookingView(APIView):
-    """
-    Mechanic anakataa booking.
-    Booking inarudi PENDING (mechanic haipangiwi).
-    User anapata ujumbe wa 'network issue' (sio 'amekataa').
-    """
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, pk):
-        try:
-            booking = Booking.objects.get(pk=pk)
-        except Booking.DoesNotExist:
-            return Response(
-                {"success": False, "message": "Booking haipo"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        try:
-            mech = MechanicProfile.objects.get(user=request.user)
-        except MechanicProfile.DoesNotExist:
-            return Response(
-                {"success": False, "message": "Wewe si mechanic"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        if booking.status != Booking.Status.PENDING:
-            return Response(
-                {"success": False, "message": "Booking haiwezi kukataliwa"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        with transaction.atomic():
-            # Ondoa mechanic assignment (kama alikuwa amepewa)
-            old_status = booking.status
-            booking.mechanic = None
-            booking.status = Booking.Status.PENDING
-            booking.save()
-
-            _log_status(
-                booking, old_status, booking.status, request.user,
-                f"Mechanic {mech.user.get_full_name()} hakuweza kuchukua kazi"
-            )
-
-        # Notify user kwa ujumbe wa "network issue" (SI "amekataa")
-        try:
-            send_notification_to_user(
-                user=booking.customer,
-                title="Ombi Lako Linaendelea",
-                message="Tunaendelea kutafuta fundi mwingine wa karibu. Tafadhali subiri.",
-                notification_type="booking",
-                data={
-                    "type": "job_searching",
-                    "booking_id": str(booking.id),
-                },
-            )
-        except Exception as e:
-            print(f"[NOTIFY ERROR] {e}")
-
-        return Response({
-            "success": True,
-            "message": "Umepitisha kazi hii.",
-            "data": {"booking_id": booking.id, "status": booking.status},
-        })
-
-
-# ==================== ADMIN ====================
 class AdminBookingListView(APIView):
     permission_classes = [IsAdminUser]
 
@@ -599,4 +449,202 @@ class AdminBookingStatusView(APIView):
             "success": True,
             "message": f"Status imebadilishwa kuwa {new_status}",
             "data": BookingSerializer(booking).data,
+        })
+
+
+# ==================== MECHANIC ACTIONS ====================
+class MechanicPendingBookingsView(APIView):
+    """Mechanic — bookings zote zilizo PENDING (kwa requests)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Tafuta MechanicProfile ya user
+        try:
+            profile = MechanicProfile.objects.get(user=request.user)
+        except MechanicProfile.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Wewe si mechanic"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Bookings zilizo PENDING au zilizoassign kwa mechanic huyu
+        from django.db.models import Q
+        qs = Booking.objects.filter(
+            Q(status="PENDING") | Q(mechanic=profile, status__in=["ACCEPTED", "ARRIVING", "IN_PROGRESS"]),
+        ).order_by("-created_at")
+
+        return Response({
+            "success": True,
+            "count": qs.count(),
+            "data": BookingSerializer(qs, many=True, context={"request": request}).data,
+        })
+
+
+class MechanicAcceptBookingView(APIView):
+    """Mechanic — anakubali booking + ana-set ETA."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            profile = MechanicProfile.objects.get(user=request.user)
+        except MechanicProfile.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Wewe si mechanic"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            booking = Booking.objects.get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Booking haipo"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if booking.status not in ["PENDING"]:
+            return Response(
+                {"success": False, "message": "Booking haiwezi kukubaliwa sasa"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ETA input
+        travel_hours = int(request.data.get("travel_hours", 1))
+        travel_minutes = int(request.data.get("travel_minutes", 0))
+
+        if travel_hours < 1 or travel_hours > 24:
+            return Response(
+                {"success": False, "message": "Masaa yanapaswa kuwa 1-24"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        now = timezone.now()
+        eta_delta = timezone.timedelta(hours=travel_hours, minutes=travel_minutes)
+        countdown_ends = now + eta_delta
+
+        old_status = booking.status
+        booking.mechanic = profile
+        booking.status = "ACCEPTED"
+        booking.accepted_at = now
+        booking.travel_hours = travel_hours
+        booking.travel_minutes = travel_minutes
+        booking.countdown_started_at = now
+        booking.countdown_ends_at = countdown_ends
+        booking.save()
+
+        # Log
+        _log_status(booking, old_status, "ACCEPTED", request.user,
+                    f"ETA: {travel_hours}h {travel_minutes}m")
+
+        # Notify user
+        try:
+            from apps.notifications.models import Notification
+            Notification.objects.create(
+                recipient=booking.customer,
+                notification_type="BOOKING",
+                title=f"🔧 Mechanic Amekubali — {booking.booking_number}",
+                message=(
+                    f"{request.user.get_full_name() or 'Mechanic'} amekubali booking yako.\n"
+                    f"Atakufikia baada ya masaa {travel_hours}"
+                    + (f" na dakika {travel_minutes}." if travel_minutes else ".")
+                ),
+                is_sent=True,
+                metadata={"booking_id": booking.id},
+            )
+        except Exception:
+            pass
+
+        return Response({
+            "success": True,
+            "message": f"Booking imekubaliwa. ETA: {travel_hours}h {travel_minutes}m",
+            "data": {
+                "booking_id": booking.id,
+                "countdown_ends_at": booking.countdown_ends_at.isoformat(),
+                "travel_hours": travel_hours,
+                "travel_minutes": travel_minutes,
+            },
+        })
+
+
+class MechanicRejectBookingView(APIView):
+    """Mechanic — anakataa booking."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            profile = MechanicProfile.objects.get(user=request.user)
+        except MechanicProfile.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Wewe si mechanic"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            booking = Booking.objects.get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Booking haipo"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        reason = request.data.get("reason", "")
+        old_status = booking.status
+        booking.status = "REJECTED"
+        booking.save()
+
+        _log_status(booking, old_status, "REJECTED", request.user, reason)
+
+        return Response({
+            "success": True,
+            "message": "Booking imekataliwa",
+        })
+
+
+class BookingCountdownView(APIView):
+    """User — kuangalia countdown ya booking."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            booking = Booking.objects.get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Booking haipo"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # User pekee au mechanic au admin
+        is_customer = booking.customer_id == request.user.id
+        is_mechanic = booking.mechanic and booking.mechanic.user_id == request.user.id
+        is_admin = request.user.is_staff or request.user.role in ["ADMIN", "SUPER_ADMIN"]
+
+        if not (is_customer or is_mechanic or is_admin):
+            return Response(
+                {"success": False, "message": "Huna ruhusa"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        now = timezone.now()
+        remaining_seconds = 0
+        is_expired = False
+
+        if booking.countdown_ends_at:
+            diff = booking.countdown_ends_at - now
+            remaining_seconds = max(0, int(diff.total_seconds()))
+            is_expired = remaining_seconds == 0
+
+        return Response({
+            "success": True,
+            "data": {
+                "booking_id": booking.id,
+                "booking_number": booking.booking_number,
+                "status": booking.status,
+                "travel_hours": booking.travel_hours,
+                "travel_minutes": booking.travel_minutes,
+                "countdown_started_at": booking.countdown_started_at.isoformat() if booking.countdown_started_at else None,
+                "countdown_ends_at": booking.countdown_ends_at.isoformat() if booking.countdown_ends_at else None,
+                "remaining_seconds": remaining_seconds,
+                "remaining_hours": remaining_seconds // 3600,
+                "remaining_minutes": (remaining_seconds % 3600) // 60,
+                "is_expired": is_expired,
+            },
         })
