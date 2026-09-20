@@ -353,3 +353,55 @@ class ChatAPI {
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
 }
+
+
+// =================== BOOKING MECHANIC API ===================
+class BookingMechanicAPI {
+  /// Bookings zilizo PENDING (requests).
+  static Future<List<dynamic>> pendingBookings() async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get('bookings/mechanic/pending/', token: token);
+    if (data is Map && data['data'] is List) return data['data'] as List;
+    if (data is List) return data;
+    return [];
+  }
+
+  /// Kubali booking + weka ETA.
+  static Future<Map<String, dynamic>> acceptBooking({
+    required int bookingId,
+    required int travelHours,
+    int travelMinutes = 0,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'bookings/$bookingId/accept/',
+      {'travel_hours': travelHours, 'travel_minutes': travelMinutes},
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  /// Kataa booking.
+  static Future<Map<String, dynamic>> rejectBooking({
+    required int bookingId,
+    String reason = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'bookings/$bookingId/reject/',
+      {'reason': reason},
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  /// Countdown info.
+  static Future<Map<String, dynamic>> getCountdown(int bookingId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'bookings/$bookingId/countdown/',
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+}

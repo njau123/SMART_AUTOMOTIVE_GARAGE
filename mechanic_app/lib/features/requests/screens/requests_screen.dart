@@ -27,7 +27,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
       _error = null;
     });
     try {
-      final data = await JobsAPI.getAvailableJobs();
+      final data = await BookingMechanicAPI.pendingBookings();
       if (mounted) setState(() { _requests = data; _loading = false; });
     } catch (e) {
       if (mounted) {
@@ -40,31 +40,80 @@ class _RequestsScreenState extends State<RequestsScreen> {
   }
 
   Future<void> _accept(int bookingId) async {
-    final confirmed = await showDialog<bool>(
+    int hours = 1;
+    int minutes = 0;
+
+    final result = await showDialog<Map<String, int>>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Kubali Kazi?"),
-        content: const Text("Una uhakika unataka kuchukua kazi hii?"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Hapana")),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Ndiyo, Kubali"),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text("Kubali Kazi — Weka ETA"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Weka mda utakaomfikia mteja:"),
+              const SizedBox(height: 16),
+              Text('Masaa: $hours'),
+              Slider(
+                value: hours.toDouble(),
+                min: 1, max: 24, divisions: 23,
+                label: '$hours',
+                onChanged: (v) => setDialogState(() => hours = v.toInt()),
+              ),
+              Text('Dakika: $minutes'),
+              Slider(
+                value: minutes.toDouble(),
+                min: 0, max: 59, divisions: 59,
+                label: '$minutes',
+                onChanged: (v) => setDialogState(() => minutes = v.toInt()),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Utamfikia mteja baada ya ${hours}h ${minutes}m',
+                  style: GoogleFonts.poppins(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Ghairi"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(context, {'hours': hours, 'minutes': minutes}),
+              child: const Text("Kubali"),
+            ),
+          ],
+        ),
       ),
     );
 
-    if (confirmed != true) return;
+    if (result == null) return;
 
     try {
-      final res = await JobsAPI.acceptJob(bookingId);
+      final res = await BookingMechanicAPI.acceptBooking(
+        bookingId: bookingId,
+        travelHours: result['hours']!,
+        travelMinutes: result['minutes']!,
+      );
       if (!mounted) return;
       if (res['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Umekubali kazi! Unaweza kuanza kuchat na mteja."),
+          SnackBar(
+            content: Text("Umekubali! ETA: ${result['hours']}h ${result['minutes']}m"),
             backgroundColor: Colors.green,
           ),
         );
@@ -125,7 +174,6 @@ class _RequestsScreenState extends State<RequestsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Requests Zangu'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       body: RefreshIndicator(
         onRefresh: _load,
