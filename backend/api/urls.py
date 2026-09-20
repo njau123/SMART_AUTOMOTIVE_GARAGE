@@ -30,6 +30,11 @@ from .password_reset_views import (
     VerifyResetCodeView,
     ResetPasswordView,
 )
+from apps.spare_parts.views import (
+    OrderCreateView, OrderListView, OrderDetailView,
+    OrderUpdateDeliveryView, OrderDeleteView,
+    AdminOrderListView, AdminOrderUpdateStatusView,
+)
 from .views import (
     RegisterView, UserProfileView,
     VehicleViewSet, ServiceViewSet,
@@ -115,6 +120,17 @@ obd_obd_scan = DiagnosisSessionViewSet.as_view({'post': 'obd_scan'})
 urlpatterns += [
 ]
 
+
+# ============ SPARE PARTS ORDER URLS ============
+urlpatterns += [
+    path('spare-parts/orders/create/', OrderCreateView.as_view(), name='order-create'),
+    path('spare-parts/orders/my/', OrderListView.as_view(), name='order-list'),
+    path('spare-parts/orders/<int:pk>/', OrderDetailView.as_view(), name='order-detail'),
+    path('spare-parts/orders/<int:pk>/delivery/', OrderUpdateDeliveryView.as_view(), name='order-delivery'),
+    path('spare-parts/orders/<int:pk>/delete/', OrderDeleteView.as_view(), name='order-delete'),
+    path('spare-parts/admin/orders/all/', AdminOrderListView.as_view(), name='admin-order-list'),
+    path('spare-parts/admin/orders/<int:pk>/status/', AdminOrderUpdateStatusView.as_view(), name='admin-order-status'),
+]
 
 # ============ CRON URLS ============
 from .cron_views import expire_payments_cron
