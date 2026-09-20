@@ -211,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final userEmail =
           AuthState.instance.user?['email']?.toString() ?? 'no-reply@smartgarage.com';
 
-      final res = await ContactAPI.send(
+      final res = await ContactAPI.sendMessage(
         fullName: name,
         email: userEmail,
         phone: phone,
