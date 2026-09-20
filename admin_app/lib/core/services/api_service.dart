@@ -713,3 +713,34 @@ class AdminMechanicAPI {
     return Map<String, dynamic>.from(data as Map);
   }
 }
+
+
+// =================== ADMIN ORDER API ===================
+class AdminOrderAPI {
+  /// Oda zote.
+  static Future<List<dynamic>> list({String? status}) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final endpoint = status != null && status != 'ALL'
+        ? 'spare-parts/admin/orders/all/?status=$status'
+        : 'spare-parts/admin/orders/all/';
+    final data = await ApiService.get(endpoint, token: token);
+    if (data is Map && data['data'] is List) return data['data'] as List;
+    if (data is List) return data;
+    return [];
+  }
+
+  /// Badilisha status ya oda.
+  static Future<Map<String, dynamic>> updateStatus({
+    required int orderId,
+    required String status,
+    String adminNotes = '',
+  }) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'spare-parts/admin/orders/$orderId/status/',
+      {'status': status, 'admin_notes': adminNotes},
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+}

@@ -13,6 +13,7 @@ import '../../features/users/screens/admin_users_screen.dart';
 import '../../features/notifications/screens/admin_notifications_screen.dart';
 import '../../features/auth/screens/admin_login_screen.dart';
 import '../../features/contact/screens/admin_contact_screen.dart';
+import '../../features/orders/screens/admin_orders_screen.dart';
 
 class AdminDrawer extends StatelessWidget {
   const AdminDrawer({super.key});
@@ -104,6 +105,8 @@ class AdminDrawer extends StatelessWidget {
                           () => _push(context, const PaymentsScreen())),
                       _item(Icons.inventory_2_outlined, 'Spare Parts',
                           () => _push(context, const AdminSparePartsScreen())),
+                      _item(Icons.shopping_bag_outlined, 'Orders',
+                          () => _push(context, const AdminOrdersScreen())),
                       _item(Icons.people_outline, 'Users',
                           () => _push(context, const UsersScreen())),
                       _item(Icons.mail_outline, 'Contact Messages',
