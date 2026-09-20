@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
+import 'order_delivery_screen.dart';
 
 class SparePartOrderScreen extends StatefulWidget {
   final Map<String, dynamic> part;
@@ -48,24 +49,46 @@ class _SparePartOrderScreenState extends State<SparePartOrderScreen> {
     if (_phoneCtrl.text.trim().isEmpty) {
       _snack("Weka namba yako ya simu", error: true); return;
     }
-    if (_addressCtrl.text.trim().isEmpty) {
-      _snack("Weka anwani ya kupelekewa", error: true); return;
-    }
 
     setState(() => _ordering = true);
     try {
-      final res = await PaymentAPI.initiate(
+      // 1. Unda Order
+      final orderRes = await SparePartOrderAPI.create(
+        sparePartId: widget.part['id'] as int,
+        quantity: int.tryParse(_quantityCtrl.text) ?? 1,
+        contactPhone: _phoneCtrl.text.trim(),
+      );
+
+      if (orderRes['success'] != true) {
+        _snack(orderRes['message']?.toString() ?? "Imeshindikana kuunda oda", error: true);
+        return;
+      }
+
+      final orderData = orderRes['data'] as Map? ?? {};
+      final orderId = orderData['id'] as int?;
+      final orderNumber = orderData['order_number']?.toString() ?? '';
+
+      if (orderId == null) {
+        _snack("Order ID haipo", error: true);
+        return;
+      }
+
+      // 2. Anzisha Payment (unified)
+      final payRes = await PaymentAPI.initiateUnified(
         amount: _total,
         purpose: 'SPARE_PART',
-        phoneNumber: _phoneCtrl.text.trim(),
-        description: 'Order: ${widget.part['name']} x${_quantityCtrl.text} | Address: ${_addressCtrl.text}',
-        referenceId: widget.part['id']?.toString() ?? '',
+        methodType: 'MOBILE_MONEY',
+        identifier: _phoneCtrl.text.trim(),
+        description: 'Order: ${widget.part['name']} x${_quantityCtrl.text}',
+        referenceId: orderId.toString(),
       );
+
       if (!mounted) return;
-      if (res['success'] == true) {
-        _showSuccessDialog(res);
+
+      if (payRes['success'] == true) {
+        _showSuccessDialog(payRes, orderId, orderNumber);
       } else {
-        _snack(res['message']?.toString() ?? "Imeshindikana", error: true);
+        _snack(payRes['message']?.toString() ?? "Imeshindikana malipo", error: true);
       }
     } catch (e) {
       if (mounted) _snack(e.toString().replaceAll("Exception: ", ""), error: true);
@@ -74,38 +97,89 @@ class _SparePartOrderScreenState extends State<SparePartOrderScreen> {
     }
   }
 
-  void _showSuccessDialog(Map<String, dynamic> res) {
+  void _showSuccessDialog(
+    Map<String, dynamic> res,
+    int orderId,
+    String orderNumber,
+  ) {
+    final instructions = res['instructions']?.toString() ?? '';
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        title: const Text("Order Yako Imepokelewa!"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
           children: [
-            const Text("Malipo yameanzishwa. Admin atathibitisha na kukutumia bidhaa yako."),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF3E0),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                "Weka namba yako ya Siri kuthibitisha malipo kwenda Automotive Smart Garage Account.",
-                style: GoogleFonts.poppins(fontSize: 12),
-              ),
+            const Icon(Icons.check_circle, color: Colors.green, size: 28),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text("Oda Imepokelewa!",
+                  style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (orderNumber.isNotEmpty)
+                Text("Namba ya Oda: $orderNumber",
+                    style: GoogleFonts.poppins(
+                        fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Maelekezo ya Malipo:",
+                        style: GoogleFonts.poppins(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    Text(
+                      instructions.isNotEmpty
+                          ? instructions
+                          : "Fuata maelekezo ya malipo.",
+                      style: GoogleFonts.poppins(fontSize: 12, height: 1.6),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "Baada ya kulipa, weka taarifa za delivery (wapi, lini, saa ngapi).",
+                style: GoogleFonts.poppins(
+                    fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              Navigator.pop(context, true);
+              // Elekeza kwenye OrderDeliveryScreen
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => OrderDeliveryScreen(
+                    orderId: orderId,
+                    orderNumber: orderNumber,
+                    sparePartName: widget.part['name']?.toString() ?? 'Spare Part',
+                  ),
+                ),
+              );
             },
-            child: const Text("Sawa"),
+            child: Text("Weka Delivery Info",
+                style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600, color: AppColors.primary)),
           ),
         ],
       ),

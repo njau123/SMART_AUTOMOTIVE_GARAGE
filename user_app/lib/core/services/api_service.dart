@@ -846,3 +846,79 @@ class ChatAPI {
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
 }
+
+
+// =================== SPARE PART ORDER API ===================
+class SparePartOrderAPI {
+  /// Unda oda mpya (PENDING_PAYMENT).
+  static Future<Map<String, dynamic>> create({
+    required int sparePartId,
+    int quantity = 1,
+    String contactPhone = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post('spare-parts/orders/create/', {
+      'spare_part_id': sparePartId,
+      'quantity': quantity,
+      'contact_phone': contactPhone,
+    }, token: token);
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  /// Oda zote za user.
+  static Future<List<dynamic>> myOrders() async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get('spare-parts/orders/my/', token: token);
+    if (data is Map && data['data'] is List) return data['data'] as List;
+    if (data is List) return data;
+    return [];
+  }
+
+  /// Oda moja.
+  static Future<Map<String, dynamic>> detail(int orderId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'spare-parts/orders/$orderId/',
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  /// Weka delivery details baada ya payment.
+  static Future<Map<String, dynamic>> updateDelivery({
+    required int orderId,
+    required String deliveryType,
+    String deliveryLocation = '',
+    String deliveryRegion = '',
+    String? deliveryDate,
+    String deliveryTime = '',
+    String deliveryNotes = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final body = <String, dynamic>{
+      'delivery_type': deliveryType,
+      'delivery_location': deliveryLocation,
+      'delivery_region': deliveryRegion,
+      'delivery_time': deliveryTime,
+      'delivery_notes': deliveryNotes,
+    };
+    if (deliveryDate != null && deliveryDate.isNotEmpty) {
+      body['delivery_date'] = deliveryDate;
+    }
+    final data = await ApiService.patch(
+      'spare-parts/orders/$orderId/delivery/',
+      body,
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  /// Futa oda.
+  static Future<void> delete(int orderId) async {
+    final token = await TokenStorage.getAccessToken();
+    await ApiService.delete(
+      'spare-parts/orders/$orderId/delete/',
+      token: token,
+    );
+  }
+}
