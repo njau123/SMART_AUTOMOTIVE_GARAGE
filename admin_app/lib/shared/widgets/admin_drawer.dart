@@ -12,6 +12,7 @@ import '../../features/bookings/screens/admin_bookings_screen.dart';
 import '../../features/users/screens/admin_users_screen.dart';
 import '../../features/notifications/screens/admin_notifications_screen.dart';
 import '../../features/auth/screens/admin_login_screen.dart';
+import '../../features/contact/screens/admin_contact_screen.dart';
 
 class AdminDrawer extends StatelessWidget {
   const AdminDrawer({super.key});
@@ -105,6 +106,8 @@ class AdminDrawer extends StatelessWidget {
                           () => _push(context, const AdminSparePartsScreen())),
                       _item(Icons.people_outline, 'Users',
                           () => _push(context, const UsersScreen())),
+                      _item(Icons.mail_outline, 'Contact Messages',
+                          () => _push(context, const AdminContactScreen())),
                       _item(Icons.notifications_active_outlined,
                           'Notifications',
                           () => _push(context, const NotificationsScreen())),

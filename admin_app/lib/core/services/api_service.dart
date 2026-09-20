@@ -411,7 +411,11 @@ class AdminAPI {
   // ============ SPARE PARTS CRUD ============
   static Future<List<dynamic>> getSpareParts() async {
     final token = await AdminTokenStorage.getAccessToken();
-    final data = await ApiService.get('spare-parts/', token: token);
+    final data = await ApiService.get('admin/spare-parts/all/', token: token);
+    // Response: {success, count, data: [...]}
+    if (data is Map && data['data'] is List) {
+      return data['data'] as List;
+    }
     return ApiService.asList(data);
   }
 
@@ -427,7 +431,7 @@ class AdminAPI {
   }) async {
     final token = await AdminTokenStorage.getAccessToken();
     return await ApiService.postMultipart(
-      'admin/spare-parts/add/',
+      'admin/spare-parts/create/',
       fields: {
         'name': name,
         'description': description,
@@ -455,7 +459,7 @@ class AdminAPI {
   }) async {
     final token = await AdminTokenStorage.getAccessToken();
     return await ApiService.postMultipart(
-      'spare-parts/$id/',
+      'admin/spare-parts/$id/update/',
       fields: {
         'name': name,
         'description': description,
@@ -467,16 +471,38 @@ class AdminAPI {
       fileBytes: imageBytes != null ? {'main_image': imageBytes} : null,
       fileNames: imageName != null ? {'main_image': imageName} : null,
       token: token,
-      method: 'PATCH',
     );
   }
 
   static Future<void> deleteSparePart(int id) async {
     final token = await AdminTokenStorage.getAccessToken();
-    await ApiService.delete('spare-parts/$id/', token: token);
+    await ApiService.delete('admin/spare-parts/$id/delete/', token: token);
   }
 
   // ============ SERVICES CRUD ============
+  // ============ CONTACT MESSAGES ============
+  /// Pata contact messages zote.
+  static Future<List<dynamic>> getContactMessages({String? status}) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final endpoint = status != null
+        ? 'admin/contact/?status=$status'
+        : 'admin/contact/';
+    final data = await ApiService.get(endpoint, token: token);
+    if (data is Map && data['data'] is List) return data['data'] as List;
+    if (data is List) return data;
+    return [];
+  }
+
+  /// Futa contact message.
+  static Future<Map<String, dynamic>> deleteContactMessage(int id) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.delete(
+      'admin/contact/$id/',
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
   static Future<List<dynamic>> getServices() async {
     final token = await AdminTokenStorage.getAccessToken();
     final data = await ApiService.get('services/', token: token);

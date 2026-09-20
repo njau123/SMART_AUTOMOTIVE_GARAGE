@@ -51,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<dynamic> _news = [];
 
   final _contactName = TextEditingController();
+  final _contactPhone = TextEditingController();
   final _contactLocation = TextEditingController();
   final _contactMessage = TextEditingController();
   bool _sendingMsg = false;
@@ -65,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _scrollCtrl.dispose();
     _contactName.dispose();
+    _contactPhone.dispose();
     _contactLocation.dispose();
     _contactMessage.dispose();
     super.dispose();
@@ -179,26 +181,65 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _sendContactMessage() async {
-    if (_contactName.text.trim().isEmpty ||
-        _contactMessage.text.trim().isEmpty) {
-      _snack('Please enter your name and message', error: true);
+    final name = _contactName.text.trim();
+    final phone = _contactPhone.text.trim();
+    final msg = _contactMessage.text.trim();
+
+    // Validation
+    if (name.isEmpty || msg.isEmpty) {
+      _snack('Tafadhali jaza jina na ujumbe', error: true);
+      return;
+    }
+
+    if (phone.isEmpty) {
+      _snack('Tafadhali weka namba yako ya simu', error: true);
+      return;
+    }
+
+    // Phone validation: 06XXXXXXXX au 07XXXXXXXX (digits 10)
+    if (!RegExp(r'^0[67]\d{8}$').hasMatch(phone)) {
+      _snack(
+        'Namba si sahihi. Tumia 06XXXXXXXX au 07XXXXXXXX',
+        error: true,
+      );
       return;
     }
 
     setState(() => _sendingMsg = true);
     try {
-      // Send as a support request (using existing feedback endpoints or creating local success)
-      // For now, save locally and show success
-      // TODO: Wire to backend contact endpoint
-      await Future.delayed(const Duration(milliseconds: 600));
+      // Tumia email ya user aliye-login
+      final userEmail =
+          AuthState.instance.user?['email']?.toString() ?? 'no-reply@smartgarage.com';
+
+      final res = await ContactAPI.send(
+        fullName: name,
+        email: userEmail,
+        phone: phone,
+        message: msg,
+        subject: 'Contact Us — $name',
+      );
 
       if (!mounted) return;
-      _snack('Message sent! We will contact you soon.');
-      _contactName.clear();
-      _contactLocation.clear();
-      _contactMessage.clear();
+
+      if (res['success'] == true) {
+        _snack('Ujumbe wako umepokelewa! Tutawasiliana nawe hivi karibuni.');
+        _contactName.clear();
+        _contactPhone.clear();
+        _contactLocation.clear();
+        _contactMessage.clear();
+      } else {
+        _snack(
+          res['message']?.toString() ?? 'Imeshindikana kutuma ujumbe',
+          error: true,
+        );
+      }
     } catch (e) {
-      if (mounted) _snack(e.toString(), error: true);
+      if (mounted) {
+        _snack(
+          e.toString().replaceAll('Exception: ', ''),
+          error: true,
+        );
+      }
     } finally {
       if (mounted) setState(() => _sendingMsg = false);
     }
@@ -834,6 +875,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   decoration: const InputDecoration(
                     hintText: 'Your full name',
                     prefixIcon: Icon(Icons.person_outline, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _contactPhone,
+                  keyboardType: TextInputType.phone,
+                  maxLength: 10,
+                  decoration: const InputDecoration(
+                    hintText: 'Namba yako ya simu (06/07...)',
+                    prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                    counterText: '',
                   ),
                 ),
                 const SizedBox(height: 10),

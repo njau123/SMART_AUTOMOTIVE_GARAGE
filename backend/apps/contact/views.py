@@ -26,6 +26,37 @@ class ContactCreateView(APIView):
         if request.user and request.user.is_authenticated:
             contact.user = request.user
             contact.save(update_fields=["user"])
+
+        # === Tuma notification kwa admin wote ===
+        try:
+            from apps.notifications.models import Notification
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            admins = User.objects.filter(is_staff=True, is_active=True)
+
+            title = f"📩 Ujumbe Mpya — {contact.full_name}"
+            message = (
+                f"Jina: {contact.full_name}\n"
+                f"Simu: {contact.phone or '—'}\n"
+                f"Email: {contact.email}\n"
+                f"Ujumbe: {contact.message[:150]}..."
+            )
+
+            for admin in admins:
+                try:
+                    Notification.objects.create(
+                        recipient=admin,
+                        notification_type='SYSTEM',
+                        title=title,
+                        message=message,
+                        is_sent=True,
+                        metadata={'contact_id': contact.id},
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         return Response(
             {
                 "success": True,
