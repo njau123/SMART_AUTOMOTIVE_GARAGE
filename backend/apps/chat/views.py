@@ -42,6 +42,36 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             'data': full.data,
         }, status=status.HTTP_201_CREATED)
 
+    def destroy(self, request, *args, **kwargs):
+        """Futa chat room — participant pekee anaweza."""
+        room = self.get_object()
+        user = request.user
+
+        # Hakikisha user ni participant au admin
+        is_participant = room.participants.filter(id=user.id).exists()
+        is_admin = user.is_staff or user.is_superuser or user.role in ['ADMIN', 'SUPER_ADMIN']
+
+        if not (is_participant or is_admin):
+            return Response(
+                {
+                    'success': False,
+                    'message': 'Hauna ruhusa kufuta chat hii',
+                    'data': None,
+                    'errors': {'detail': 'Permission denied'},
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        room_name = room.name or f'Chat #{room.id}'
+        room.delete()
+
+        return Response({
+            'success': True,
+            'message': f'Chat "{room_name}" imefutwa',
+            'data': None,
+            'errors': None,
+        }, status=status.HTTP_200_OK)
+
     def perform_create(self, serializer):
         from apps.accounts.models import User
         # Save room
