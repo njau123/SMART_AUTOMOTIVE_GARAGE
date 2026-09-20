@@ -141,10 +141,13 @@ class BookingDetailView(APIView):
 
 
 class PayDepositView(APIView):
-    """User - kulipa deposit 50%."""
+    """User - kulipa deposit 50% (unified network detection)."""
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
+        from apps.payments.detection import get_instructions, detect_network
+        from apps.payments.payment_config import PAYMENT_TIMEOUT_MINUTES
+
         try:
             booking = Booking.objects.get(pk=pk, customer=request.user)
         except Booking.DoesNotExist:
@@ -164,25 +167,62 @@ class PayDepositView(APIView):
                 {"success": False, "message": "phone_number ni lazima"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        detected_network = detect_network(phone)
+        reference = f"DEP-{booking.booking_number}"
+        inst = get_instructions("MOBILE_MONEY", phone, booking.deposit_amount, reference)
+
+        try:
+            provider_value = detected_network if detected_network in [p.value for p in PaymentProvider] else PaymentProvider.SANDBOX.value
+        except Exception:
+            provider_value = PaymentProvider.SANDBOX.value
+
         payment = Payment.objects.create(
             user=request.user,
             amount=booking.deposit_amount,
             currency="TZS",
             method=PaymentMethodType.MOBILE_MONEY,
-            provider=PaymentProvider.SANDBOX,
+            provider=provider_value,
             purpose=PaymentPurpose.BOOKING,
             status=PaymentStatus.PENDING,
-            reference=f"DEP-{booking.booking_number}",
+            reference=reference,
             phone_number=phone,
             description=f"Deposit 50% for {booking.booking_number}",
-            metadata={"booking_id": booking.id, "kind": "deposit"},
-            expires_at=timezone.now() + timezone.timedelta(hours=24),
+            metadata={"booking_id": booking.id, "kind": "deposit", "detected_network": detected_network},
+            expires_at=timezone.now() + timezone.timedelta(minutes=PAYMENT_TIMEOUT_MINUTES),
         )
         booking.payment_status = Booking.PaymentStatus.PENDING
         booking.save(update_fields=["payment_status"])
+
+        # Notify admin
+        try:
+            from apps.notifications.models import Notification
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            for admin in User.objects.filter(is_staff=True, is_active=True):
+                try:
+                    Notification.objects.create(
+                        recipient=admin,
+                        notification_type="payment",
+                        title=f"💰 Deposit — {booking.booking_number}",
+                        message=(
+                            f"User: {request.user.email}\n"
+                            f"Kiasi: TSh {booking.deposit_amount:,.0f}\n"
+                            f"Mtandao: {detected_network}\n"
+                            f"Namba: {phone}\n"
+                            f"Reference: {reference}"
+                        ),
+                        is_sent=True,
+                        metadata={"payment_id": payment.id, "booking_id": booking.id, "kind": "deposit"},
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         return Response({
             "success": True,
-            "message": f"Deposit TSh {booking.deposit_amount} imeanzishwa. Admin atathibitisha.",
+            "message": f"Deposit TSh {booking.deposit_amount} imeanzishwa. Fuata maelekezo.",
             "data": {
                 "booking": BookingSerializer(booking).data,
                 "payment": {
@@ -190,20 +230,24 @@ class PayDepositView(APIView):
                     "reference": payment.reference,
                     "amount": str(payment.amount),
                     "status": payment.status,
+                    "detected_network": detected_network,
+                    "is_detected": detected_network != "Unknown",
+                    "expires_at": payment.expires_at.isoformat() if payment.expires_at else None,
+                    "timeout_minutes": PAYMENT_TIMEOUT_MINUTES,
                 },
-                "instructions": (
-                    f"Tuma TSh {booking.deposit_amount} kwenda "
-                    f"Automotive Smart Garage. Reference: {payment.reference}"
-                ),
+                "instructions": inst["instructions"],
             },
         }, status=status.HTTP_201_CREATED)
 
 
 class FinalPaymentView(APIView):
-    """User - kulipa baada ya kazi."""
+    """User - kulipa baada ya kazi (unified network detection)."""
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
+        from apps.payments.detection import get_instructions, detect_network
+        from apps.payments.payment_config import PAYMENT_TIMEOUT_MINUTES
+
         try:
             booking = Booking.objects.get(pk=pk, customer=request.user)
         except Booking.DoesNotExist:
@@ -219,27 +263,69 @@ class FinalPaymentView(APIView):
                 {"success": False, "message": "phone_number ni lazima"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        detected_network = detect_network(phone)
+        reference = f"FIN-{booking.booking_number}"
+        inst = get_instructions("MOBILE_MONEY", phone, booking.final_amount, reference)
+
+        try:
+            provider_value = detected_network if detected_network in [p.value for p in PaymentProvider] else PaymentProvider.SANDBOX.value
+        except Exception:
+            provider_value = PaymentProvider.SANDBOX.value
+
         payment = Payment.objects.create(
             user=request.user,
             amount=booking.final_amount,
             currency="TZS",
             method=PaymentMethodType.MOBILE_MONEY,
-            provider=PaymentProvider.SANDBOX,
+            provider=provider_value,
             purpose=PaymentPurpose.BOOKING,
             status=PaymentStatus.PENDING,
-            reference=f"FIN-{booking.booking_number}",
+            reference=reference,
             phone_number=phone,
             description=f"Final 50% for {booking.booking_number}",
-            metadata={"booking_id": booking.id, "kind": "final"},
-            expires_at=timezone.now() + timezone.timedelta(hours=24),
+            metadata={"booking_id": booking.id, "kind": "final", "detected_network": detected_network},
+            expires_at=timezone.now() + timezone.timedelta(minutes=PAYMENT_TIMEOUT_MINUTES),
         )
+
+        # Notify admin
+        try:
+            from apps.notifications.models import Notification
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            for admin in User.objects.filter(is_staff=True, is_active=True):
+                try:
+                    Notification.objects.create(
+                        recipient=admin,
+                        notification_type="payment",
+                        title=f"💰 Final — {booking.booking_number}",
+                        message=(
+                            f"User: {request.user.email}\n"
+                            f"Kiasi: TSh {booking.final_amount:,.0f}\n"
+                            f"Mtandao: {detected_network}\n"
+                            f"Namba: {phone}\n"
+                            f"Reference: {reference}"
+                        ),
+                        is_sent=True,
+                        metadata={"payment_id": payment.id, "booking_id": booking.id, "kind": "final"},
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         return Response({
             "success": True,
-            "message": f"Final TSh {booking.final_amount} imeanzishwa",
+            "message": f"Final TSh {booking.final_amount} imeanzishwa. Fuata maelekezo.",
             "data": {
                 "payment_id": payment.id,
                 "reference": payment.reference,
                 "amount": str(payment.amount),
+                "detected_network": detected_network,
+                "is_detected": detected_network != "Unknown",
+                "expires_at": payment.expires_at.isoformat() if payment.expires_at else None,
+                "timeout_minutes": PAYMENT_TIMEOUT_MINUTES,
+                "instructions": inst["instructions"],
             },
         }, status=status.HTTP_201_CREATED)
 
