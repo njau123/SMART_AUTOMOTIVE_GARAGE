@@ -27,6 +27,21 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             return ChatRoomCreateSerializer
         return ChatRoomSerializer
 
+    def create(self, request, *args, **kwargs):
+        """Override create — rudisha full ChatRoomSerializer."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        # Rudisha full serializer (na id, participants, n.k.)
+        room = serializer.instance
+        full = ChatRoomSerializer(room, context={'request': request})
+        return Response({
+            'success': True,
+            'message': 'Chat room imeundwa',
+            'data': full.data,
+        }, status=status.HTTP_201_CREATED)
+
     def perform_create(self, serializer):
         from apps.accounts.models import User
         # Save room
@@ -36,8 +51,14 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         # Ongeza participant_ids wengine
         participant_ids = self.request.data.get('participant_ids', [])
         if participant_ids:
-            users = User.objects.filter(id__in=participant_ids)
+            users = User.objects.filter(id__in=participant_ids).exclude(id=self.request.user.id)
             room.participants.add(*users)
+        # Sasisha name kama haipo — tumia jina la participant mwingine
+        if not room.name and room.participants.count() >= 2:
+            other = room.participants.exclude(id=self.request.user.id).first()
+            if other:
+                room.name = other.get_full_name() or other.email
+                room.save(update_fields=['name'])
 
     @action(detail=True, methods=['get'])
     def messages(self, request, pk=None):
