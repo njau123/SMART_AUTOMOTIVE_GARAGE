@@ -40,18 +40,12 @@ class _UsersScreenState extends State<UsersScreen> {
       final res = await AdminAPI.blockUser(u['id'] as int, unblock: unblock);
       if (mounted && res['success'] == true) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(res['message']?.toString() ?? 'Imefanikiwa'),
-            backgroundColor: unblock ? Colors.green : Colors.orange,
-          ),
-        );
+        _snack(res['message']?.toString() ?? 'Imefanikiwa',
+            color: unblock ? Colors.green : Colors.orange);
         _load();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-      );
+      _snack(e.toString(), error: true);
     }
   }
 
@@ -60,7 +54,7 @@ class _UsersScreenState extends State<UsersScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text("Futa User?"),
-        content: Text("Una uhakika kumfuta ${u['email']}? Email haitatumika tena."),
+        content: Text("Una uhakika kumfuta ${u['email']}?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -80,20 +74,35 @@ class _UsersScreenState extends State<UsersScreen> {
         final res = await AdminAPI.deleteUser(u['id'] as int);
         if (mounted && res['success'] == true) {
           Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(res['message']?.toString() ?? 'Amefutwa'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          _snack(res['message']?.toString() ?? 'Amefutwa', error: true);
           _load();
         }
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
+        _snack(e.toString(), error: true);
       }
     }
+  }
+
+  Future<void> _openEditForm(dynamic u) async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _UserEditForm(user: Map<String, dynamic>.from(u as Map)),
+    );
+    if (result == true) _load();
+  }
+
+  void _snack(String m, {bool error = false, Color? color}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(m),
+        backgroundColor: color ?? (error ? Colors.red : Colors.green),
+      ),
+    );
   }
 
   void _showUserDetails(BuildContext context, dynamic u) {
@@ -127,13 +136,9 @@ class _UsersScreenState extends State<UsersScreen> {
                     children: [
                       Text(
                         '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'.trim(),
-                        style: GoogleFonts.poppins(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      Text(
-                        u['email']?.toString() ?? '',
-                        style: GoogleFonts.poppins(fontSize: 12),
-                      ),
+                      Text(u['email']?.toString() ?? '', style: GoogleFonts.poppins(fontSize: 12)),
                     ],
                   ),
                 ),
@@ -146,6 +151,24 @@ class _UsersScreenState extends State<UsersScreen> {
             _detailRow('Hali', isActive ? 'Active' : 'Blocked'),
             _detailRow('Alijisajili', u['created_at']?.toString() ?? '-'),
             const SizedBox(height: 24),
+            // Edit button (full width)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _openEditForm(u);
+                },
+                icon: const Icon(Icons.edit),
+                label: const Text('Hariri Taarifa'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
@@ -188,13 +211,11 @@ class _UsersScreenState extends State<UsersScreen> {
           SizedBox(
             width: 100,
             child: Text('$label:',
-                style: GoogleFonts.poppins(
-                    fontSize: 13, fontWeight: FontWeight.w600)),
+                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
           ),
           Expanded(
             child: Text(value,
-                style: GoogleFonts.poppins(
-                    fontSize: 13, color: AppColors.textSecondary)),
+                style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary)),
           ),
         ],
       ),
@@ -205,10 +226,7 @@ class _UsersScreenState extends State<UsersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Users'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
-      ),
+      appBar: AppBar(title: const Text('Users')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _users.isEmpty
@@ -226,10 +244,8 @@ class _UsersScreenState extends State<UsersScreen> {
                           onTap: () => _showUserDetails(context, u),
                           leading: CircleAvatar(
                             backgroundColor: isActive ? AppColors.primary : Colors.grey,
-                            child: Text(
-                              _initial(u),
-                              style: const TextStyle(color: Colors.white),
-                            ),
+                            child: Text(_initial(u),
+                                style: const TextStyle(color: Colors.white)),
                           ),
                           title: Text(
                             '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'.trim(),
@@ -246,10 +262,8 @@ class _UsersScreenState extends State<UsersScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Chip(
-                                label: Text(
-                                  u['role']?.toString() ?? 'USER',
-                                  style: const TextStyle(fontSize: 10),
-                                ),
+                                label: Text(u['role']?.toString() ?? 'USER',
+                                    style: const TextStyle(fontSize: 10)),
                                 backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                               ),
                               if (!isActive)
@@ -265,6 +279,162 @@ class _UsersScreenState extends State<UsersScreen> {
                     },
                   ),
                 ),
+    );
+  }
+}
+
+// ==================== USER EDIT FORM ====================
+class _UserEditForm extends StatefulWidget {
+  final Map<String, dynamic> user;
+  const _UserEditForm({required this.user});
+  @override
+  State<_UserEditForm> createState() => _UserEditFormState();
+}
+
+class _UserEditFormState extends State<_UserEditForm> {
+  final _firstNameCtrl = TextEditingController();
+  final _middleNameCtrl = TextEditingController();
+  final _lastNameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  String _role = 'USER';
+  bool _isActive = true;
+  bool _saving = false;
+
+  final List<String> _roles = ['USER', 'ADMIN', 'MECHANIC'];
+
+  @override
+  void initState() {
+    super.initState();
+    _firstNameCtrl.text = widget.user['first_name']?.toString() ?? '';
+    _middleNameCtrl.text = widget.user['middle_name']?.toString() ?? '';
+    _lastNameCtrl.text = widget.user['last_name']?.toString() ?? '';
+    _phoneCtrl.text = widget.user['phone_number']?.toString() ?? '';
+    _role = widget.user['role']?.toString() ?? 'USER';
+    _isActive = widget.user['is_active'] == true;
+  }
+
+  @override
+  void dispose() {
+    _firstNameCtrl.dispose();
+    _middleNameCtrl.dispose();
+    _lastNameCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_firstNameCtrl.text.trim().isEmpty || _lastNameCtrl.text.trim().isEmpty) {
+      _snack("First name na Last name ni lazima", error: true);
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await AdminAPI.updateUser(
+        id: widget.user['id'] as int,
+        firstName: _firstNameCtrl.text.trim(),
+        middleName: _middleNameCtrl.text.trim(),
+        lastName: _lastNameCtrl.text.trim(),
+        phone: _phoneCtrl.text.trim(),
+        role: _role,
+        isActive: _isActive,
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      _snack(e.toString().replaceAll("Exception: ", ""), error: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _snack(String m, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(m), backgroundColor: error ? Colors.red : Colors.green),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20, right: 20, top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.edit, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text("Hariri User",
+                    style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(widget.user['email']?.toString() ?? '',
+                style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _firstNameCtrl,
+              decoration: const InputDecoration(
+                  labelText: "First Name", border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _middleNameCtrl,
+              decoration: const InputDecoration(
+                  labelText: "Middle Name (hiari)", border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _lastNameCtrl,
+              decoration: const InputDecoration(
+                  labelText: "Last Name", border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                  labelText: "Namba ya Simu", border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _role,
+              decoration: const InputDecoration(
+                  labelText: "Role", border: OutlineInputBorder()),
+              items: _roles
+                  .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                  .toList(),
+              onChanged: (v) => setState(() => _role = v ?? 'USER'),
+            ),
+            const SizedBox(height: 12),
+            SwitchListTile(
+              value: _isActive,
+              onChanged: (v) => setState(() => _isActive = v),
+              title: const Text("Active"),
+              subtitle: Text(_isActive ? "User anaweza kuingia" : "User amezuiwa"),
+              activeThumbColor: AppColors.primary,
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _saving ? null : _save,
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                child: _saving
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Hifadhi"),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

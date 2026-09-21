@@ -80,7 +80,6 @@ class _MechanicsScreenState extends State<MechanicsScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Mechanics'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openCreateForm,

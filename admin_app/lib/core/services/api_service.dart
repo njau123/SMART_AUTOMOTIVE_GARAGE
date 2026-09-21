@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -555,6 +554,85 @@ class AdminAPI {
     final token = await AdminTokenStorage.getAccessToken();
     await ApiService.delete('services/$id/', token: token);
   }
+
+  // ============ NEWS CRUD ============
+  static Future<List<dynamic>> getNews() async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.get('news/', token: token);
+    return ApiService.asList(data);
+  }
+
+  static Future<Map<String, dynamic>> updateNews({
+    required int id,
+    required String title,
+    required String content,
+  }) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.patch(
+      'news/$id/',
+      {'title': title, 'content': content},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<void> deleteNews(int id) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    await ApiService.delete('news/$id/', token: token);
+  }
+
+  // ============ ADVERTISEMENTS CRUD ============
+  static Future<List<dynamic>> getAds() async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.get('advertisements/', token: token);
+    return ApiService.asList(data);
+  }
+
+  static Future<Map<String, dynamic>> updateAd({
+    required int id,
+    required String title,
+    required String description,
+  }) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.patch(
+      'advertisements/$id/',
+      {'title': title, 'description': description},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<void> deleteAd(int id) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    await ApiService.delete('advertisements/$id/', token: token);
+  }
+
+  // ============ ADMIN USER EDIT ============
+  static Future<Map<String, dynamic>> updateUser({
+    required int id,
+    String? firstName,
+    String? middleName,
+    String? lastName,
+    String? phone,
+    String? role,
+    bool? isActive,
+  }) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final Map<String, dynamic> body = {};
+    if (firstName != null) body['first_name'] = firstName;
+    if (middleName != null) body['middle_name'] = middleName;
+    if (lastName != null) body['last_name'] = lastName;
+    if (phone != null) body['phone_number'] = phone;
+    if (role != null) body['role'] = role;
+    if (isActive != null) body['is_active'] = isActive;
+    final data = await ApiService.patch(
+      'accounts/admin/users/$id/',
+      body,
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
 }
 
 class AdminBookingAPI {

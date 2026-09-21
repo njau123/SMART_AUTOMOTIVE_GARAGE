@@ -82,7 +82,6 @@ class _AdminSparePartsScreenState extends State<AdminSparePartsScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Spare Parts'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),

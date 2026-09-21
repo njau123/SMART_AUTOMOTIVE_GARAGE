@@ -64,7 +64,6 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
       appBar: AppBar(
         title: const Text('Bookings'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
       ),
       body: Column(

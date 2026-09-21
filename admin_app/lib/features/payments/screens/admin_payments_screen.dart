@@ -128,7 +128,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Payments'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       body: Column(
         children: [

@@ -80,7 +80,6 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Services'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
