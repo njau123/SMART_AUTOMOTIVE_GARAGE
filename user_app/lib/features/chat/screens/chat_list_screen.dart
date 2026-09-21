@@ -153,7 +153,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Messages'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {

@@ -86,7 +86,6 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Historia ya Malipo'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       body: Column(
         children: [

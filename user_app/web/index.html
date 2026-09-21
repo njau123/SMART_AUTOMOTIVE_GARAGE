@@ -32,6 +32,18 @@
   <title>user_app</title>
   <link rel="manifest" href="manifest.json">
   <meta name="google-signin-client_id" content="556100186888-392tcj5me8iu52d11fc3hfjfd3iq07qa.apps.googleusercontent.com">
+<style>
+  /* Crisp text rendering on mobile */
+  html, body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  canvas {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+</style>
 </head>
 <body>
   <!--
@@ -42,6 +54,6 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
+<script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -760,6 +760,25 @@ class NotificationAPI {
       return 0;
     }
   }
+
+  // ============ ADDITIONAL METHODS ============
+  static Future<Map<String, dynamic>> markAllRead() async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post('notifications/mark-all-read/', {}, token: token);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> deleteOne(int id) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.delete('notifications/$id/', token: token);
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  static Future<Map<String, dynamic>> deleteAll() async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.delete('notifications/delete-all/', token: token);
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
 }
 
 

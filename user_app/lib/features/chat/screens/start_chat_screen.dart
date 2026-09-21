@@ -130,7 +130,6 @@ class _StartChatScreenState extends State<StartChatScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Anza Chat Mpya'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       body: Column(
         children: [

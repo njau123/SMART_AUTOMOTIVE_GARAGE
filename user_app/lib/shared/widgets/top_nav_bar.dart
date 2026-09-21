@@ -13,7 +13,6 @@ class TopNavBar extends StatelessWidget {
   final bool isLoggedIn;
   final String? firstName;
   final VoidCallback? onProfile;
-  final VoidCallback? onMenuTap;
 
   const TopNavBar({
     super.key,
@@ -26,7 +25,6 @@ class TopNavBar extends StatelessWidget {
     required this.isLoggedIn,
     this.firstName,
     this.onProfile,
-    this.onMenuTap,
   });
 
   @override
@@ -126,17 +124,8 @@ class TopNavBar extends StatelessWidget {
                     ],
                   ),
                 ),
-              ] else ...[
+              ] else
                 const Spacer(),
-                // Hamburger icon kwa mobile
-                if (onMenuTap != null)
-                  IconButton(
-                    icon: const Icon(Icons.menu, size: 26),
-                    onPressed: onMenuTap,
-                    color: isDark ? Colors.white : AppColors.textPrimary,
-                    tooltip: 'Menu',
-                  ),
-              ],
 
               // Auth button
               if (isLoggedIn)

@@ -74,10 +74,6 @@ class _WalletScreenState extends State<WalletScreen> {
       appBar: AppBar(
         title: const Text('My Wallet'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _load,
-          ),
         ],
       ),
       body: RefreshIndicator(

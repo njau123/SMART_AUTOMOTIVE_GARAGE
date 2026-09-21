@@ -170,10 +170,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             onPressed: () => ThemeController.instance.toggle(),
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _load,
-          ),
         ],
       ),
       body: _loading
