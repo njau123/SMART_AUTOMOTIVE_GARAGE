@@ -1,12 +1,12 @@
 """
 Password reset flow with real email sending.
 """
+import os
 import random
 import string
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import generics, status
@@ -19,6 +19,31 @@ User = get_user_model()
 
 def _generate_code():
     return ''.join(random.choices(string.digits, k=6))
+
+
+def _send_email(to_email, subject, message):
+    """Tuma email kwa SendGrid API (HTTP). Inafanya kazi Render Free."""
+    api_key = os.environ.get('SENDGRID_API_KEY', '')
+    from_email = os.environ.get('SENDGRID_FROM_EMAIL', 'njaufredrick0@gmail.com')
+
+    if not api_key:
+        raise Exception('SENDGRID_API_KEY haipo')
+
+    try:
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail
+
+        sg_message = Mail(
+            from_email=from_email,
+            to_emails=to_email,
+            subject=subject,
+            plain_text_content=message,
+        )
+        sg = SendGridAPIClient(api_key)
+        response = sg.send(sg_message)
+        return True, response.status_code
+    except Exception as e:
+        return False, str(e)
 
 
 class RequestPasswordResetView(generics.GenericAPIView):
