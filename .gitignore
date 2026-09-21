@@ -81,3 +81,4 @@ render_env_payload.json
 *.backup_xxx
 *.backup_before_*
 *.bak_*
+render_logs.json

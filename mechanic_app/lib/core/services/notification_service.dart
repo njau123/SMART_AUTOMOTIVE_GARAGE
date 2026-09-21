@@ -2,6 +2,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'api_service.dart';
+import 'notification_router.dart';
 
 /// Service ya kusimamia FCM push notifications.
 class NotificationService {
@@ -61,14 +62,11 @@ class NotificationService {
   void _onForegroundMessage(RemoteMessage msg) {
     debugPrint('FCM foreground: ${msg.notification?.title}');
 
-    // Global navigator key
-    final context = _navigatorKey.currentContext;
-    if (context == null) return;
-
     final title = msg.notification?.title ?? 'Notification';
     final body = msg.notification?.body ?? '';
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    NotificationRouter.instance.scaffoldMessengerKey.currentState
+        ?.showSnackBar(
       SnackBar(
         content: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,15 +98,23 @@ class NotificationService {
 
   void _handleChatNavigation(RemoteMessage msg) {
     final type = msg.data['type'];
-    if (type == 'chat_message') {
-      debugPrint('Navigate to chat room ${msg.data['room_id']}');
-      // Baadaye tutaweka navigation hapa kwa Navigator key
+    final roomIdStr = msg.data['room_id']?.toString();
+
+    debugPrint('FCM nav: type=$type room=$roomIdStr');
+
+    if (type == 'chat_message' && roomIdStr != null && roomIdStr.isNotEmpty) {
+      final roomId = int.tryParse(roomIdStr);
+      if (roomId != null && roomId > 0) {
+        NotificationRouter.instance.openChatRoom(
+          roomId,
+          msg.notification?.title ?? 'Chat',
+        );
+      }
+    } else if (type == 'chat_message') {
+      // Kama room_id haipo — fungua chat list
+      NotificationRouter.instance.openChatList();
     }
   }
-
-  /// Global navigator key (kwa navigation from notification).
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
-  GlobalKey<NavigatorState> get navigatorKey => _navigatorKey;
 
   /// Unregister token (kwenye logout).
   Future<void> unregister() async {

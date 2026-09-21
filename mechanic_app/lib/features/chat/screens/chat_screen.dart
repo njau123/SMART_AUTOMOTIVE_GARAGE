@@ -94,7 +94,6 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Text(widget.roomName),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadMessages),
         ],
       ),
       body: Column(

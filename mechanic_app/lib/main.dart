@@ -4,9 +4,11 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/notification_router.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/dashboard/screens/dashboard_screen.dart';
 import 'features/chat/screens/chat_list_screen.dart';
+import 'features/chat/screens/chat_screen.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -39,11 +41,25 @@ class MyApp extends StatelessWidget {
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      navigatorKey: NotificationRouter.instance.navigatorKey,
+      scaffoldMessengerKey: NotificationRouter.instance.scaffoldMessengerKey,
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginScreen(),
         '/dashboard': (context) => const DashboardScreen(),
         '/chat': (context) => const ChatListScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/chat-screen') {
+          final args = settings.arguments as Map?;
+          return MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              roomId: args?['room_id'] as int? ?? 0,
+              roomName: args?['room_name']?.toString() ?? 'Chat',
+            ),
+          );
+        }
+        return null;
       },
     );
   }

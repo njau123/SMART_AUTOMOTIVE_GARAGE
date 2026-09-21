@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
@@ -15,29 +16,44 @@ class _ChatListScreenState extends State<ChatListScreen> {
   List<dynamic> _rooms = [];
   bool _loading = true;
   String? _error;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
+
+    // Polling: angalia rooms mpya kila sekunde 5
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _load(silent: true),
+    );
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final data = await ChatAPI.getRooms();
       if (mounted) setState(() { _rooms = data; _loading = false; });
     } catch (e) {
-      if (mounted) {
+      if (mounted && !silent) {
         setState(() {
           _error = e.toString().replaceAll('Exception: ', '');
           _loading = false;
         });
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _openRoom(dynamic room) async {
@@ -59,7 +75,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
       appBar: AppBar(
         title: const Text('Messages'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
       ),
       body: RefreshIndicator(

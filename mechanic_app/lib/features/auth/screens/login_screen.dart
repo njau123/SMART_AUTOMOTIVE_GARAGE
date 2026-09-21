@@ -257,66 +257,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 20),
-
-                          // Divider
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Divider(color: Colors.grey.shade200),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                child: Text(
-                                  'OR',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    color: const Color(0xFF9AA5B1),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Divider(color: Colors.grey.shade200),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-
-                                                    SizedBox(
-                            height: 52,
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Tumia ME number + password kuingia',
-                                    ),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              },
-                              icon: const Icon(
-                                Icons.g_mobiledata,
-                                size: 28,
-                              ),
-                              label: Text(
-                                'Continue with Google',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF1A1F36),
-                                ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: Colors.grey.shade300),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
