@@ -1212,7 +1212,35 @@ class NotificationViewSet(viewsets.ModelViewSet):
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
     def get_queryset(self):
-        return Notification.objects.filter(recipient=self.request.user)
+        return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
+
+    @action(detail=True, methods=['post'], url_path='mark-read')
+    def mark_read(self, request, pk=None):
+        n = self.get_object()
+        n.is_read = True
+        n.read_at = now()
+        n.save(update_fields=['is_read', 'read_at', 'updated_at'])
+        return Response({'success': True, 'message': 'Marked as read'})
+
+    @action(detail=False, methods=['post'], url_path='mark-all-read')
+    def mark_all_read(self, request):
+        updated = self.get_queryset().filter(is_read=False).update(
+            is_read=True, read_at=now()
+        )
+        return Response({'success': True, 'updated': updated})
+
+    @action(detail=False, methods=['delete'], url_path='delete-all')
+    def delete_all(self, request):
+        deleted, _ = self.get_queryset().delete()
+        return Response({'success': True, 'deleted': deleted})
+
+    @action(detail=True, methods=['post'], url_path='dismiss')
+    def dismiss(self, request, pk=None):
+        n = self.get_object()
+        n.is_dismissed = True
+        n.dismissed_at = now()
+        n.save(update_fields=['is_dismissed', 'dismissed_at', 'updated_at'])
+        return Response({'success': True, 'message': 'Dismissed'})
 
 class NotificationDeviceViewSet(viewsets.ModelViewSet):
     serializer_class = NotificationDeviceSerializer
