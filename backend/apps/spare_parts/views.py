@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, filters
+from api.permissions import IsAdminOrReadOnly
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
@@ -15,20 +16,20 @@ from .serializers import (
 
 # ==================== PUBLIC (VIEWSETS) ====================
 class CategoryViewSet(viewsets.ModelViewSet):
-    queryset = Category.objects.filter(is_active=True)
+    queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class BrandViewSet(viewsets.ModelViewSet):
-    queryset = Brand.objects.filter(is_active=True)
+    queryset = Brand.objects.all()
     serializer_class = BrandSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class SparePartViewSet(viewsets.ModelViewSet):
-    queryset = SparePart.objects.filter(is_active=True)
-    permission_classes = [permissions.AllowAny]
+    queryset = SparePart.objects.all()
+    permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'brand', 'condition', 'status', 'is_featured', 'is_on_sale']
     search_fields = ['name', 'description', 'part_number']

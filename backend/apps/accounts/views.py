@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -237,3 +238,32 @@ def admin_users(request):
         'phone_number', 'is_active',
     )
     return Response(list(users))
+
+
+
+# ==================== ADMIN USER MANAGEMENT ====================
+from rest_framework import serializers as drf_serializers
+from api.permissions import IsAdminOrReadOnly
+
+
+class AdminUserSerializer(drf_serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'first_name', 'middle_name', 'last_name',
+            'phone_number', 'role', 'is_active', 'is_staff',
+            'is_superuser', 'created_at', 'updated_at', 'last_login',
+            'is_email_verified', 'is_phone_verified', 'profile_image'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'last_login']
+
+
+class AdminUserViewSet(viewsets.ModelViewSet):
+    """Admin CRUD kwa users."""
+    queryset = User.objects.all().order_by('-created_at')
+    serializer_class = AdminUserSerializer
+    permission_classes = [IsAdminOrReadOnly]
+    search_fields = ['email', 'first_name', 'last_name', 'phone_number']
+    from rest_framework import filters as drf_filters
+    filter_backends = [drf_filters.SearchFilter, drf_filters.OrderingFilter]
+    ordering_fields = ['created_at', 'email', 'last_login']
