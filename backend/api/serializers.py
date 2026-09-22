@@ -33,7 +33,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'first_name', 'middle_name', 'last_name',
-            'phone_number', 'role', 'profile_image', 'profile_image_url',
+            'phone_number', 'region', 'role', 'profile_image', 'profile_image_url',
             'is_email_verified', 'is_phone_verified',
             'created_at',
         ]

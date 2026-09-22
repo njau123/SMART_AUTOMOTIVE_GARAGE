@@ -40,6 +40,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         db_index=True,
     )
 
+    # Mkoa wa Tanzania (kwa mechanic matching)
+    region = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text="Mkoa wa Tanzania (mfano Dodoma, Dar es Salaam)",
+    )
+
     role = models.CharField(
         max_length=20,
         choices=Role.choices,

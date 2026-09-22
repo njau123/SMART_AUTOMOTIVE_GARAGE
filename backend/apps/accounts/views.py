@@ -30,8 +30,10 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
                 'middle_name': getattr(user, 'middle_name', ''),
                 'last_name': user.last_name,
                 'phone_number': getattr(user, 'phone_number', ''),
+                'region': getattr(user, 'region', ''),
                 'role': getattr(user, 'role', 'USER'),
                 'profile_image': user.profile_image.url if user.profile_image else None,
+                'profile_image_url': getattr(user, 'profile_image_url', None),
             }
             return {
                 "success": True,
@@ -92,6 +94,7 @@ class RegisterView(APIView):
         middle_name = (data.get('middle_name') or '').strip()
         last_name = (data.get('last_name') or '').strip()
         phone_number = (data.get('phone_number') or '').strip()
+        region = (data.get('region') or '').strip()
 
         errors = {}
         if not email:
@@ -126,6 +129,7 @@ class RegisterView(APIView):
             middle_name=middle_name,
             last_name=last_name,
             phone_number=phone_number,
+            region=region,
             is_active=True,
         )
 
@@ -256,9 +260,10 @@ class AdminUserSerializer(drf_serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'first_name', 'middle_name', 'last_name',
-            'phone_number', 'role', 'is_active', 'is_staff',
+            'phone_number', 'region', 'role', 'is_active', 'is_staff',
             'is_superuser', 'created_at', 'updated_at', 'last_login',
-            'is_email_verified', 'is_phone_verified', 'profile_image'
+            'is_email_verified', 'is_phone_verified', 'profile_image',
+            'plain_password',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'last_login']
 

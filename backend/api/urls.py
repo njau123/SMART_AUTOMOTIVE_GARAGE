@@ -18,6 +18,9 @@ from .admin_views import (
 from .admin_mechanic_views import (
     AdminMechanicCreateView,
     AdminMechanicDeleteView,
+    AdminMechanicRegionChangeListView,
+    AdminMechanicRegionChangeApproveView,
+    AdminMechanicRegionChangeRejectView,
 )
 from .admin_spare_parts_views import (
     AdminSparePartListView,
@@ -158,5 +161,8 @@ urlpatterns += [
     path('admin/spare-parts/<int:pk>/delete/', AdminSparePartDeleteView.as_view(), name='admin-spareparts-delete'),
     # ============ ADMIN MECHANICS (NEW) ============
     path('admin/mechanics/create/', AdminMechanicCreateView.as_view(), name='admin-mechanic-create'),
+    path('admin/mechanics/region-changes/', AdminMechanicRegionChangeListView.as_view(), name='admin-mechanic-region-changes'),
+    path('admin/mechanics/<int:pk>/approve-region/', AdminMechanicRegionChangeApproveView.as_view(), name='admin-mechanic-approve-region'),
+    path('admin/mechanics/<int:pk>/reject-region/', AdminMechanicRegionChangeRejectView.as_view(), name='admin-mechanic-reject-region'),
     path('admin/mechanics/<int:pk>/delete/', AdminMechanicDeleteView.as_view(), name='admin-mechanic-delete'),
 ]

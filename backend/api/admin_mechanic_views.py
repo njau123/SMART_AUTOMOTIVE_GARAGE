@@ -2,6 +2,7 @@
 Admin Mechanics Management — Create (with ME-XXXX), List, Update, Delete.
 """
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
@@ -141,4 +142,95 @@ class AdminMechanicDeleteView(APIView):
         return Response({
             'success': True,
             'message': f'Mechanic "{name}" amefutwa',
+        })
+
+
+# ==================== REGION CHANGE REQUESTS ====================
+class AdminMechanicRegionChangeListView(APIView):
+    """Admin — ona region change requests zote (pending)."""
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        profiles = MechanicProfile.objects.select_related('user').all()
+        pending = []
+        for p in profiles:
+            docs = p.verification_documents or {}
+            if isinstance(docs, dict) and docs.get('pending_region'):
+                reg_no = docs.get('registration_number', '')
+                pending.append({
+                    'mechanic_id': p.id,
+                    'user_id': p.user.id,
+                    'full_name': p.business_name or p.user.get_full_name(),
+                    'email': p.user.email,
+                    'phone_number': p.user.phone_number,
+                    'registration_number': reg_no,
+                    'current_region': p.region,
+                    'pending_region': docs.get('pending_region'),
+                    'requested_at': docs.get('region_change_requested_at', ''),
+                })
+        return Response({'success': True, 'data': pending})
+
+
+class AdminMechanicRegionChangeApproveView(APIView):
+    """Admin — approve region change."""
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            profile = MechanicProfile.objects.select_related('user').get(pk=pk)
+        except MechanicProfile.DoesNotExist:
+            return Response(
+                {'success': False, 'message': 'Mechanic haipo'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        docs = dict(profile.verification_documents or {})
+        pending_region = docs.get('pending_region')
+        if not pending_region:
+            return Response(
+                {'success': False, 'message': 'Hakuna region change request'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        old_region = profile.region
+        profile.region = pending_region
+        docs.pop('pending_region', None)
+        docs.pop('region_change_requested_at', None)
+        docs['region_change_approved_at'] = timezone.now().isoformat()
+        docs['region_change_approved_by'] = request.user.email
+        profile.verification_documents = docs
+        profile.save(update_fields=['region', 'verification_documents'])
+
+        return Response({
+            'success': True,
+            'message': f'Region imebadilishwa: {old_region} → {pending_region}',
+            'data': {'old_region': old_region, 'new_region': pending_region},
+        })
+
+
+class AdminMechanicRegionChangeRejectView(APIView):
+    """Admin — reject region change."""
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            profile = MechanicProfile.objects.select_related('user').get(pk=pk)
+        except MechanicProfile.DoesNotExist:
+            return Response(
+                {'success': False, 'message': 'Mechanic haipo'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        docs = dict(profile.verification_documents or {})
+        rejected = docs.pop('pending_region', None)
+        docs.pop('region_change_requested_at', None)
+        docs['region_change_rejected_at'] = timezone.now().isoformat()
+        docs['region_change_rejected_by'] = request.user.email
+        profile.verification_documents = docs
+        profile.save(update_fields=['verification_documents'])
+
+        return Response({
+            'success': True,
+            'message': f'Region change imekataliwa ({rejected})',
+            'data': {'rejected_region': rejected},
         })

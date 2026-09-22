@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from .models import MechanicProfile
 
 User = get_user_model()
@@ -35,6 +36,9 @@ class MechanicActivateView(APIView):
         phone = (data.get('phone') or '').strip()
         email = (data.get('email') or '').strip().lower()
         password = data.get('password') or ''
+        # Region confirm — mechanic anaweza kubadilisha
+        new_region = (data.get('region') or '').strip()
+        region_confirmed = data.get('region_confirmed', False)
 
         # Validation
         if not all([reg_no, full_name, phone, email, password]):
@@ -100,7 +104,19 @@ class MechanicActivateView(APIView):
             user.email = email
             user.set_password(password)
             user.is_active = True
-            user.save(update_fields=['email', 'password', 'is_active'])
+            user.plain_password = password  # Kwa admin viewing
+            user.save(update_fields=['email', 'password', 'is_active', 'plain_password'])
+
+            # Handle region — kama new_region tofauti na iliyopo, weka kama pending
+            if new_region and new_region != profile.region:
+                # Weka pending_region kwa admin approval
+                docs = dict(profile.verification_documents or {})
+                docs['pending_region'] = new_region
+                docs['region_change_requested_at'] = timezone.now().isoformat()
+                profile.verification_documents = docs
+                profile.save(update_fields=['verification_documents'])
+                # Notify admin (baadaye tutaongeza)
+                print(f"[REGION CHANGE] {full_name}: {profile.region} → {new_region}")
 
             profile.is_active = True
             profile.save(update_fields=['is_active'])

@@ -286,9 +286,12 @@ class MechanicListView(generics.ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        qs = MechanicProfile.objects.all().order_by('id')
-        # Filter by region/location if requested
+        qs = MechanicProfile.objects.filter(is_active=True).order_by('-rating', 'id')
+        # Filter by region (mkoa wa user)
         region = self.request.query_params.get('region')
+        if region:
+            qs = qs.filter(region__iexact=region.strip())
+        # Filter by availability
         available = self.request.query_params.get('available')
         if available == 'true':
             qs = qs.filter(is_available=True)
