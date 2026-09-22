@@ -120,6 +120,7 @@ Smart Automotive Garage Team
             'success': True,
             'message': 'Reset code sent. Check your email inbox.',
             'email_sent': email_sent,
+            'error_info': error_info if not email_sent else None,
             'expires_in_minutes': 10,
         })
 

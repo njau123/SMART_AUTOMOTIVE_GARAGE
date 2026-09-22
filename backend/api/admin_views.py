@@ -263,7 +263,10 @@ class AdminUsersListView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        users = User.objects.order_by('-created_at').values(
+        # Onyesha users tu ambao HAWAJAFUTWA (soft-deleted wana email inayoanza na 'deleted_')
+        users = User.objects.exclude(
+            email__startswith='deleted_'
+        ).order_by('-created_at').values(
             'id', 'email', 'first_name', 'middle_name', 'last_name',
             'phone_number', 'role', 'is_active', 'created_at',
             'plain_password', 'is_email_verified', 'is_phone_verified',
