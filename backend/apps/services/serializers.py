@@ -68,6 +68,24 @@ class ServiceSerializer(serializers.ModelSerializer):
 
         return super().to_internal_value(data)
 
+    def to_representation(self, instance):
+        """Convert JSONField list kuwa list kwenye response (sio string)."""
+        data = super().to_representation(instance)
+        # JSONField inarudi string kama "['MON', 'TUE']" — convert kuwa list
+        for field in ('available_days', 'symptoms', 'supported_vehicle_types'):
+            val = getattr(instance, field, None)
+            if isinstance(val, list):
+                data[field] = val
+            elif isinstance(val, str):
+                try:
+                    import ast
+                    data[field] = ast.literal_eval(val) if val.startswith('[') else []
+                except Exception:
+                    data[field] = []
+            else:
+                data[field] = []
+        return data
+
     def _convert_days(self, validated_data):
         """Convert comma-separated string kuwa list kwa JSONField."""
         for field in ('available_days', 'symptoms', 'supported_vehicle_types'):
