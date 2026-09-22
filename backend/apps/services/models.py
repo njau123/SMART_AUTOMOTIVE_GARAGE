@@ -76,6 +76,13 @@ class Service(models.Model):
         blank=True,
     )
 
+    video = models.FileField(
+        upload_to="services/videos/%Y/%m/",
+        null=True,
+        blank=True,
+        help_text="Video ya service (mp4, webm, max 50MB)",
+    )
+
     # ===== RATIBA (Schedule) =====
     available_days = models.JSONField(
         default=list,

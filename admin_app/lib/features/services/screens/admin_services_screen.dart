@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 
@@ -15,6 +16,7 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
   List<dynamic> _services = [];
   List<dynamic> _categories = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -23,22 +25,28 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
     try {
-      final results = await Future.wait([
-        AdminAPI.getServices(),
-        AdminAPI.getServiceCategories(),
-      ]);
+      final services = await AdminAPI.getServices();
+      List<dynamic> categories = [];
+      try {
+        categories = await AdminAPI.getServiceCategories();
+      } catch (e) {
+        debugPrint('Categories error: $e');
+      }
       if (mounted) {
         setState(() {
-          _services = results[0];
-          _categories = results[1];
+          _services = services;
+          _categories = categories;
           _loading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          _error = e.toString();
+        });
       }
     }
   }
@@ -50,10 +58,7 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _ServiceForm(
-        existing: existing,
-        categories: _categories,
-      ),
+      builder: (_) => _ServiceForm(existing: existing, categories: _categories),
     );
     if (result == true) _load();
   }
@@ -84,9 +89,11 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
           _load();
         }
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+          );
+        }
       }
     }
   }
@@ -104,98 +111,125 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _services.isEmpty
+          : _error != null
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.build_outlined, size: 64, color: AppColors.textMuted),
-                      const SizedBox(height: 12),
-                      Text("Hakuna services", style: GoogleFonts.poppins()),
-                      const SizedBox(height: 12),
-                      ElevatedButton.icon(
-                        onPressed: () => _openForm(),
-                        icon: const Icon(Icons.add),
-                        label: const Text("Ongeza ya Kwanza"),
-                      ),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        const SizedBox(height: 12),
+                        Text(_error!, textAlign: TextAlign.center, style: GoogleFonts.poppins()),
+                        const SizedBox(height: 12),
+                        ElevatedButton(onPressed: _load, child: const Text("Jaribu Tena")),
+                      ],
+                    ),
                   ),
                 )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 80),
-                    itemCount: _services.length,
-                    itemBuilder: (_, i) {
-                      final s = _services[i];
-                      final img = (s['image'] ?? '').toString();
-                      final days = (s['available_days'] is List)
-                          ? (s['available_days'] as List).join(', ')
-                          : '';
-                      final timeRange = (s['start_time'] != null && s['end_time'] != null)
-                          ? '${s['start_time']} - ${s['end_time']}'
-                          : '';
+              : _services.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.build_outlined, size: 64, color: AppColors.textMuted),
+                          const SizedBox(height: 12),
+                          Text("Hakuna services", style: GoogleFonts.poppins()),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: () => _openForm(),
+                            icon: const Icon(Icons.add),
+                            label: const Text("Ongeza ya Kwanza"),
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 80),
+                        itemCount: _services.length,
+                        itemBuilder: (_, i) {
+                          final s = _services[i];
+                          final img = (s['image'] ?? '').toString();
+                          final days = (s['available_days'] is List)
+                              ? (s['available_days'] as List).join(', ')
+                              : '';
+                          final timeRange = (s['start_time'] != null && s['end_time'] != null)
+                              ? '${s['start_time'].toString().substring(0, 5)} - ${s['end_time'].toString().substring(0, 5)}'
+                              : '';
+                          final hasVideo = (s['video'] ?? '').toString().isNotEmpty;
 
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        child: ListTile(
-                          leading: img.isNotEmpty
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    img, width: 50, height: 50, fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(
-                                      width: 50, height: 50, color: AppColors.border,
-                                      child: const Icon(Icons.build),
+                          return Card(
+                            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            child: ListTile(
+                              leading: img.isNotEmpty
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.network(
+                                        img, width: 50, height: 50, fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          width: 50, height: 50, color: AppColors.border,
+                                          child: const Icon(Icons.build),
+                                        ),
+                                      ),
+                                    )
+                                  : Container(
+                                      width: 50, height: 50,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.build, color: AppColors.primary),
                                     ),
-                                  ),
-                                )
-                              : Container(
-                                  width: 50, height: 50,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(Icons.build, color: AppColors.primary),
-                                ),
-                          title: Text(s['name']?.toString() ?? 'Unnamed'),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(s['description']?.toString() ?? '',
-                                  maxLines: 1, overflow: TextOverflow.ellipsis),
-                              Text("TSh ${s['base_price'] ?? '0'} • ${s['estimated_duration_minutes'] ?? 0} min"),
-                              if (days.isNotEmpty)
-                                Text("Siku: $days",
-                                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                              if (timeRange.isNotEmpty)
-                                Text("Muda: $timeRange",
-                                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                            ],
-                          ),
-                          isThreeLine: true,
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (v) {
-                              if (v == 'edit') {
-                                _openForm(Map<String, dynamic>.from(s as Map));
-                              }
-                              if (v == 'delete') {
-                                _delete(s);
-                              }
-                            },
-                            itemBuilder: (_) => [
-                              const PopupMenuItem(value: 'edit', child: Text("Hariri")),
-                              const PopupMenuItem(
-                                value: 'delete',
-                                child: Text("Futa", style: TextStyle(color: Colors.red)),
+                              title: Row(
+                                children: [
+                                  Expanded(child: Text(s['name']?.toString() ?? 'Unnamed')),
+                                  if (hasVideo)
+                                    const Icon(Icons.videocam, size: 18, color: Colors.red),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    s['category_name']?.toString() ?? '',
+                                    style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(s['description']?.toString() ?? '',
+                                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  Text("TSh ${s['base_price'] ?? '0'}"),
+                                  if (days.isNotEmpty)
+                                    Text("Siku: $days",
+                                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                                  if (timeRange.isNotEmpty)
+                                    Text("Muda: $timeRange",
+                                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                                ],
+                              ),
+                              isThreeLine: true,
+                              trailing: PopupMenuButton<String>(
+                                onSelected: (v) {
+                                  if (v == 'edit') {
+                                    _openForm(Map<String, dynamic>.from(s as Map));
+                                  }
+                                  if (v == 'delete') {
+                                    _delete(s);
+                                  }
+                                },
+                                itemBuilder: (_) => [
+                                  const PopupMenuItem(value: 'edit', child: Text("Hariri")),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Text("Futa", style: TextStyle(color: Colors.red)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
     );
   }
 }
@@ -213,7 +247,6 @@ class _ServiceFormState extends State<_ServiceForm> {
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
-  final _durationCtrl = TextEditingController(text: '60');
 
   int? _categoryId;
   List<String> _selectedDays = [];
@@ -221,6 +254,8 @@ class _ServiceFormState extends State<_ServiceForm> {
   TimeOfDay? _endTime;
   Uint8List? _imageBytes;
   String? _imageName;
+  Uint8List? _videoBytes;
+  String? _videoName;
   bool _fixedPrice = false;
   bool _saving = false;
 
@@ -244,8 +279,7 @@ class _ServiceFormState extends State<_ServiceForm> {
       _nameCtrl.text = e['name']?.toString() ?? '';
       _descCtrl.text = e['description']?.toString() ?? '';
       _priceCtrl.text = e['base_price']?.toString() ?? '';
-      _durationCtrl.text = e['estimated_duration_minutes']?.toString() ?? '60';
-      _categoryId = e['category'] is int ? e['category'] : null;
+      if (e['category'] is int) _categoryId = e['category'] as int;
       if (e['available_days'] is List) {
         _selectedDays = List<String>.from(
           (e['available_days'] as List).map((d) => d.toString()),
@@ -253,39 +287,59 @@ class _ServiceFormState extends State<_ServiceForm> {
       }
       _fixedPrice = e['fixed_price'] == true;
 
-      // Parse time
       final st = e['start_time']?.toString();
       if (st != null && st.contains(':')) {
-        final parts = st.split(':');
+        final p = st.split(':');
         _startTime = TimeOfDay(
-          hour: int.tryParse(parts[0]) ?? 0,
-          minute: int.tryParse(parts[1].substring(0, 2)) ?? 0,
+          hour: int.tryParse(p[0]) ?? 0,
+          minute: int.tryParse(p[1].substring(0, 2)) ?? 0,
         );
       }
       final et = e['end_time']?.toString();
       if (et != null && et.contains(':')) {
-        final parts = et.split(':');
+        final p = et.split(':');
         _endTime = TimeOfDay(
-          hour: int.tryParse(parts[0]) ?? 0,
-          minute: int.tryParse(parts[1].substring(0, 2)) ?? 0,
+          hour: int.tryParse(p[0]) ?? 0,
+          minute: int.tryParse(p[1].substring(0, 2)) ?? 0,
         );
       }
     }
   }
 
   Future<void> _pickImage() async {
-    final x = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-    if (x != null) {
-      final bytes = await x.readAsBytes();
-      setState(() { _imageBytes = bytes; _imageName = x.name; });
+    try {
+      final x = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 1200);
+      if (x != null) {
+        final bytes = await x.readAsBytes();
+        setState(() { _imageBytes = bytes; _imageName = x.name; });
+      }
+    } catch (e) {
+      _snack("Imeshindwa kuchagua picha: $e", error: true);
+    }
+  }
+
+  Future<void> _pickVideo() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.video, withData: true, allowMultiple: false,
+      );
+      if (result != null && result.files.single.bytes != null) {
+        setState(() {
+          _videoBytes = result.files.single.bytes;
+          _videoName = result.files.single.name;
+        });
+      }
+    } catch (e) {
+      _snack("Imeshindwa kuchagua video: $e", error: true);
     }
   }
 
   Future<void> _pickTime(bool isStart) async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: isStart ? (_startTime ?? const TimeOfDay(hour: 8, minute: 0))
-                           : (_endTime ?? const TimeOfDay(hour: 18, minute: 0)),
+      initialTime: isStart
+          ? (_startTime ?? const TimeOfDay(hour: 8, minute: 0))
+          : (_endTime ?? const TimeOfDay(hour: 18, minute: 0)),
     );
     if (picked != null) {
       setState(() {
@@ -308,9 +362,12 @@ class _ServiceFormState extends State<_ServiceForm> {
       _snack("Jina na bei ni lazima", error: true);
       return;
     }
+    if (_categoryId == null) {
+      _snack("Chagua category", error: true);
+      return;
+    }
     setState(() => _saving = true);
     try {
-      final imageBytes = _imageBytes;
       final isEdit = widget.existing != null;
 
       if (!isEdit) {
@@ -318,10 +375,11 @@ class _ServiceFormState extends State<_ServiceForm> {
           name: _nameCtrl.text.trim(),
           description: _descCtrl.text.trim(),
           basePrice: double.tryParse(_priceCtrl.text) ?? 0,
-          estimatedMinutes: int.tryParse(_durationCtrl.text) ?? 60,
           categoryId: _categoryId,
-          imageBytes: imageBytes,
+          imageBytes: _imageBytes,
           imageName: _imageName,
+          videoBytes: _videoBytes,
+          videoName: _videoName,
           availableDays: _selectedDays,
           startTime: _fmtTime(_startTime),
           endTime: _fmtTime(_endTime),
@@ -333,10 +391,11 @@ class _ServiceFormState extends State<_ServiceForm> {
           name: _nameCtrl.text.trim(),
           description: _descCtrl.text.trim(),
           basePrice: double.tryParse(_priceCtrl.text) ?? 0,
-          estimatedMinutes: int.tryParse(_durationCtrl.text) ?? 60,
           categoryId: _categoryId,
-          imageBytes: imageBytes,
+          imageBytes: _imageBytes,
           imageName: _imageName,
+          videoBytes: _videoBytes,
+          videoName: _videoName,
           availableDays: _selectedDays,
           startTime: _fmtTime(_startTime),
           endTime: _fmtTime(_endTime),
@@ -345,7 +404,7 @@ class _ServiceFormState extends State<_ServiceForm> {
       }
       if (!mounted) return;
       Navigator.pop(context, true);
-      _snack(isEdit ? "Service imeupdate + users wamearifiwa" : "Service imeongezwa + users wamearifiwa");
+      _snack(isEdit ? "Service imeupdate" : "Service imeongezwa + users wamearifiwa");
     } catch (e) {
       _snack(e.toString().replaceAll("Exception: ", ""), error: true);
     } finally {
@@ -365,7 +424,6 @@ class _ServiceFormState extends State<_ServiceForm> {
     _nameCtrl.dispose();
     _descCtrl.dispose();
     _priceCtrl.dispose();
-    _durationCtrl.dispose();
     super.dispose();
   }
 
@@ -414,20 +472,40 @@ class _ServiceFormState extends State<_ServiceForm> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+
+            // ===== VIDEO PICKER =====
+            OutlinedButton.icon(
+              onPressed: _pickVideo,
+              icon: const Icon(Icons.video_library),
+              label: Text(_videoBytes != null
+                  ? 'Video: ${_videoName ?? "imechaguliwa"}'
+                  : 'Chagua Video (hiari)'),
+            ),
+            if (_videoBytes != null) ...[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => setState(() { _videoBytes = null; _videoName = null; }),
+                  icon: const Icon(Icons.close, size: 16),
+                  label: const Text("Ondoa video", style: TextStyle(fontSize: 12)),
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
 
             // ===== CATEGORY =====
             DropdownButtonFormField<int>(
               initialValue: _categoryId,
               decoration: const InputDecoration(
-                  labelText: "Category", border: OutlineInputBorder()),
-              items: [
-                const DropdownMenuItem<int>(value: null, child: Text('— Chagua —')),
-                ...widget.categories.map((c) => DropdownMenuItem<int>(
-                      value: c['id'] as int,
-                      child: Text(c['name']?.toString() ?? ''),
-                    )),
-              ],
+                  labelText: "Category *", border: OutlineInputBorder()),
+              items: widget.categories.map((c) {
+                return DropdownMenuItem<int>(
+                  value: c['id'] as int,
+                  child: Text(c['name']?.toString() ?? ''),
+                );
+              }).toList(),
               onChanged: (v) => setState(() => _categoryId = v),
             ),
             const SizedBox(height: 12),
@@ -440,12 +518,9 @@ class _ServiceFormState extends State<_ServiceForm> {
             const SizedBox(height: 12),
             TextField(controller: _priceCtrl, keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: "Bei (TSh)", border: OutlineInputBorder())),
-            const SizedBox(height: 12),
-            TextField(controller: _durationCtrl, keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: "Muda (dakika)", border: OutlineInputBorder())),
             const SizedBox(height: 16),
 
-            // ===== SIKU ZA WIKI =====
+            // ===== SIKU =====
             Text("Siku za Kazi", style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Wrap(
@@ -478,7 +553,7 @@ class _ServiceFormState extends State<_ServiceForm> {
                   child: OutlinedButton.icon(
                     onPressed: () => _pickTime(true),
                     icon: const Icon(Icons.access_time),
-                    label: Text(_startTime == null ? 'Muda Kuanza' : 'Anza: ${_startTime!.format(context)}'),
+                    label: Text(_startTime == null ? 'Anza' : _startTime!.format(context)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -486,14 +561,13 @@ class _ServiceFormState extends State<_ServiceForm> {
                   child: OutlinedButton.icon(
                     onPressed: () => _pickTime(false),
                     icon: const Icon(Icons.access_time_filled),
-                    label: Text(_endTime == null ? 'Muda Kuisha' : 'Isha: ${_endTime!.format(context)}'),
+                    label: Text(_endTime == null ? 'Isha' : _endTime!.format(context)),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
 
-            // ===== FIXED PRICE =====
             SwitchListTile(
               value: _fixedPrice,
               onChanged: (v) => setState(() => _fixedPrice = v),

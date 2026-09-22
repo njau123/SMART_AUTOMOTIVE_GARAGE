@@ -517,6 +517,8 @@ class AdminAPI {
     int? categoryId,
     List<int>? imageBytes,
     String? imageName,
+    List<int>? videoBytes,
+    String? videoName,
     List<String>? availableDays,
     String? startTime,
     String? endTime,
@@ -545,6 +547,12 @@ class AdminAPI {
       fileBytes = {'image': imageBytes};
       fileNames = {'image': imageName ?? 'service.jpg'};
     }
+    if (videoBytes != null && videoBytes.isNotEmpty) {
+      fileBytes ??= {};
+      fileNames ??= {};
+      fileBytes['video'] = videoBytes;
+      fileNames['video'] = videoName ?? 'service.mp4';
+    }
 
     return await ApiService.postMultipart(
       'services/',
@@ -565,6 +573,8 @@ class AdminAPI {
     int? categoryId,
     List<int>? imageBytes,
     String? imageName,
+    List<int>? videoBytes,
+    String? videoName,
     List<String>? availableDays,
     String? startTime,
     String? endTime,
@@ -591,6 +601,12 @@ class AdminAPI {
     if (imageBytes != null && imageBytes.isNotEmpty) {
       fileBytes = {'image': imageBytes};
       fileNames = {'image': imageName ?? 'service.jpg'};
+    }
+    if (videoBytes != null && videoBytes.isNotEmpty) {
+      fileBytes ??= {};
+      fileNames ??= {};
+      fileBytes['video'] = videoBytes;
+      fileNames['video'] = videoName ?? 'service.mp4';
     }
 
     return await ApiService.postMultipart(

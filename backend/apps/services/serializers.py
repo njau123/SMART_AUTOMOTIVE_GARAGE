@@ -29,7 +29,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             'base_price',
             'image',
             'available_days', 'start_time', 'end_time',
-            'fixed_price',
+            'fixed_price', 'video',
             'is_active',
             'created_at', 'updated_at',
         ]
@@ -85,5 +85,5 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
             'estimated_duration_minutes',
             'base_price', 'image',
             'available_days', 'start_time', 'end_time',
-            'fixed_price', 'is_active',
+            'fixed_price', 'video', 'is_active',
         ]
