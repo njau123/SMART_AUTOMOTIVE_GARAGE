@@ -11,7 +11,24 @@ class ServiceCategorySerializer(serializers.ModelSerializer):
 
 class ServiceSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
-    available_days = serializers.JSONField(required=False)
+
+    # Tumia ListField badala ya JSONField — inashughulikia multipart "MON,TUE"
+    available_days = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_empty=True,
+    )
+    symptoms = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_empty=True,
+    )
+    supported_vehicle_types = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_empty=True,
+    )
+
     category = serializers.PrimaryKeyRelatedField(
         queryset=ServiceCategory.objects.all(),
         required=False,
@@ -27,46 +44,37 @@ class ServiceSerializer(serializers.ModelSerializer):
             'symptoms', 'supported_vehicle_types',
             'estimated_duration_minutes',
             'base_price',
-            'image',
+            'image', 'video',
             'available_days', 'start_time', 'end_time',
-            'fixed_price', 'video',
+            'fixed_price',
             'is_active',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def to_internal_value(self, data):
-        """Handle multipart: available_days inaweza kuwa string 'MON,TUE' au JSON string."""
+        """Handle multipart: available_days inaweza kuwa string 'MON,TUE' au list."""
         data = data.copy() if hasattr(data, 'copy') else dict(data)
 
-        # available_days — multipart inatuma kama string "MON,TUE,WED"
-        if 'available_days' in data and isinstance(data['available_days'], str):
-            raw = data['available_days'].strip()
-            if raw.startswith('['):
-                import json
-                try:
-                    data['available_days'] = json.loads(raw)
-                except Exception:
-                    data['available_days'] = []
-            elif raw:
-                data['available_days'] = [d.strip() for d in raw.split(',') if d.strip()]
-            else:
-                data['available_days'] = []
-
-        # symptoms / supported_vehicle_types
-        for field in ('symptoms', 'supported_vehicle_types'):
-            if field in data and isinstance(data[field], str):
-                raw = data[field].strip()
-                if raw.startswith('['):
-                    import json
-                    try:
-                        data[field] = json.loads(raw)
-                    except Exception:
+        # ListField fields — convert string kuwa list kama multipart
+        for field in ('available_days', 'symptoms', 'supported_vehicle_types'):
+            if field in data:
+                val = data[field]
+                if isinstance(val, str):
+                    raw = val.strip()
+                    if raw.startswith('['):
+                        import json
+                        try:
+                            data[field] = json.loads(raw)
+                        except Exception:
+                            data[field] = []
+                    elif raw:
+                        data[field] = [s.strip() for s in raw.split(',') if s.strip()]
+                    else:
                         data[field] = []
-                elif raw:
-                    data[field] = [s.strip() for s in raw.split(',') if s.strip()]
-                else:
-                    data[field] = []
+                elif isinstance(val, list):
+                    # Tayari ni list — DRF ListField ita-handle
+                    pass
 
         # fixed_price / is_active kutoka multipart ni string "true"/"false"
         for field in ('fixed_price', 'is_active'):
@@ -77,13 +85,19 @@ class ServiceSerializer(serializers.ModelSerializer):
 
 
 class ServiceCreateSerializer(serializers.ModelSerializer):
+    available_days = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_empty=True,
+    )
+
     class Meta:
         model = Service
         fields = [
             'category', 'name', 'description',
             'symptoms', 'supported_vehicle_types',
             'estimated_duration_minutes',
-            'base_price', 'image',
+            'base_price', 'image', 'video',
             'available_days', 'start_time', 'end_time',
-            'fixed_price', 'video', 'is_active',
+            'fixed_price', 'is_active',
         ]
