@@ -75,15 +75,8 @@ class EmailTokenObtainPairView(TokenObtainPairView):
                 },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        return Response(
-            {
-                "success": True,
-                "message": "Login successful",
-                "data": serializer.validated_data,
-                "errors": None,
-            },
-            status=status.HTTP_200_OK,
-        )
+        # serializer.validated_data already has {success, message, data, errors}
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
 class RegisterView(APIView):
