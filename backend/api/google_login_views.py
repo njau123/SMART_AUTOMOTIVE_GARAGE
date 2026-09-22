@@ -50,15 +50,35 @@ class GoogleLoginView(APIView):
                 )
 
             # Create or get user
+            first_name = ''
+            last_name = ''
+            if name:
+                parts = name.strip().split(' ')
+                first_name = parts[0]
+                last_name = ' '.join(parts[1:]) if len(parts) > 1 else ''
+            else:
+                # Fallback: email prefix
+                first_name = email.split('@')[0]
+
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={
-                    'first_name': name.split(' ')[0] if name else '',
-                    'last_name': ' '.join(name.split(' ')[1:]) if name else '',
-                    'username': email.split('@')[0],
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'phone_number': '+255000000000',  # Placeholder (user ana-update)
                     'is_active': True,
+                    'is_email_verified': True,  # Google email ni verified
                 },
             )
+
+            # Save Google picture URL kama user hana profile_image
+            if picture:
+                if not user.profile_image and not user.profile_image_url:
+                    user.profile_image_url = picture
+                    user.save(update_fields=['profile_image_url'])
+                # Return picture kwenye response
+            else:
+                picture = None
 
             if not user.is_active:
                 return Response(

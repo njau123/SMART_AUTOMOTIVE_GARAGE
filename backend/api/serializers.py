@@ -40,14 +40,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'email', 'role', 'created_at']
 
     def get_profile_image_url(self, obj):
-        if not obj.profile_image:
-            return None
-        request = self.context.get('request')
-        try:
-            url = obj.profile_image.url
-            return request.build_absolute_uri(url) if request else url
-        except Exception:
-            return None
+        # 1. Kama profile_image ipo (local file)
+        if obj.profile_image:
+            request = self.context.get('request')
+            try:
+                url = obj.profile_image.url
+                return request.build_absolute_uri(url) if request else url
+            except Exception:
+                pass
+        # 2. Kama profile_image_url ipo (Google external URL)
+        if getattr(obj, 'profile_image_url', None):
+            return obj.profile_image_url
+        return None
 
 
 class MechanicProfileSerializer(serializers.ModelSerializer):

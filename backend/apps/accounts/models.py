@@ -53,6 +53,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         null=True,
     )
 
+    # External URL (kwa Google Sign-In picture)
+    profile_image_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="External profile image URL (e.g. Google)",
+    )
+
     is_email_verified = models.BooleanField(default=False)
 
     is_phone_verified = models.BooleanField(default=False)
