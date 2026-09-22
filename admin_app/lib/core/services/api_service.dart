@@ -508,51 +508,122 @@ class AdminAPI {
     return ApiService.asList(data);
   }
 
+  /// Create service — multipart (image inawezekana)
   static Future<Map<String, dynamic>> createService({
     required String name,
     required String description,
     required double basePrice,
     int estimatedMinutes = 60,
+    int? categoryId,
+    List<int>? imageBytes,
+    String? imageName,
+    List<String>? availableDays,
+    String? startTime,
+    String? endTime,
+    bool fixedPrice = false,
   }) async {
     final token = await AdminTokenStorage.getAccessToken();
-    final data = await ApiService.post(
+
+    final Map<String, String> fields = {
+      'name': name,
+      'description': description,
+      'base_price': basePrice.toStringAsFixed(2),
+      'estimated_duration_minutes': estimatedMinutes.toString(),
+      'is_active': 'true',
+      'fixed_price': fixedPrice.toString(),
+    };
+    if (categoryId != null) fields['category'] = categoryId.toString();
+    if (availableDays != null && availableDays.isNotEmpty) {
+      fields['available_days'] = availableDays.join(',');
+    }
+    if (startTime != null && startTime.isNotEmpty) fields['start_time'] = startTime;
+    if (endTime != null && endTime.isNotEmpty) fields['end_time'] = endTime;
+
+    Map<String, List<int>>? fileBytes;
+    Map<String, String>? fileNames;
+    if (imageBytes != null && imageBytes.isNotEmpty) {
+      fileBytes = {'image': imageBytes};
+      fileNames = {'image': imageName ?? 'service.jpg'};
+    }
+
+    return await ApiService.postMultipart(
       'services/',
-      {
-        'name': name,
-        'description': description,
-        'base_price': basePrice.toStringAsFixed(2),
-        'estimated_duration_minutes': estimatedMinutes,
-        'is_active': true,
-      },
+      fields: fields,
+      fileBytes: fileBytes,
+      fileNames: fileNames,
       token: token,
     );
-    return Map<String, dynamic>.from(data as Map);
   }
 
+  /// Update service — multipart (image inawezekana)
   static Future<Map<String, dynamic>> updateService({
     required int id,
     required String name,
     required String description,
     required double basePrice,
     int estimatedMinutes = 60,
+    int? categoryId,
+    List<int>? imageBytes,
+    String? imageName,
+    List<String>? availableDays,
+    String? startTime,
+    String? endTime,
+    bool? fixedPrice,
+    bool? isActive,
   }) async {
     final token = await AdminTokenStorage.getAccessToken();
-    final data = await ApiService.patch(
+
+    final Map<String, String> fields = {
+      'name': name,
+      'description': description,
+      'base_price': basePrice.toStringAsFixed(2),
+      'estimated_duration_minutes': estimatedMinutes.toString(),
+    };
+    if (categoryId != null) fields['category'] = categoryId.toString();
+    if (availableDays != null) fields['available_days'] = availableDays.join(',');
+    if (startTime != null && startTime.isNotEmpty) fields['start_time'] = startTime;
+    if (endTime != null && endTime.isNotEmpty) fields['end_time'] = endTime;
+    if (fixedPrice != null) fields['fixed_price'] = fixedPrice.toString();
+    if (isActive != null) fields['is_active'] = isActive.toString();
+
+    Map<String, List<int>>? fileBytes;
+    Map<String, String>? fileNames;
+    if (imageBytes != null && imageBytes.isNotEmpty) {
+      fileBytes = {'image': imageBytes};
+      fileNames = {'image': imageName ?? 'service.jpg'};
+    }
+
+    return await ApiService.postMultipart(
       'services/$id/',
-      {
-        'name': name,
-        'description': description,
-        'base_price': basePrice.toStringAsFixed(2),
-        'estimated_duration_minutes': estimatedMinutes,
-      },
+      fields: fields,
+      fileBytes: fileBytes,
+      fileNames: fileNames,
       token: token,
+      method: 'PATCH',
     );
-    return Map<String, dynamic>.from(data as Map);
   }
 
   static Future<void> deleteService(int id) async {
     final token = await AdminTokenStorage.getAccessToken();
     await ApiService.delete('services/$id/', token: token);
+  }
+
+  /// Pata categories za services
+  static Future<List<dynamic>> getServiceCategories() async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.get('services/categories/', token: token);
+    return ApiService.asList(data);
+  }
+
+  /// Notify users wote kuhusu service
+  static Future<Map<String, dynamic>> notifyAllUsersService(int id) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'services/$id/notify-all/',
+      {},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
   }
 
   // ============ NEWS CRUD ============

@@ -37,7 +37,7 @@ from apps.spare_parts.views import (
 )
 from .views import (
     RegisterView, UserProfileView,
-    VehicleViewSet, ServiceViewSet,
+    VehicleViewSet,
     SparePartViewSet, BookingViewSet,
     PaymentViewSet,
     NewsViewSet, AdvertisementViewSet,
@@ -55,6 +55,8 @@ from .views import (
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from apps.services.views import ServiceViewSet as NewServiceViewSet
+
 # Chat views kutoka apps.chat (ina @action messages + mark_read)
 from apps.chat.views import (
     ChatRoomViewSet as AppsChatRoomViewSet,
@@ -64,7 +66,7 @@ from apps.chat.views import (
 
 router = DefaultRouter()
 router.register(r'vehicles', VehicleViewSet, basename='vehicle')
-router.register(r'services', ServiceViewSet, basename='service')
+router.register(r'services', NewServiceViewSet, basename='service')
 router.register(r'spare-parts', SparePartViewSet, basename='sparepart')
 # router.register(r'bookings', BookingViewSet, basename='booking')  # replaced by apps.bookings.urls
 router.register(r'payments', PaymentViewSet, basename='payment')

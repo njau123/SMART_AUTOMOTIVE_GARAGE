@@ -31,19 +31,19 @@ ADMIN_ACCOUNTS = {
     },
     "BANK": {
         "NMB": {
-            "account": "23210067678",
+            "account": "23210042232",
             "name": "Automotive Smart Garage",
         },
         "CRDB": {
-            "account": "23210067678",
+            "account": "23210042232",
             "name": "Automotive Smart Garage",
         },
         "Azania": {
-            "account": "23210067678",
+            "account": "23210042232",
             "name": "Automotive Smart Garage",
         },
         "NBC": {
-            "account": "23210067678",
+            "account": "23210042232",
             "name": "Automotive Smart Garage",
         },
     },
