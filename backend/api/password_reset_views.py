@@ -22,26 +22,41 @@ def _generate_code():
 
 
 def _send_email(to_email, subject, message):
-    """Tuma email kwa SendGrid API (HTTP). Inafanya kazi Render Free."""
-    api_key = os.environ.get('SENDGRID_API_KEY', '')
-    from_email = os.environ.get('SENDGRID_FROM_EMAIL', 'njaufredrick0@gmail.com')
+    """Tuma email kwa Resend API (HTTP). Inafanya kazi Render Free."""
+    import json
+    import urllib.request
+    import urllib.error
+
+    api_key = os.environ.get('RESEND_API_KEY', '')
+    from_email = os.environ.get('RESEND_FROM_EMAIL', 'onboarding@resend.dev')
 
     if not api_key:
-        raise Exception('SENDGRID_API_KEY haipo')
+        return False, 'RESEND_API_KEY haipo'
 
     try:
-        from sendgrid import SendGridAPIClient
-        from sendgrid.helpers.mail import Mail
+        payload = json.dumps({
+            'from': from_email,
+            'to': [to_email],
+            'subject': subject,
+            'text': message,
+        }).encode('utf-8')
 
-        sg_message = Mail(
-            from_email=from_email,
-            to_emails=to_email,
-            subject=subject,
-            plain_text_content=message,
+        req = urllib.request.Request(
+            'https://api.resend.com/emails',
+            data=payload,
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json',
+            },
+            method='POST',
         )
-        sg = SendGridAPIClient(api_key)
-        response = sg.send(sg_message)
-        return True, response.status_code
+
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = resp.read().decode('utf-8')
+            return True, resp.status
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else str(e)
+        return False, f'HTTP {e.code}: {error_body[:200]}'
     except Exception as e:
         return False, str(e)
 
