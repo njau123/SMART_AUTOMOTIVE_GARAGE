@@ -86,19 +86,12 @@ router.register(r'tracking/mechanic-locations', MechanicLocationViewSet, basenam
 router.register(r'tracking/geofences', GeofenceViewSet, basename='geofence')
 
 urlpatterns = [
-    path('auth/register/', RegisterView.as_view(), name='register'),
-    path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('users/profile/', UserProfileView.as_view(), name='user_profile'),
     path('reviews/', ReviewListCreateView.as_view(), name='review-list'),
     path('reviews/<int:pk>/', ReviewDetailView.as_view(), name='review-detail'),
     path('wallet/', WalletDetailView.as_view(), name='wallet-detail'),
     path('transactions/', TransactionListView.as_view(), name='transaction-list'),
     path('mechanics/', MechanicListView.as_view(), name='mechanic-list'),
-    path('auth/password-reset/request/', RequestPasswordResetView.as_view(), name='password-reset-request'),
-    path('auth/password-reset/verify/', VerifyResetCodeView.as_view(), name='password-reset-verify'),
-    path('auth/password-reset/confirm/', ResetPasswordView.as_view(), name='password-reset-confirm'),
-    path('auth/google/', __import__('api.google_login_views', fromlist=['GoogleLoginView']).GoogleLoginView.as_view(), name='google-login'),
     path('payments/gateway/initiate/', PaymentGatewayInitiateView.as_view(), name='payment-gateway-initiate'),
     path('payments/gateway/verify/', PaymentGatewayVerifyView.as_view(), name='payment-gateway-verify'),
 ]
