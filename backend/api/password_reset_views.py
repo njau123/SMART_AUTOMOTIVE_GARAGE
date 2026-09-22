@@ -97,30 +97,18 @@ Best regards,
 Smart Automotive Garage Team
 """
 
-        email_sent = False
-        email_error = None
-        try:
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@smartautomotivegarage.com'),
-                recipient_list=[email],
-                fail_silently=False,
-            )
-            email_sent = True
-        except Exception as e:
-            email_error = str(e)
-            # Fallback: print to console for development
-            print(f"\n{'='*50}")
-            print(f"EMAIL FAILED: {email_error}")
-            print(f"Password reset code for {email}: {code}")
-            print(f"{'='*50}\n")
+        email_sent, email_result = _send_email(email, subject, message)
+        error_info = None
+        if not email_sent:
+            error_info = str(email_result)[:200]
+            print(f"[EMAIL FAILED] {email_result}")
+            print(f"[FALLBACK] Password reset code for {email}: {code}")
 
         return Response({
             'success': True,
             'message': 'Reset code sent. Check your email inbox.',
             'email_sent': email_sent,
-            'error_info': error_info if not email_sent else None,
+            'error_info': error_info,
             'expires_in_minutes': 10,
         })
 
