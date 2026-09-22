@@ -25,16 +25,16 @@ def _notify_all_users(service, action="created"):
         User = get_user_model()
 
         if action == "created":
-            title = f"🔧 Service Mpya: {service.name}"
+            title = f"Service Mpya: {service.name}"
             message = (
                 f"Huduma mpya imeongezwa: {service.name}\n"
                 f"Bei: TSh {service.base_price:,.0f}\n"
             )
         elif action == "updated":
-            title = f"✏️ Service Imebadilishwa: {service.name}"
+            title = f"Service Imebadilishwa: {service.name}"
             message = f"Huduma imebadilishwa: {service.name}\nBei: TSh {service.base_price:,.0f}\n"
         elif action == "deleted":
-            title = f"❌ Service Imefutwa: {service.name}"
+            title = f"Service Imefutwa: {service.name}"
             message = f"Huduma imefutwa: {service.name}\n"
         else:
             return

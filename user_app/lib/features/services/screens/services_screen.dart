@@ -59,7 +59,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
         ),
       ),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage(AppImages.servicesBg),
             fit: BoxFit.cover,
