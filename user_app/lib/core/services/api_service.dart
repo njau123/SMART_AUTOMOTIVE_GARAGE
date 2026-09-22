@@ -260,21 +260,39 @@ class AuthAPI {
     String email,
     String password,
   ) async {
-    final data = await ApiService.post('auth/login/', {
+    final raw = await ApiService.post('auth/login/', {
       'email': email,
       'password': password,
     });
-    if (data is Map && data['access'] != null) {
+
+    // Response: {success, message, data: {access, refresh, user}}
+    Map<String, dynamic> data;
+    if (raw is Map && raw['data'] is Map && raw['data']['access'] != null) {
+      data = Map<String, dynamic>.from(raw['data'] as Map);
+    } else if (raw is Map && raw['access'] != null) {
+      data = Map<String, dynamic>.from(raw);
+    } else {
+      data = Map<String, dynamic>.from(raw as Map);
+    }
+
+    if (data['access'] != null) {
       await TokenStorage.saveTokens(
         data['access'].toString(),
         data['refresh']?.toString() ?? '',
       );
-      try {
-        final profile = await getProfile();
-        await TokenStorage.saveUser(profile);
-      } catch (_) {}
+      // Save user data kutoka response
+      if (data['user'] is Map) {
+        await TokenStorage.saveUser(
+          Map<String, dynamic>.from(data['user'] as Map),
+        );
+      } else {
+        try {
+          final profile = await getProfile();
+          await TokenStorage.saveUser(profile);
+        } catch (_) {}
+      }
     }
-    return Map<String, dynamic>.from(data as Map);
+    return data;
   }
 
   static Future<Map<String, dynamic>> register({
