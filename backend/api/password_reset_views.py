@@ -47,6 +47,8 @@ def _send_email(to_email, subject, message):
             headers={
                 'Authorization': f'Bearer {api_key}',
                 'Content-Type': 'application/json',
+                'User-Agent': 'SmartGarage/1.0 (Django)',
+                'Accept': 'application/json',
             },
             method='POST',
         )
