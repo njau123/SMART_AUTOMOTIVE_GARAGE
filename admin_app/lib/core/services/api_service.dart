@@ -205,19 +205,35 @@ class ApiService {
 
 class AdminAuthAPI {
   static Future<Map<String, dynamic>> login(String email, String password) async {
-    final data = await ApiService.post('auth/login/', {
+    final raw = await ApiService.post('auth/login/', {
       'email': email,
       'password': password,
     });
-    if (data is Map && data['access'] != null) {
+
+    // Response: {success, message, data: {access, refresh, user}}
+    Map<String, dynamic> data;
+    if (raw is Map && raw['data'] is Map && raw['data']['access'] != null) {
+      data = Map<String, dynamic>.from(raw['data'] as Map);
+    } else if (raw is Map && raw['access'] != null) {
+      // Fallback: response ya zamani
+      data = Map<String, dynamic>.from(raw);
+    } else {
+      data = Map<String, dynamic>.from(raw as Map);
+    }
+
+    if (data['access'] != null) {
       await AdminTokenStorage.saveTokens(
         data['access'].toString(),
         data['refresh']?.toString() ?? '',
       );
-      final profile = await getProfile();
-      await AdminTokenStorage.saveUser(profile);
+      // Save user data kutoka response kwanza
+      if (data['user'] is Map) {
+        await AdminTokenStorage.saveUser(
+          Map<String, dynamic>.from(data['user'] as Map),
+        );
+      }
     }
-    return Map<String, dynamic>.from(data as Map);
+    return data;
   }
 
   static Future<Map<String, dynamic>> getProfile() async {
