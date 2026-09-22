@@ -62,11 +62,10 @@ class RequestPasswordResetView(generics.GenericAPIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            # Security: don't reveal kama email haipo
             return Response({
-                'success': True,
-                'message': 'If this email is registered, you will receive a reset code.',
-            })
+                'success': False,
+                'message': 'No account found with that email',
+            }, status=status.HTTP_404_NOT_FOUND)
 
         # Futa codes za zamani
         PasswordResetCode.objects.filter(user=user).delete()
@@ -122,8 +121,6 @@ Smart Automotive Garage Team
             'message': 'Reset code sent. Check your email inbox.',
             'email_sent': email_sent,
             'expires_in_minutes': 10,
-            # Remove in production:
-            **({'debug_code': code} if not email_sent else {}),
         })
 
 

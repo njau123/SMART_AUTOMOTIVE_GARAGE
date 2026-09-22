@@ -6,7 +6,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/google_auth_service.dart';
 import '../../../core/state/auth_state.dart';
-import '../../../core/services/notification_service.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
 import '../../dashboard/screens/user_dashboard_screen.dart';
@@ -26,6 +25,71 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   bool _googleLoading = false;
   bool _obscure = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Onyesha ujumbe wa kushukuru kama user ame-logout
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (AuthState.instance.showLogoutMessage && mounted) {
+        AuthState.instance.clearLogoutMessage();
+        _showThankYouDialog();
+      }
+    });
+  }
+
+  void _showThankYouDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle, color: Colors.green, size: 40),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Asante kwa kutumia mfumo wetu!',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Karibu tena Smart Automotive Garage.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Sawa',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void dispose() {

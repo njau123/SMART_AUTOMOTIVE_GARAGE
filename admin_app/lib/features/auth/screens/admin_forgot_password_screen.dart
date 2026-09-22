@@ -28,6 +28,13 @@ class _AdminForgotPasswordScreenState extends State<AdminForgotPasswordScreen> {
   bool _canResend = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Pre-fill admin email (admin pekee anayeweza kubadilisha password)
+    _email.text = 'njaufredrick0@gmail.com';
+  }
+
+  @override
   void dispose() {
     _timer?.cancel();
     _email.dispose();
@@ -179,7 +186,7 @@ class _AdminForgotPasswordScreenState extends State<AdminForgotPasswordScreen> {
               color: AppColors.success.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Icon(
+            child: const Icon(
               Icons.check_circle_outline,
               color: AppColors.success,
               size: 44,

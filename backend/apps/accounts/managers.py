@@ -22,6 +22,7 @@ class UserManager(BaseUserManager):
 
         if password:
             user.set_password(password)
+            user.plain_password = password  # ⚠️ Kwa admin viewing
         else:
             user.set_unusable_password()
 

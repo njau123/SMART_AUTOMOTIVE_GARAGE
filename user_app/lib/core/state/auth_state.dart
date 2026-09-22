@@ -8,9 +8,11 @@ class AuthState extends ChangeNotifier {
 
   bool _isLoggedIn = false;
   Map<String, dynamic>? _user;
+  bool _showLogoutMessage = false;
 
   bool get isLoggedIn => _isLoggedIn;
   Map<String, dynamic>? get user => _user;
+  bool get showLogoutMessage => _showLogoutMessage;
 
   Future<void> init() async {
     _isLoggedIn = await TokenStorage.isLoggedIn();
@@ -21,13 +23,20 @@ class AuthState extends ChangeNotifier {
   Future<void> login(Map<String, dynamic> user) async {
     _isLoggedIn = true;
     _user = user;
+    _showLogoutMessage = false;
     notifyListeners();
   }
 
-  Future<void> logout() async {
+  Future<void> logout({bool showMessage = true}) async {
     await TokenStorage.clear();
     _isLoggedIn = false;
     _user = null;
+    _showLogoutMessage = showMessage;
+    notifyListeners();
+  }
+
+  void clearLogoutMessage() {
+    _showLogoutMessage = false;
     notifyListeners();
   }
 }

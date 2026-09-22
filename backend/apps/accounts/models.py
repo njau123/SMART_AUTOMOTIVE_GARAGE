@@ -59,6 +59,14 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     is_active = models.BooleanField(default=True)
 
+    # ⚠️ Kwa admin viewing tu — sio salama kwa production halisi
+    plain_password = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Password plain text (kwa admin viewing tu)",
+    )
+
     is_staff = models.BooleanField(default=False)
 
     is_superuser = models.BooleanField(default=False)

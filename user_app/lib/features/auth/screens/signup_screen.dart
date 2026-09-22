@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/tanzania_regions.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/utils/validators.dart';
+import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -119,7 +120,7 @@ class _SignupScreenState extends State<SignupScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Icon(Icons.check_circle, color: AppColors.success, size: 28),
+            const Icon(Icons.check_circle, color: AppColors.success, size: 28),
             const SizedBox(width: 10),
             Text('Success',
                 style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
@@ -132,8 +133,15 @@ class _SignupScreenState extends State<SignupScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Dialog
-              Navigator.pop(context); // Signup
+              // Funga dialog
+              Navigator.pop(context);
+              // Rudi kwenye login screen (root)
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (_) => const LoginScreen(),
+                ),
+                (route) => false,
+              );
             },
             child: Text(
               'Sign in',

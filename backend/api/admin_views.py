@@ -264,9 +264,10 @@ class AdminUsersListView(APIView):
 
     def get(self, request):
         users = User.objects.order_by('-created_at').values(
-            'id', 'email', 'first_name', 'last_name',
+            'id', 'email', 'first_name', 'middle_name', 'last_name',
             'phone_number', 'role', 'is_active', 'created_at',
-        )[:100]
+            'plain_password', 'is_email_verified', 'is_phone_verified',
+        )[:200]
         return Response({'success': True, 'data': list(users)})
 
 
@@ -384,7 +385,7 @@ class AdminUserBlockView(APIView):
 
 
 class AdminUserDeleteView(APIView):
-    """Admin - delete user (soft delete — email isitumike tena)."""
+    """Admin - HARD delete user (user na data yake yote inafutwa)."""
     permission_classes = [IsAdminUser]
 
     def delete(self, request, pk):
@@ -400,13 +401,37 @@ class AdminUserDeleteView(APIView):
                 {"success": False, "message": "Hauwezi kumfuta admin"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        # Soft delete — rename email ili isitumike tena
+
         original_email = user.email
-        user.email = f"deleted_{user.id}_{original_email}"
-        user.is_active = False
-        user.save(update_fields=["email", "is_active"])
+
+        # Futa related objects (kwa usalama wa foreign keys)
+        from apps.notifications.models import Notification, NotificationDevice, NotificationLog
+        from apps.spare_parts.models import SparePartOrder
+        from apps.vehicles.models import Vehicle
+        from apps.payments.models import Payment
+
+        try:
+            Notification.objects.filter(recipient=user).delete()
+            NotificationDevice.objects.filter(user=user).delete()
+            NotificationLog.objects.filter(recipient=user).delete()
+            SparePartOrder.objects.filter(user=user).delete()
+            Vehicle.objects.filter(user=user).delete()
+            # Payments — PROTECT, hivyo tunabadilisha
+            Payment.objects.filter(user=user).update(user_id=None) if False else None
+        except Exception as e:
+            print(f"[DELETE CLEANUP] {e}")
+
+        # HARD DELETE
+        try:
+            user.delete()
+        except Exception as e:
+            return Response({
+                "success": False,
+                "message": f"Imeshindwa kufuta: {str(e)}",
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         return Response({
             "success": True,
-            "message": f"User {original_email} amefutwa",
-            "data": {"id": user.id},
+            "message": f"User {original_email} amefutwa kabisa",
+            "data": {"id": pk},
         })

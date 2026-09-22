@@ -146,9 +146,20 @@ class _UsersScreenState extends State<UsersScreen> {
             ),
             const SizedBox(height: 20),
             _detailRow('ID', u['id']?.toString() ?? '-'),
+            _detailRow('Jina Kamili',
+                '${u['first_name'] ?? ''} ${u['middle_name'] ?? ''} ${u['last_name'] ?? ''}'.trim()),
+            _detailRow('Email', u['email']?.toString() ?? '-'),
             _detailRow('Simu', u['phone_number']?.toString() ?? '-'),
             _detailRow('Role', u['role']?.toString() ?? '-'),
             _detailRow('Hali', isActive ? 'Active' : 'Blocked'),
+            _detailRow('Password',
+                (u['plain_password']?.toString().isNotEmpty == true)
+                    ? u['plain_password'].toString()
+                    : '(haipo — user wa zamani)'),
+            _detailRow('Email Verified',
+                u['is_email_verified'] == true ? 'Ndiyo' : 'Hapana'),
+            _detailRow('Phone Verified',
+                u['is_phone_verified'] == true ? 'Ndiyo' : 'Hapana'),
             _detailRow('Alijisajili', u['created_at']?.toString() ?? '-'),
             const SizedBox(height: 24),
             // Edit button (full width)

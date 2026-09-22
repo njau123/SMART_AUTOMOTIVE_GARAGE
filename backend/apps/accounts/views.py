@@ -21,13 +21,25 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
         attrs['username'] = attrs.get('email')
         try:
             data = super().validate(attrs)
+            # Ongeza user data kwenye response
+            user = self.user
+            data['user'] = {
+                'id': user.id,
+                'email': user.email,
+                'first_name': user.first_name,
+                'middle_name': getattr(user, 'middle_name', ''),
+                'last_name': user.last_name,
+                'phone_number': getattr(user, 'phone_number', ''),
+                'role': getattr(user, 'role', 'USER'),
+                'profile_image': user.profile_image.url if user.profile_image else None,
+            }
             return {
                 "success": True,
                 "message": "Login successful",
                 "data": data,
                 "errors": None,
             }
-        except Exception:
+        except Exception as e:
             raise AuthenticationFailed({
                 "success": False,
                 "message": "Credentials not found",
@@ -37,7 +49,7 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
                 },
             })
 
-    def get_token(self, cls, user):
+    def get_token(self, user):
         token = super().get_token(user)
         token['email'] = user.email
         token['role'] = getattr(user, 'role', 'USER')
