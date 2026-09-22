@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_images.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/state/auth_state.dart';
 import '../../../core/utils/auth_guard.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../../bookings/screens/booking_create_screen.dart';
@@ -32,7 +33,12 @@ class _MechanicsScreenState extends State<MechanicsScreen> {
       _error = null;
     });
     try {
-      final data = await MethodsAPI.getMechanics(onlyAvailable: _onlyAvailable);
+      // Pata region ya user kutoka AuthState
+      final userRegion = AuthState.instance.user?['region']?.toString();
+      final data = await MethodsAPI.getMechanics(
+        onlyAvailable: _onlyAvailable,
+        region: (userRegion != null && userRegion.isNotEmpty) ? userRegion : null,
+      );
       if (!mounted) return;
       setState(() {
         _mechanics = data;

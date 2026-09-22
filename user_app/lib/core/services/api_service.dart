@@ -423,8 +423,16 @@ class AuthAPI {
 
 // =================== METHODS API ===================
 class MethodsAPI {
-  static Future<List<dynamic>> getMechanics({bool onlyAvailable = false}) async {
-    final q = onlyAvailable ? '?available=true' : '';
+  static Future<List<dynamic>> getMechanics({
+    bool onlyAvailable = false,
+    String? region,
+  }) async {
+    final params = <String>[];
+    if (onlyAvailable) params.add('available=true');
+    if (region != null && region.isNotEmpty) {
+      params.add('region=${Uri.encodeComponent(region)}');
+    }
+    final q = params.isEmpty ? '' : '?${params.join('&')}';
     final data = await ApiService.get('mechanics/$q');
     return ApiService.asList(data);
   }

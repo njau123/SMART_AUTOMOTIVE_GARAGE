@@ -93,6 +93,7 @@ class AuthAPI {
     required String phone,
     required String email,
     required String password,
+    String region = '',
   }) async {
     final res = await ApiService.post('mechanics/activate/', {
       'registration_number': registrationNumber,
@@ -100,6 +101,7 @@ class AuthAPI {
       'phone': phone,
       'email': email,
       'password': password,
+      'region': region,
     });
 
     if (res is Map && res['success'] == true && res['data'] is Map) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/constants/tanzania_regions.dart';
 import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
+  String? _selectedRegion;
   bool _loading = false;
   bool _obscure = true;
 
@@ -41,6 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         phone: _phoneCtrl.text.trim(),
         email: _emailCtrl.text.trim().toLowerCase(),
         password: _passCtrl.text,
+        region: _selectedRegion ?? '',
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -146,6 +149,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     if (!v.startsWith('+255')) return 'Anza na +255';
                     return null;
                   },
+                ),
+                const SizedBox(height: 14),
+
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedRegion,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Mkoa wako',
+                    prefixIcon: Icon(Icons.location_on),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: TanzaniaRegions.all
+                      .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedRegion = v),
+                  validator: (v) => v == null || v.isEmpty ? 'Chagua mkoa' : null,
                 ),
                 const SizedBox(height: 14),
 
