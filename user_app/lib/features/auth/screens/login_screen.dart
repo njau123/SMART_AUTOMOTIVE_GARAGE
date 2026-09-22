@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
@@ -25,10 +26,16 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   bool _googleLoading = false;
   bool _obscure = true;
+  bool _rememberMe = false;
+  static const _prefEmailKey = 'saved_email';
+  static const _prefPasswordKey = 'saved_password';
+  static const _prefRememberKey = 'remember_me';
 
   @override
   void initState() {
     super.initState();
+    _loadSavedCredentials();
+
     // Onyesha ujumbe wa kushukuru kama user ame-logout
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (AuthState.instance.showLogoutMessage && mounted) {
@@ -36,6 +43,39 @@ class _LoginScreenState extends State<LoginScreen> {
         _showThankYouDialog();
       }
     });
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final remember = prefs.getBool(_prefRememberKey) ?? false;
+      if (remember) {
+        final email = prefs.getString(_prefEmailKey) ?? '';
+        final password = prefs.getString(_prefPasswordKey) ?? '';
+        if (mounted) {
+          setState(() {
+            _emailCtrl.text = email;
+            _passCtrl.text = password;
+            _rememberMe = true;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_rememberMe) {
+        await prefs.setBool(_prefRememberKey, true);
+        await prefs.setString(_prefEmailKey, _emailCtrl.text.trim());
+        await prefs.setString(_prefPasswordKey, _passCtrl.text);
+      } else {
+        await prefs.setBool(_prefRememberKey, false);
+        await prefs.remove(_prefEmailKey);
+        await prefs.remove(_prefPasswordKey);
+      }
+    } catch (_) {}
   }
 
   void _showThankYouDialog() {
@@ -103,6 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
     try {
       await AuthAPI.login(_emailCtrl.text.trim(), _passCtrl.text);
+      await _saveCredentials();  // Hifadhi kama remember me
       final user = await TokenStorage.getUser();
       await AuthState.instance.login(user ?? {});
       if (!mounted) return;
@@ -274,24 +315,39 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
 
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ForgotPasswordScreen(),
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _rememberMe,
+                          onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                          activeColor: AppColors.primary,
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _rememberMe = !_rememberMe),
+                            child: Text(
+                              'Kumbuka mimi',
+                              style: GoogleFonts.poppins(fontSize: 13),
+                            ),
                           ),
                         ),
-                        child: Text(
-                          'Forgot password?',
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                        TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ForgotPasswordScreen(),
+                            ),
+                          ),
+                          child: Text(
+                            'Forgot password?',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                     const SizedBox(height: 12),
 

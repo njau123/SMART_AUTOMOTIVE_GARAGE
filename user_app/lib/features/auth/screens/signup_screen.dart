@@ -363,7 +363,15 @@ class _SignupScreenState extends State<SignupScreen> {
                                 fontSize: 13,
                                 color: AppColors.textSecondary)),
                         TextButton(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LoginScreen(),
+                              ),
+                              (route) => false,
+                            );
+                          },
                           child: Text(
                             'Sign in',
                             style: GoogleFonts.poppins(

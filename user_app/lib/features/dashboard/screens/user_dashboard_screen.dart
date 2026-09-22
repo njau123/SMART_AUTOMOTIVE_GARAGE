@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
@@ -46,9 +47,87 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
         _loading = false;
       });
       await AuthState.instance.init();
+      // Onyesha welcome popup (mara moja tu)
+      await _checkAndShowWelcome();
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _checkAndShowWelcome() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final shown = prefs.getBool('welcome_shown') ?? false;
+      if (shown) return;
+      if (!mounted) return;
+
+      final firstName = _user?['first_name']?.toString() ?? 'User';
+      final lastName = _user?['last_name']?.toString() ?? '';
+      final fullName = '$firstName $lastName'.trim();
+
+      String vehicleInfo = '';
+      if (_vehicle != null) {
+        final make = _vehicle!['make']?.toString() ?? '';
+        final model = _vehicle!['model']?.toString() ?? '';
+        vehicleInfo = '$make $model'.trim();
+      }
+
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 70, height: 70,
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.waving_hand, color: Colors.green, size: 40),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Karibu, $fullName!',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              if (vehicleInfo.isNotEmpty)
+                Text(
+                  'Gari lako: $vehicleInfo',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textSecondary),
+                )
+              else
+                Text(
+                  'Karibu kwenye Smart Automotive Garage.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
+                ),
+              const SizedBox(height: 8),
+              Text(
+                'Asante kwa kutumia mfumo wetu.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Anza',
+                  style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600, color: AppColors.primary)),
+            ),
+          ],
+        ),
+      );
+
+      await prefs.setBool('welcome_shown', true);
+    } catch (_) {}
   }
 
   String get _firstName {
@@ -180,8 +259,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           firstName: _firstName,
           vehicleName: _vehicleName,
           vehicleRegistration: _vehicle?['registration_number']?.toString(),
-          imageUrl: _user?['profile_image_url']?.toString() ??
-              _vehicle?['vehicle_image']?.toString(),
+          imageUrl: _user?['profile_image_url']?.toString(),
           onTap: () => _open(const ProfileScreen()),
         ),
         const SizedBox(height: 16),

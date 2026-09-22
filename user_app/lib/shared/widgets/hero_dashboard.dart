@@ -164,13 +164,13 @@ class HeroDashboard extends StatelessWidget {
                             imageUrl!,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => const Icon(
-                              Icons.directions_car_filled,
+                              Icons.person,
                               color: Colors.white,
                               size: 44,
                             ),
                           )
                         : const Icon(
-                            Icons.directions_car_filled,
+                            Icons.person,
                             color: Colors.white,
                             size: 44,
                           ),
