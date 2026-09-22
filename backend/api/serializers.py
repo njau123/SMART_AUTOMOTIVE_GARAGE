@@ -66,13 +66,17 @@ class MechanicProfileSerializer(serializers.ModelSerializer):
         model = MechanicProfile
         fields = [
             'id', 'user', 'full_name', 'email', 'phone_number',
-            'business_name', 'expertise', 'is_available',
-            'latitude', 'longitude',
+            'business_name', 'professional_title', 'expertise',
+            'specialties',
+            'region', 'district', 'ward',
+            'is_available', 'is_active', 'is_verified',
+            'latitude', 'longitude', 'service_radius',
             'profile_image_url',
             'rating_average', 'total_reviews',
             'experience',
+            'created_at',
         ]
-        read_only_fields = ['id', 'user']
+        read_only_fields = ['id', 'user', 'created_at']
 
     def get_full_name(self, obj):
         try:
