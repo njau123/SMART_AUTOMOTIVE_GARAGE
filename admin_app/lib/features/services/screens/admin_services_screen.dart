@@ -37,7 +37,9 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 

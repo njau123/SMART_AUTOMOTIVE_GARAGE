@@ -611,7 +611,7 @@ class AdminAPI {
   /// Pata categories za services
   static Future<List<dynamic>> getServiceCategories() async {
     final token = await AdminTokenStorage.getAccessToken();
-    final data = await ApiService.get('services/categories/', token: token);
+    final data = await ApiService.get('service-categories/', token: token);
     return ApiService.asList(data);
   }
 
