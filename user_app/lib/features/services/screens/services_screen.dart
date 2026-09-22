@@ -53,9 +53,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
+        title: const Text(
           'Our Services',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          style: TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
       body: Container(
@@ -176,11 +176,14 @@ class _ServicesScreenState extends State<ServicesScreen> {
             const SizedBox(height: 20),
             if (service['base_price'] != null)
               _row('Price', 'TSh ${_fmt(service['base_price'])}'),
+            if (service['category_name'] != null && (service['category_name'] as String).isNotEmpty)
+              _row('Category', service['category_name'].toString()),
+            if (service['available_days'] is List && (service['available_days'] as List).isNotEmpty)
+              _row('Siku', _fmtDays(service['available_days'])),
+            if (service['start_time'] != null && service['end_time'] != null)
+              _row('Muda', '${_fmtTime(service['start_time'])} - ${_fmtTime(service['end_time'])}'),
             if (service['estimated_duration_minutes'] != null)
-              _row(
-                'Duration',
-                'Dakika ${service['estimated_duration_minutes']}',
-              ),
+              _row('Inachukua', 'Dakika ${service['estimated_duration_minutes']}'),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -227,6 +230,22 @@ class _ServicesScreenState extends State<ServicesScreen> {
         ],
       ),
     );
+  }
+
+  String _fmtDays(dynamic days) {
+    if (days is! List || days.isEmpty) return '';
+    const map = {
+      'MON': 'Jumatatu', 'TUE': 'Jumanne', 'WED': 'Jumatano',
+      'THU': 'Alhamisi', 'FRI': 'Ijumaa', 'SAT': 'Jumamosi', 'SUN': 'Jumapili',
+    };
+    return days.map((d) => map[d.toString()] ?? d.toString()).join(', ');
+  }
+
+  String _fmtTime(dynamic t) {
+    if (t == null) return '';
+    final s = t.toString();
+    if (s.length >= 5) return s.substring(0, 5);
+    return s;
   }
 
   String _fmt(dynamic v) {
