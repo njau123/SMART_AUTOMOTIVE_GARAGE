@@ -177,6 +177,20 @@ class Payment(models.Model):
 
         super().save(*args, **kwargs)
 
+    def check_expiry(self):
+        """Angalia kama payment ime-expire. Kama ndiyo, ibadilishe status."""
+        from django.utils import timezone as tz
+        if (
+            self.status in (PaymentStatus.PENDING, PaymentStatus.CREATED, PaymentStatus.PROCESSING)
+            and self.expires_at
+            and self.expires_at < tz.now()
+        ):
+            self.status = PaymentStatus.EXPIRED
+            self.failure_reason = "Payment expired (45 minutes passed)"
+            self.save(update_fields=["status", "failure_reason", "updated_at"])
+            return True
+        return False
+
     def __str__(self):
         return self.reference
 

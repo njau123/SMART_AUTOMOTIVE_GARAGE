@@ -146,6 +146,9 @@ class PaymentListView(APIView):
 
     def get(self, request):
         qs = Payment.objects.filter(user=request.user).order_by("-created_at")
+        # Auto-expire yoyote yaliyopitwa na muda
+        for p in qs[:100]:
+            p.check_expiry()
         return Response({
             "success": True,
             "count": qs.count(),
@@ -164,6 +167,7 @@ class PaymentDetailView(APIView):
                 {"success": False, "message": "Payment haipo"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        payment.check_expiry()
         return Response({
             "success": True,
             "data": PaymentSerializer(payment).data,
@@ -361,4 +365,102 @@ class PaymentConfirmManualView(APIView):
                 'amount': str(payment.amount),
                 'status': payment.status,
             },
+        })
+
+
+# ==================== COUNTDOWN ====================
+class PaymentCountdownView(APIView):
+    """User - kuangalia muda uliobaki wa malipo (countdown 45 min)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            payment = Payment.objects.get(pk=pk, user=request.user)
+        except Payment.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Payment haipo"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Auto-expire kama imepitwa na muda
+        just_expired = payment.check_expiry()
+
+        now = timezone.now()
+        remaining_seconds = 0
+        is_expired = payment.status == PaymentStatus.EXPIRED
+
+        if not is_expired and payment.expires_at:
+            diff = payment.expires_at - now
+            remaining_seconds = max(0, int(diff.total_seconds()))
+            if remaining_seconds == 0 and not is_expired:
+                payment.check_expiry()
+                is_expired = True
+
+        return Response({
+            "success": True,
+            "data": {
+                "payment_id": payment.id,
+                "reference": payment.reference,
+                "status": payment.status,
+                "amount": str(payment.amount),
+                "expires_at": payment.expires_at.isoformat() if payment.expires_at else None,
+                "remaining_seconds": remaining_seconds,
+                "remaining_minutes": remaining_seconds // 60,
+                "remaining_seconds_display": remaining_seconds % 60,
+                "is_expired": is_expired,
+                "timeout_minutes": 45,
+            },
+        })
+
+
+class PaymentCancelView(APIView):
+    """User - kucancel malipo kwa hiari yake."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            payment = Payment.objects.get(pk=pk, user=request.user)
+        except Payment.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Payment haipo"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if payment.status not in (PaymentStatus.PENDING, PaymentStatus.CREATED, PaymentStatus.PROCESSING):
+            return Response(
+                {"success": False, "message": f"Payment ipo {payment.status}, haiwezi kucancel"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payment.status = PaymentStatus.CANCELLED
+        payment.failure_reason = request.data.get("reason", "Cancelled by user")
+        payment.save()
+
+        # Notify admin
+        try:
+            from apps.notifications.models import Notification
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            for admin in User.objects.filter(is_staff=True, is_active=True):
+                try:
+                    Notification.objects.create(
+                        recipient=admin,
+                        notification_type="payment",
+                        title=f"❌ Malipo Yamecancel — {payment.reference}",
+                        message=(
+                            f"User: {request.user.email}\n"
+                            f"Kiasi: TSh {payment.amount:,.0f}\n"
+                            f"Sababu: {payment.failure_reason}"
+                        ),
+                        is_sent=True,
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        return Response({
+            "success": True,
+            "message": "Malipo yamecancel",
+            "data": PaymentSerializer(payment).data,
         })

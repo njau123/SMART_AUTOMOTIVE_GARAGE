@@ -14,36 +14,36 @@ ADMIN_ACCOUNTS = {
             "ussd": "*150*00#",
         },
         "Tigo/Yas": {
-            "number": "0659212300",  # ← badilisha kama unayo
+            "number": "0759212300",
             "name": "Automotive Smart Garage",
             "ussd": "*150*01#",
         },
         "Airtel": {
-            "number": "0789212300",  # ← badilisha kama unayo
+            "number": "0759212300",
             "name": "Automotive Smart Garage",
             "ussd": "*150*60#",
         },
         "Halotel": {
-            "number": "0629212300",  # ← badilisha kama unayo
+            "number": "0759212300",
             "name": "Automotive Smart Garage",
             "ussd": "*150*88#",
         },
     },
     "BANK": {
         "NMB": {
-            "account": "23210042232",
+            "account": "23210067678",
             "name": "Automotive Smart Garage",
         },
         "CRDB": {
-            "account": "01500000000",  # ← badilisha kama unayo
+            "account": "23210067678",
             "name": "Automotive Smart Garage",
         },
         "Azania": {
-            "account": "00000000000",  # ← badilisha kama unayo
+            "account": "23210067678",
             "name": "Automotive Smart Garage",
         },
         "NBC": {
-            "account": "01100000000",  # ← badilisha kama unayo
+            "account": "23210067678",
             "name": "Automotive Smart Garage",
         },
     },

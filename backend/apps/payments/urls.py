@@ -1,6 +1,8 @@
 from django.urls import path
 from .payment_unified import PaymentInitiateUnifiedView
 from .views import (
+    PaymentCountdownView,
+    PaymentCancelView,
     PaymentConfirmManualView,
     EarningsView,
     PaymentInitiateView,
@@ -21,6 +23,8 @@ urlpatterns = [
     path("payments/my/", PaymentListView.as_view(), name="payment-list"),
     path("payments/<int:pk>/", PaymentDetailView.as_view(), name="payment-detail"),
     path("payments/<int:pk>/submit-reference/", PaymentSubmitReferenceView.as_view(), name="payment-submit-reference"),
+    path("payments/<int:pk>/countdown/", PaymentCountdownView.as_view(), name="payment-countdown"),
+    path("payments/<int:pk>/cancel/", PaymentCancelView.as_view(), name="payment-cancel"),
     path("earnings/", EarningsView.as_view(), name="earnings"),
 
     # Admin

@@ -76,6 +76,30 @@ class Service(models.Model):
         blank=True,
     )
 
+    # ===== RATIBA (Schedule) =====
+    available_days = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Siku zinazopatikana: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']",
+    )
+
+    start_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Muda wa kuanza (mfano: 08:00)",
+    )
+
+    end_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Muda wa kumaliza (mfano: 18:00)",
+    )
+
+    fixed_price = models.BooleanField(
+        default=False,
+        help_text="Kama True, bei haiwezi kubadilishwa (mfano: AI Diagnosis 30k)",
+    )
+
     is_active = models.BooleanField(
         default=True,
     )

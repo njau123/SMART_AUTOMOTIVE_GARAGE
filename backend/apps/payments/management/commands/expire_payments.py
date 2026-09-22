@@ -1,6 +1,10 @@
 """
-Expire payments ambazo hazijalipwa baada ya 45 min.
-Endesha kwa: python manage.py expire_payments
+Management command: Auto-expire payments zilizopitwa na dakika 45.
+
+Tumia kwenye Render Cron Job:
+    python manage.py expire_payments
+
+Schedule: */5 * * * * (kila dakika 5)
 """
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -8,49 +12,42 @@ from apps.payments.models import Payment, PaymentStatus
 
 
 class Command(BaseCommand):
-    help = 'Expire payments zilizopitwa na muda (45 min)'
+    help = "Expire payments zilizopitwa na 45 minutes"
 
     def handle(self, *args, **options):
         now = timezone.now()
-
-        # Payments zilizo PENDING/PROCESSING na expires_at < now
         expired = Payment.objects.filter(
             status__in=[
                 PaymentStatus.PENDING,
-                PaymentStatus.PROCESSING,
                 PaymentStatus.CREATED,
+                PaymentStatus.PROCESSING,
             ],
             expires_at__lt=now,
         )
 
         count = expired.count()
-        if count == 0:
-            self.stdout.write(self.style.SUCCESS('✅ Hakuna payments zilizo-expire'))
-            return
+        for p in expired:
+            p.status = PaymentStatus.EXPIRED
+            p.failure_reason = "Payment expired (45 minutes passed)"
+            p.save(update_fields=["status", "failure_reason", "updated_at"])
 
-        # Notify user + update status
-        for payment in expired:
+            # Notify user
             try:
                 from apps.notifications.models import Notification
                 Notification.objects.create(
-                    recipient=payment.user,
-                    notification_type='payment',
-                    title=f'⏰ Malipo Yameisha — {payment.reference}',
+                    recipient=p.user,
+                    notification_type="payment",
+                    title="Malipo Yameisha Muda",
                     message=(
-                        f'Malipo ya TSh {payment.amount:,.0f} hayakulipwa kwa muda uliotakiwa.\n'
-                        f'Tafadhali anzisha upya kama unahitaji huduma.'
+                        f"Malipo yako ya TSh {p.amount:,.0f} "
+                        f"(Ref: {p.reference}) yameisha muda wa dakika 45. "
+                        f"Tafadhali anzisha malipo mapya."
                     ),
                     is_sent=True,
-                    metadata={'payment_id': payment.id},
                 )
             except Exception:
                 pass
 
-        expired.update(
-            status=PaymentStatus.EXPIRED,
-            failure_reason='Auto-expired baada ya dakika 45',
-        )
-
         self.stdout.write(
-            self.style.SUCCESS(f'✅ {count} payments zime-expire')
+            self.style.SUCCESS(f"OK: Expired {count} payments")
         )
