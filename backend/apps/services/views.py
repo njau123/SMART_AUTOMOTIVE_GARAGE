@@ -53,11 +53,12 @@ def _notify_all_users(service, action="created"):
         # Tuma kwa users wote (isipokuwa admins)
         users = User.objects.filter(is_active=True).exclude(is_staff=True)
         count = 0
+        errors = []
         for user in users:
             try:
                 Notification.objects.create(
                     recipient=user,
-                    notification_type="SERVICE",
+                    notification_type="service",
                     title=title,
                     message=message,
                     is_sent=True,
@@ -65,8 +66,10 @@ def _notify_all_users(service, action="created"):
                     metadata={"service_id": service.id, "action": action},
                 )
                 count += 1
-            except Exception:
-                pass
+            except Exception as e:
+                errors.append(f"{user.email}: {e}")
+
+        print(f"[NOTIFY SERVICE] Sent to {count} users. Errors: {errors}")
         return count
     except Exception as e:
         print(f"[NOTIFY SERVICE ERROR] {e}")

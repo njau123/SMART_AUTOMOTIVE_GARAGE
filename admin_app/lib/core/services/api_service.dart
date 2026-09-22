@@ -187,8 +187,18 @@ class ApiService {
 
   static List<dynamic> asList(dynamic data) {
     if (data is List) return data;
-    if (data is Map && data['results'] is List) return data['results'];
-    if (data is Map && data['data'] is List) return data['data'];
+    if (data is Map) {
+      // DRF standard pagination
+      if (data['results'] is List) return data['results'];
+      // Direct list in data
+      if (data['data'] is List) return data['data'];
+      // Nested: {data: {items: [...]}}
+      if (data['data'] is Map && data['data']['items'] is List) {
+        return data['data']['items'] as List;
+      }
+      // Nested: {items: [...]}
+      if (data['items'] is List) return data['items'];
+    }
     return [];
   }
 }
