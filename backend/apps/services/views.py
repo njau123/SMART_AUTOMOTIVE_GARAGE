@@ -14,6 +14,7 @@ class ServiceCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = ServiceCategorySerializer
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+    pagination_class = None  # Rudisha zote bila pagination
 
 
 def _notify_all_users(service, action="created"):
