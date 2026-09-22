@@ -30,6 +30,8 @@ from .password_reset_views import (
     VerifyResetCodeView,
     ResetPasswordView,
 )
+from apps.news.views import NewsViewSet as NewNewsViewSet
+from apps.advertisements.views import AdvertisementViewSet as NewAdvertisementViewSet
 from apps.spare_parts.views import (
     OrderCreateView, OrderListView, OrderDetailView,
     OrderUpdateDeliveryView, OrderDeleteView,
@@ -71,8 +73,8 @@ router.register(r'service-categories', ServiceCategoryViewSet, basename='service
 router.register(r'spare-parts', SparePartViewSet, basename='sparepart')
 # router.register(r'bookings', BookingViewSet, basename='booking')  # replaced by apps.bookings.urls
 router.register(r'payments', PaymentViewSet, basename='payment')
-router.register(r'news', NewsViewSet, basename='news')
-router.register(r'advertisements', AdvertisementViewSet, basename='advertisement')
+router.register(r'news', NewNewsViewSet, basename='news')
+router.register(r'advertisements', NewAdvertisementViewSet, basename='advertisement')
 router.register(r'diagnosis/scans', DiagnosisSessionViewSet, basename='diagnosis')
 router.register(r'diagnosis/history', DiagnosisHistoryViewSet, basename='diagnosis-history')
 router.register(r'notifications', NotificationViewSet, basename='notification')
