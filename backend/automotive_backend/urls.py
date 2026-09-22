@@ -4,6 +4,7 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.static import serve
 from apps.dashboard import views as dashboard_views
+from api.admin_views import AdminStatsView
 from apps.accounts import views as accounts_views
 from apps.mechanics import views as mechanics_views
 from apps.spare_parts import views as spare_parts_views
@@ -24,7 +25,7 @@ urlpatterns = [
     path('api/v1/', include('api.urls')),
     path('api/v1/mechanics/', include('apps.mechanics.urls')),
     path('api/v1/diagnosis/', include('apps.diagnosis.urls')),
-    path('api/v1/admin/stats/', dashboard_views.AdminStatsView.as_view()),
+    path('api/v1/admin/stats/', AdminStatsView.as_view()),
     path('api/v1/admin/advertisements/', advertisements_views.admin_ads),
     path('api/v1/admin/advertisements/create/', advertisements_views.admin_create_ad),
 ]

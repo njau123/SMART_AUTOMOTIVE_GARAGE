@@ -739,7 +739,7 @@ class AdminAPI {
     if (role != null) body['role'] = role;
     if (isActive != null) body['is_active'] = isActive;
     final data = await ApiService.patch(
-      'accounts/admin/users/$id/',
+      'auth/admin/users/$id/',
       body,
       token: token,
     );
