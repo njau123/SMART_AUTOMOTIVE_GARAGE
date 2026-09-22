@@ -903,6 +903,39 @@ class AdminMechanicAPI {
     );
     return Map<String, dynamic>.from(data as Map);
   }
+
+  /// Region change requests (pending)
+  static Future<List<dynamic>> getRegionChanges() async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'admin/mechanics/region-changes/',
+      token: token,
+    );
+    if (data is Map && data['data'] is List) return data['data'] as List;
+    return [];
+  }
+
+  /// Approve region change
+  static Future<Map<String, dynamic>> approveRegion(int mechanicId) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'admin/mechanics/$mechanicId/approve-region/',
+      {},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Reject region change
+  static Future<Map<String, dynamic>> rejectRegion(int mechanicId) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'admin/mechanics/$mechanicId/reject-region/',
+      {},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 

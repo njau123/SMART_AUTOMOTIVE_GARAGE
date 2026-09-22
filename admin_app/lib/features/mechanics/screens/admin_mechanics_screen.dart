@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/constants/tanzania_regions.dart';
 
 class MechanicsScreen extends StatefulWidget {
   const MechanicsScreen({super.key});
@@ -11,7 +12,9 @@ class MechanicsScreen extends StatefulWidget {
 
 class _MechanicsScreenState extends State<MechanicsScreen> {
   List<dynamic> _mechanics = [];
+  List<dynamic> _regionChanges = [];
   bool _loading = true;
+  bool _regionChangesExpanded = false;
 
   @override
   void initState() {
@@ -22,10 +25,63 @@ class _MechanicsScreenState extends State<MechanicsScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final data = await AdminAPI.getMechanics();
-      if (mounted) setState(() { _mechanics = data; _loading = false; });
+      final results = await Future.wait([
+        AdminAPI.getMechanics(),
+        AdminMechanicAPI.getRegionChanges(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _mechanics = results[0];
+          _regionChanges = results[1];
+          _loading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _approveRegion(dynamic req) async {
+    try {
+      final res = await AdminMechanicAPI.approveRegion(req['mechanic_id'] as int);
+      if (mounted && res['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['message']?.toString() ?? 'Region ime-approved'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _rejectRegion(dynamic req) async {
+    try {
+      final res = await AdminMechanicAPI.rejectRegion(req['mechanic_id'] as int);
+      if (mounted && res['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['message']?.toString() ?? 'Region ime-rejected'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -90,28 +146,134 @@ class _MechanicsScreenState extends State<MechanicsScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _mechanics.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.engineering_outlined,
-                          size: 64, color: AppColors.textMuted),
-                      const SizedBox(height: 16),
-                      Text('Hakuna mechanics bado',
-                          style: GoogleFonts.poppins(color: AppColors.textSecondary)),
-                      const SizedBox(height: 8),
-                      const Text('Bonyeza "+" kuongeza mpya'),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _mechanics.length,
-                    itemBuilder: (_, i) {
-                      final m = _mechanics[i];
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(12),
+                children: [
+                  // ===== REGION CHANGE REQUESTS =====
+                  if (_regionChanges.isNotEmpty) ...[
+                    Card(
+                      color: Colors.orange.withValues(alpha: 0.1),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ExpansionTile(
+                        initiallyExpanded: _regionChangesExpanded,
+                        onExpansionChanged: (v) => setState(() => _regionChangesExpanded = v),
+                        leading: const Icon(Icons.warning_amber, color: Colors.orange, size: 28),
+                        title: Text(
+                          'Region Change Requests (${_regionChanges.length})',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Mechanics wanataka kubadilisha mkoa',
+                          style: GoogleFonts.poppins(fontSize: 11),
+                        ),
+                        children: _regionChanges.map((req) {
+                          return Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  req['full_name']?.toString() ?? '-',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  'Reg: ${req['registration_number'] ?? '-'} | Simu: ${req['phone_number'] ?? '-'}',
+                                  style: GoogleFonts.poppins(fontSize: 11),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade300,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        req['current_region']?.toString() ?? '-',
+                                        style: GoogleFonts.poppins(fontSize: 11),
+                                      ),
+                                    ),
+                                    const Icon(Icons.arrow_forward, size: 16),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        req['pending_region']?.toString() ?? '-',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: () => _rejectRegion(req),
+                                        icon: const Icon(Icons.close, size: 16),
+                                        label: const Text('Kataa'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.red,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed: () => _approveRegion(req),
+                                        icon: const Icon(Icons.check, size: 16),
+                                        label: const Text('Kubali'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.green,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+
+                  // ===== MECHANICS LIST =====
+                  if (_mechanics.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.engineering_outlined,
+                              size: 64, color: AppColors.textMuted),
+                          const SizedBox(height: 16),
+                          Text('Hakuna mechanics bado',
+                              style: GoogleFonts.poppins(color: AppColors.textSecondary)),
+                          const SizedBox(height: 8),
+                          const Text('Bonyeza "+" kuongeza mpya'),
+                        ],
+                      ),
+                    )
+                  else
+                    ..._mechanics.map((m) {
                       final regNo = m['verification_documents'] is Map
                           ? (m['verification_documents']['registration_number']?.toString() ?? '')
                           : '';
@@ -146,9 +308,10 @@ class _MechanicsScreenState extends State<MechanicsScreen> {
                           ),
                         ),
                       );
-                    },
-                  ),
-                ),
+                    }),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -166,7 +329,7 @@ class _MechanicFormScreenState extends State<MechanicFormScreen> {
   final _fullNameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _specialistCtrl = TextEditingController();
-  final _regionCtrl = TextEditingController();
+  String? _selectedRegion;
   final _districtCtrl = TextEditingController();
   bool _saving = false;
 
@@ -175,7 +338,6 @@ class _MechanicFormScreenState extends State<MechanicFormScreen> {
     _fullNameCtrl.dispose();
     _phoneCtrl.dispose();
     _specialistCtrl.dispose();
-    _regionCtrl.dispose();
     _districtCtrl.dispose();
     super.dispose();
   }
@@ -188,7 +350,7 @@ class _MechanicFormScreenState extends State<MechanicFormScreen> {
         fullName: _fullNameCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
         specialist: _specialistCtrl.text.trim(),
-        region: _regionCtrl.text.trim(),
+        region: (_selectedRegion ?? '').trim(),
         district: _districtCtrl.text.trim(),
       );
       if (!mounted) return;
@@ -319,14 +481,19 @@ class _MechanicFormScreenState extends State<MechanicFormScreen> {
                   validator: (v) => v == null || v.isEmpty ? 'Ni lazima' : null,
                 ),
                 const SizedBox(height: 14),
-                TextFormField(
-                  controller: _regionCtrl,
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedRegion,
+                  isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Mkoa (mfano Dar es Salaam)',
+                    labelText: 'Mkoa',
                     prefixIcon: Icon(Icons.location_on),
                     border: OutlineInputBorder(),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Ni lazima' : null,
+                  items: TanzaniaRegions.all
+                      .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedRegion = v),
+                  validator: (v) => v == null || v.isEmpty ? 'Chagua mkoa' : null,
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
