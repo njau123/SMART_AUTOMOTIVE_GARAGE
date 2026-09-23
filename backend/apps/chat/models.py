@@ -241,3 +241,86 @@ class ChatBlock(models.Model):
 
     def __str__(self):
         return f"{self.blocker.get_full_name()} blocked {self.blocked.get_full_name()}"
+
+
+# ==================== "I'M READY" FLOW ====================
+class ReadyRequest(models.Model):
+    """User anaomba mechanic 'I'm ready' — ETA countdown."""
+    room = models.ForeignKey(
+        ChatRoom, on_delete=models.CASCADE, related_name='ready_requests'
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='ready_requests'
+    )
+    mechanic = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='mechanic_ready_requests'
+    )
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('cancelled', 'Cancelled'),
+        ('completed', 'Completed'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+
+    # Location ya user
+    user_latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    user_longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+
+    # Location ya mechanic
+    mechanic_latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    mechanic_longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+
+    # ETA
+    distance_km = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    eta_minutes = models.PositiveIntegerField(null=True, blank=True)
+    countdown_ends_at = models.DateTimeField(null=True, blank=True)
+
+    requested_at = models.DateTimeField(auto_now_add=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    # User response baada ya countdown
+    user_confirmed_arrival = models.BooleanField(null=True, blank=True)
+    user_feedback = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-requested_at']
+        db_table = 'chat_ready_requests'
+
+    def __str__(self):
+        return f"ReadyRequest {self.id} - {self.status}"
+
+    def calculate_eta(self):
+        """Haversine formula — calculate distance + ETA."""
+        import math
+
+        if not all([self.user_latitude, self.user_longitude,
+                    self.mechanic_latitude, self.mechanic_longitude]):
+            return None, None
+
+        lat1 = float(self.user_latitude)
+        lon1 = float(self.user_longitude)
+        lat2 = float(self.mechanic_latitude)
+        lon2 = float(self.mechanic_longitude)
+
+        R = 6371  # km
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = (math.sin(dlat/2) ** 2 +
+             math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+             math.sin(dlon/2) ** 2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        distance_km = R * c
+
+        # 1 km ≈ 4 min (average 15 km/h)
+        eta_minutes = max(5, int(distance_km * 4))
+
+        self.distance_km = round(distance_km, 2)
+        self.eta_minutes = eta_minutes
+        self.save(update_fields=['distance_km', 'eta_minutes'])
+
+        return distance_km, eta_minutes

@@ -2,7 +2,10 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
-from .models import ChatRoom, Message, MessageAttachment, UserChatStatus, ChatNotification, ChatBlock
+from .models import (
+    ChatRoom, Message, MessageAttachment, UserChatStatus,
+    ChatNotification, ChatBlock, ReadyRequest,
+)
 from .serializers import (
     ChatRoomSerializer, ChatRoomCreateSerializer,
     MessageSerializer, MessageCreateSerializer, MessageAttachmentSerializer,
@@ -158,6 +161,198 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             'success': True,
             'message': f'Added {len(users)} participants',
             'data': ChatRoomSerializer(room, context={'request': request}).data
+        })
+
+
+    # ==================== "I'M READY" ACTIONS ====================
+    @action(detail=True, methods=['post'], url_path='ready')
+    def ready(self, request, pk=None):
+        """User anataka mechanic — start I'm Ready flow."""
+        room = self.get_object()
+
+        if not room.participants.filter(id=request.user.id).exists():
+            return Response({'success': False, 'message': 'Hauna ruhusa'},
+                status=status.HTTP_403_FORBIDDEN)
+
+        # Pata mechanic (participant mwingine)
+        mechanic_user = room.participants.exclude(id=request.user.id).first()
+        if not mechanic_user:
+            return Response({'success': False, 'message': 'Mechanic haipo kwenye room'},
+                status=status.HTTP_400_BAD_REQUEST)
+
+        # Check kama kuna pending ready request
+        existing = ReadyRequest.objects.filter(
+            room=room, user=request.user, status__in=['pending', 'accepted']
+        ).first()
+        if existing:
+            return Response({
+                'success': False,
+                'message': 'Kuna ready request inayoendelea',
+                'data': {'request_id': existing.id, 'status': existing.status},
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # User location
+        user_lat = request.data.get('user_latitude')
+        user_lng = request.data.get('user_longitude')
+
+        req = ReadyRequest.objects.create(
+            room=room,
+            user=request.user,
+            mechanic=mechanic_user,
+            status='pending',
+            user_latitude=user_lat,
+            user_longitude=user_lng,
+        )
+
+        # Notification kwa mechanic
+        try:
+            ChatNotification.objects.create(
+                recipient=mechanic_user,
+                message=Message.objects.create(
+                    room=room, sender=request.user,
+                    content='I\'m ready request',
+                    message_type='system',
+                ),
+                room=room,
+                notification_type='system',
+            )
+        except Exception:
+            pass
+
+        return Response({
+            'success': True,
+            'message': 'Ombi limetumwa kwa mechanic',
+            'data': {'request_id': req.id, 'status': req.status},
+        })
+
+    @action(detail=True, methods=['post'], url_path='accept-ready')
+    def accept_ready(self, request, pk=None):
+        """Mechanic anakubali + ana-set location yake."""
+        room = self.get_object()
+
+        if not room.participants.filter(id=request.user.id).exists():
+            return Response({'success': False, 'message': 'Hauna ruhusa'},
+                status=status.HTTP_403_FORBIDDEN)
+
+        req = ReadyRequest.objects.filter(
+            room=room, mechanic=request.user, status='pending'
+        ).first()
+        if not req:
+            return Response({'success': False, 'message': 'Hakuna ready request'},
+                status=status.HTTP_404_NOT_FOUND)
+
+        # Mechanic location
+        req.mechanic_latitude = request.data.get('mechanic_latitude')
+        req.mechanic_longitude = request.data.get('mechanic_longitude')
+
+        # Calculate ETA
+        req.calculate_eta()
+
+        if req.eta_minutes:
+            from django.utils import timezone
+            req.countdown_ends_at = timezone.now() + timezone.timedelta(minutes=req.eta_minutes)
+
+        req.status = 'accepted'
+        from django.utils import timezone as tz
+        req.accepted_at = tz.now()
+        req.save()
+
+        return Response({
+            'success': True,
+            'message': f'Umekubali. ETA: dakika {req.eta_minutes}',
+            'data': {
+                'request_id': req.id,
+                'status': req.status,
+                'eta_minutes': req.eta_minutes,
+                'distance_km': str(req.distance_km) if req.distance_km else None,
+                'countdown_ends_at': req.countdown_ends_at.isoformat() if req.countdown_ends_at else None,
+            },
+        })
+
+    @action(detail=True, methods=['post'], url_path='cancel-ready')
+    def cancel_ready(self, request, pk=None):
+        """User ana-cancel ready request."""
+        room = self.get_object()
+
+        req = ReadyRequest.objects.filter(
+            room=room, user=request.user, status__in=['pending', 'accepted']
+        ).first()
+        if not req:
+            return Response({'success': False, 'message': 'Hakuna ready request'},
+                status=status.HTTP_404_NOT_FOUND)
+
+        from django.utils import timezone as tz
+        req.status = 'cancelled'
+        req.cancelled_at = tz.now()
+        req.save()
+
+        return Response({
+            'success': True,
+            'message': 'Ombi limefutwa',
+            'data': {'request_id': req.id},
+        })
+
+    @action(detail=True, methods=['post'], url_path='confirm-arrival')
+    def confirm_arrival(self, request, pk=None):
+        """User ana-confirm kama mechanic amefika."""
+        room = self.get_object()
+        req = ReadyRequest.objects.filter(
+            room=room, user=request.user, status='accepted'
+        ).first()
+        if not req:
+            return Response({'success': False, 'message': 'Hakuna ready request'},
+                status=status.HTTP_404_NOT_FOUND)
+
+        confirmed = request.data.get('confirmed')
+        feedback = request.data.get('feedback', '')
+
+        from django.utils import timezone as tz
+        req.user_confirmed_arrival = bool(confirmed)
+        req.user_feedback = feedback
+        req.status = 'completed'
+        req.confirmed_at = tz.now()
+        req.save()
+
+        return Response({
+            'success': True,
+            'message': 'Asante!',
+            'data': {'request_id': req.id, 'confirmed': req.user_confirmed_arrival},
+        })
+
+    @action(detail=True, methods=['get'], url_path='ready-status')
+    def ready_status(self, request, pk=None):
+        """Angalia hali ya ready request."""
+        room = self.get_object()
+        req = ReadyRequest.objects.filter(
+            room=room
+        ).exclude(status__in=['cancelled', 'completed']).first()
+
+        if not req:
+            return Response({
+                'success': True,
+                'data': {'active': False},
+            })
+
+        from django.utils import timezone as tz
+        now = tz.now()
+        remaining_seconds = 0
+        if req.countdown_ends_at:
+            diff = req.countdown_ends_at - now
+            remaining_seconds = max(0, int(diff.total_seconds()))
+
+        return Response({
+            'success': True,
+            'data': {
+                'active': True,
+                'request_id': req.id,
+                'status': req.status,
+                'eta_minutes': req.eta_minutes,
+                'distance_km': str(req.distance_km) if req.distance_km else None,
+                'countdown_ends_at': req.countdown_ends_at.isoformat() if req.countdown_ends_at else None,
+                'remaining_seconds': remaining_seconds,
+                'is_mechanic': req.mechanic_id == request.user.id,
+                'is_user': req.user_id == request.user.id,
+            },
         })
 
 
