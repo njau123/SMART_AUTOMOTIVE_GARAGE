@@ -246,8 +246,8 @@ class MessageAttachmentViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         import os
-        from django.core.files.storage import default_storage
-        from django.conf import settings
+        import cloudinary
+        import cloudinary.uploader
 
         message_id = request.data.get('message_id')
         if not message_id:
@@ -287,37 +287,71 @@ class MessageAttachmentViewSet(viewsets.ModelViewSet):
 
         # Tambua file_type
         file_name = uploaded_file.name.lower()
-        content_type = uploaded_file.content_type or ''
 
         if any(file_name.endswith(e) for e in ['.jpg', '.jpeg', '.png', '.gif', '.webp']):
             file_type = 'image'
+            resource_type = 'image'
         elif any(file_name.endswith(e) for e in ['.mp4', '.mov', '.avi', '.webm']):
             file_type = 'video'
+            resource_type = 'video'
         elif any(file_name.endswith(e) for e in ['.mp3', '.wav', '.m4a', '.ogg', '.aac']):
             file_type = 'audio'
-        elif file_name.endswith('.pdf'):
+            resource_type = 'video'  # Cloudinary ina-handle audio kama video
+        elif file_name.endswith('.pdf') or any(file_name.endswith(e) for e in ['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx']):
             file_type = 'document'
-        elif any(file_name.endswith(e) for e in ['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx']):
-            file_type = 'document'
+            resource_type = 'raw'
         else:
             file_type = 'file'
+            resource_type = 'raw'
 
-        # Save attachment
+        # ============ CLOUDINARY UPLOAD ============
+        try:
+            cloudinary.config(
+                cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
+                api_key=os.environ.get('CLOUDINARY_API_KEY', ''),
+                api_secret=os.environ.get('CLOUDINARY_API_SECRET', ''),
+            )
+
+            upload_result = cloudinary.uploader.upload(
+                uploaded_file,
+                resource_type=resource_type,
+                folder='smart_garage/chat',
+                use_filename=True,
+                unique_filename=True,
+            )
+
+            cloudinary_url = upload_result.get('secure_url', '')
+            if not cloudinary_url:
+                raise Exception('Cloudinary haikurudi secure_url')
+
+        except Exception as e:
+            return Response(
+                {'success': False, 'message': f'Cloudinary upload imeshindwa: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Save attachment (file_url = Cloudinary, file = null)
         attachment = MessageAttachment.objects.create(
             message=message,
-            file=uploaded_file,
+            file=None,
+            file_url=cloudinary_url,
             file_name=uploaded_file.name,
             file_size=uploaded_file.size,
             file_type=file_type,
+            metadata={
+                'cloudinary_public_id': upload_result.get('public_id', ''),
+                'cloudinary_format': upload_result.get('format', ''),
+                'cloudinary_bytes': upload_result.get('bytes', 0),
+            },
         )
 
-        # Update message: badilisha message_type kuwa file type
+        # Update message
         message.message_type = file_type
         if not message.content or message.content == '':
             message.content = uploaded_file.name
         if not message.media_urls:
             message.media_urls = []
-        message.media_urls.append(request.build_absolute_uri(attachment.file.url))
+        message.media_urls.append(cloudinary_url)
         message.save()
 
         return Response({

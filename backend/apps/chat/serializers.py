@@ -118,14 +118,29 @@ class MessageCreateSerializer(serializers.ModelSerializer):
 
 
 class MessageAttachmentSerializer(serializers.ModelSerializer):
+    file_url_final = serializers.SerializerMethodField()
+
     class Meta:
         model = MessageAttachment
         fields = [
-            'id', 'message', 'file', 'file_name',
-            'file_size', 'file_type', 'thumbnail',
+            'id', 'message', 'file', 'file_url', 'file_url_final',
+            'file_name', 'file_size', 'file_type', 'thumbnail',
             'metadata', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
+
+    def get_file_url_final(self, obj):
+        """Rudisha Cloudinary URL kama ipo, la sivyo local file URL."""
+        if obj.file_url:
+            return obj.file_url
+        if obj.file:
+            request = self.context.get('request')
+            try:
+                url = obj.file.url
+                return request.build_absolute_uri(url) if request else url
+            except Exception:
+                return None
+        return None
 
 
 class UserChatStatusSerializer(serializers.ModelSerializer):
