@@ -269,8 +269,10 @@ class AdminUserSerializer(drf_serializers.ModelSerializer):
 
 
 class AdminUserViewSet(viewsets.ModelViewSet):
-    """Admin CRUD kwa users."""
-    queryset = User.objects.all().order_by('-created_at')
+    """Admin CRUD kwa users (bila soft-deleted)."""
+    queryset = User.objects.exclude(
+        email__startswith='deleted_'
+    ).order_by('-created_at')
     serializer_class = AdminUserSerializer
     permission_classes = [IsAdminOrReadOnly]
     search_fields = ['email', 'first_name', 'last_name', 'phone_number']

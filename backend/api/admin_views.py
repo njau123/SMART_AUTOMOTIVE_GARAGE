@@ -46,7 +46,9 @@ class AdminStatsView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        total_users = User.objects.count()
+        # Hesabu users tu (bila soft-deleted)
+        total_users = User.objects.exclude(email__startswith='deleted_').count()
+        total_active_users = User.objects.filter(is_active=True).exclude(email__startswith='deleted_').count()
         total_mechanics = MechanicProfile.objects.count()
         total_bookings = Booking.objects.count()
         total_spare_parts = SparePart.objects.count()
@@ -69,6 +71,7 @@ class AdminStatsView(APIView):
             'success': True,
             'data': {
                 'total_users': total_users,
+                'total_active_users': total_active_users,
                 'total_mechanics': total_mechanics,
                 'total_bookings': total_bookings,
                 'total_spare_parts': total_spare_parts,
