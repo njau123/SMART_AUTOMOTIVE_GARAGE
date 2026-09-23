@@ -893,6 +893,31 @@ class ChatAPI {
     await ApiService.post('chat/rooms/$roomId/mark_read/', {}, token: token);
   }
 
+  /// Delete message (soft delete).
+  static Future<Map<String, dynamic>> deleteMessage(int messageId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/messages/$messageId/delete-message/',
+      {},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Edit message.
+  static Future<Map<String, dynamic>> editMessage({
+    required int messageId,
+    required String content,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/messages/$messageId/edit-message/',
+      {'content': content},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   /// Futa room.
   static Future<Map<String, dynamic>> deleteRoom(int roomId) async {
     final token = await TokenStorage.getAccessToken();

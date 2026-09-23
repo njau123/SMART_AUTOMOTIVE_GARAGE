@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:record/record.dart';
 import '../../../core/services/api_service.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -28,6 +29,11 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _loading = true;
   bool _sending = false;
   Timer? _pollTimer;
+  // Voice note
+  final _audioRecorder = AudioRecorder();
+  bool _isRecording = false;
+  int _recordSeconds = 0;
+  Timer? _recordTimer;
 
   @override
   void initState() {
@@ -259,6 +265,67 @@ class _ChatScreenState extends State<ChatScreen> {
     return 'file';
   }
 
+  // ============ VOICE NOTE ============
+  final List<int> _audioChunks = [];
+  StreamSubscription? _audioStreamSub;
+
+  Future<void> _startRecording() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        _audioChunks.clear();
+        final stream = await _audioRecorder.startStream(
+          const RecordConfig(encoder: AudioEncoder.aacLc),
+        );
+        _audioStreamSub = stream.listen((data) {
+          _audioChunks.addAll(data);
+        });
+        setState(() {
+          _isRecording = true;
+          _recordSeconds = 0;
+        });
+        _recordTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+          if (mounted) setState(() => _recordSeconds++);
+          if (_recordSeconds >= 120) _stopAndSendRecording();
+        });
+      } else {
+        _snackError('Ruhusa ya microphone haijatolewa');
+      }
+    } catch (e) {
+      _snackError('Imeshindwa kuanza recording: $e');
+    }
+  }
+
+  Future<void> _stopAndSendRecording() async {
+    try {
+      _recordTimer?.cancel();
+      await _audioRecorder.stop();
+      await _audioStreamSub?.cancel();
+      setState(() => _isRecording = false);
+      if (_audioChunks.isEmpty) return;
+
+      final bytes = List<int>.from(_audioChunks);
+      final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      await _uploadAndSend(bytes, fileName, 'audio/m4a');
+      _audioChunks.clear();
+    } catch (e) {
+      _snackError('Imeshindwa kutuma voice note: $e');
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    _recordTimer?.cancel();
+    try {
+      await _audioRecorder.stop();
+      await _audioStreamSub?.cancel();
+    } catch (_) {}
+    _audioChunks.clear();
+    setState(() {
+      _isRecording = false;
+      _recordSeconds = 0;
+    });
+  }
+
   void _snackError(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -271,6 +338,8 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _recordTimer?.cancel();
+    _audioRecorder.dispose();
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -317,68 +386,223 @@ class _ChatScreenState extends State<ChatScreen> {
     final time = msg['formatted_time']?.toString() ?? '';
     final msgType = msg['message_type']?.toString() ?? 'text';
     final mediaUrls = (msg['media_urls'] as List?) ?? [];
+    final isDeleted = msg['is_deleted'] == true;
+    final isEdited = msg['is_edited'] == true;
+    final canEdit = msg['can_edit'] == true;
+    final canDelete = msg['can_delete'] == true;
+
+    Widget bubble = Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: msgType == 'image' || msgType == 'video' ? 6 : 14,
+        vertical: msgType == 'image' || msgType == 'video' ? 6 : 10,
+      ),
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.78,
+      ),
+      decoration: BoxDecoration(
+        color: isDeleted
+            ? Colors.grey.shade300
+            : (isMine ? AppColors.primary : Colors.white),
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(16),
+          topRight: const Radius.circular(16),
+          bottomLeft: Radius.circular(isMine ? 16 : 4),
+          bottomRight: Radius.circular(isMine ? 4 : 16),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment:
+            isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          if (!isMine && sender.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 4),
+              child: Text(
+                sender,
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          if (isDeleted)
+            Text(
+              '🚫 Message imefutwa',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey.shade700,
+              ),
+            )
+          else
+            _messageContent(msgType, content, mediaUrls, isMine),
+          if (time.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 4, right: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    time,
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      color: isMine && !isDeleted
+                          ? Colors.white.withValues(alpha: 0.8)
+                          : Colors.grey,
+                    ),
+                  ),
+                  if (isEdited && !isDeleted) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      '(edited)',
+                      style: GoogleFonts.poppins(
+                        fontSize: 10,
+                        fontStyle: FontStyle.italic,
+                        color: isMine
+                            ? Colors.white.withValues(alpha: 0.7)
+                            : Colors.grey,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+
+    // Long press menu (kama ni yangu na haijafutwa)
+    if (isMine && !isDeleted && (canEdit || canDelete)) {
+      bubble = GestureDetector(
+        onLongPress: () => _showMessageOptions(msg),
+        child: bubble,
+      );
+    }
 
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: EdgeInsets.symmetric(
-          horizontal: msgType == 'image' || msgType == 'video' ? 6 : 14,
-          vertical: msgType == 'image' || msgType == 'video' ? 6 : 10,
-        ),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
-        ),
-        decoration: BoxDecoration(
-          color: isMine ? AppColors.primary : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMine ? 16 : 4),
-            bottomRight: Radius.circular(isMine ? 4 : 16),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+      child: bubble,
+    );
+  }
+
+  void _showMessageOptions(dynamic msg) {
+    final canEdit = msg['can_edit'] == true;
+    final canDelete = msg['can_delete'] == true;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
         child: Column(
-          crossAxisAlignment:
-              isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (!isMine && sender.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 4),
-                child: Text(
-                  sender,
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
+            const SizedBox(height: 0),
+            Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
               ),
-            _messageContent(msgType, content, mediaUrls, isMine),
-            if (time.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4, left: 4, right: 4),
-                child: Text(
-                  time,
-                  style: GoogleFonts.poppins(
-                    fontSize: 10,
-                    color: isMine
-                        ? Colors.white.withValues(alpha: 0.8)
-                        : Colors.grey,
-                  ),
-                ),
+            ),
+            if (canEdit)
+              ListTile(
+                leading: const Icon(Icons.edit, color: Colors.blue),
+                title: const Text('Hariri message'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editMessageDialog(msg);
+                },
               ),
+            if (canDelete)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Futa message',
+                    style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDelete(msg);
+                },
+              ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete(dynamic msg) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Futa Message?'),
+        content: const Text('Message itafutwa kwa wote wawili.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hapana'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Futa'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ChatAPI.deleteMessage(msg['id'] as int);
+      await _loadMessages();
+    } catch (e) {
+      _snackError(e.toString());
+    }
+  }
+
+  Future<void> _editMessageDialog(dynamic msg) async {
+    final ctrl = TextEditingController(text: msg['content']?.toString() ?? '');
+    final newContent = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Hariri Message'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 3,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Ghairi'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            child: const Text('Hifadhi'),
+          ),
+        ],
+      ),
+    );
+    if (newContent == null || newContent.isEmpty) return;
+    try {
+      await ChatAPI.editMessage(
+        messageId: msg['id'] as int,
+        content: newContent,
+      );
+      await _loadMessages();
+    } catch (e) {
+      _snackError(e.toString());
+    }
   }
 
   Widget _messageContent(
@@ -538,58 +762,135 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
-          children: [
-            // Attachment button
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.attach_file, color: AppColors.primary),
-                onPressed: _sending ? null : _showAttachmentPicker,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: TextField(
-                controller: _msgCtrl,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  hintText: 'Andika message...',
-                  hintStyle: GoogleFonts.poppins(color: Colors.grey),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10,
-                  ),
-                ),
-                onSubmitted: (_) => _send(),
-              ),
-            ),
-            const SizedBox(width: 8),
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: AppColors.primary,
-              child: IconButton(
-                icon: _sending
-                    ? const SizedBox(
-                        width: 18, height: 18,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send, color: Colors.white, size: 20),
-                onPressed: _sending ? null : _send,
-              ),
-            ),
-          ],
-        ),
+        child: _isRecording ? _recordingBar() : _normalInputBar(),
       ),
+    );
+  }
+
+  Widget _normalInputBar() {
+    return Row(
+      children: [
+        // Attachment button
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.attach_file, color: AppColors.primary),
+            onPressed: _sending ? null : _showAttachmentPicker,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: TextField(
+            controller: _msgCtrl,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              hintText: 'Andika message...',
+              hintStyle: GoogleFonts.poppins(color: Colors.grey),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade100,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 10,
+              ),
+            ),
+            onSubmitted: (_) => _send(),
+          ),
+        ),
+        const SizedBox(width: 6),
+        // MIC BUTTON
+        CircleAvatar(
+          radius: 22,
+          backgroundColor: Colors.grey.shade200,
+          child: IconButton(
+            icon: const Icon(Icons.mic, color: AppColors.primary, size: 22),
+            onPressed: _sending ? null : _startRecording,
+          ),
+        ),
+        const SizedBox(width: 6),
+        CircleAvatar(
+          radius: 22,
+          backgroundColor: AppColors.primary,
+          child: IconButton(
+            icon: _sending
+                ? const SizedBox(
+                    width: 18, height: 18,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2),
+                  )
+                : const Icon(Icons.send, color: Colors.white, size: 20),
+            onPressed: _sending ? null : _send,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _recordingBar() {
+    final mins = (_recordSeconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (_recordSeconds % 60).toString().padLeft(2, '0');
+
+    return Row(
+      children: [
+        // Cancel button
+        IconButton(
+          icon: const Icon(Icons.close, color: Colors.red),
+          onPressed: _cancelRecording,
+        ),
+        const SizedBox(width: 6),
+        // Red dot + timer
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.red.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 10, height: 10,
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '$mins:$secs',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Inarekodi...',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: Colors.grey,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+        // Send button
+        CircleAvatar(
+          radius: 22,
+          backgroundColor: AppColors.primary,
+          child: IconButton(
+            icon: const Icon(Icons.send, color: Colors.white, size: 20),
+            onPressed: _stopAndSendRecording,
+          ),
+        ),
+      ],
     );
   }
 }
