@@ -439,6 +439,33 @@ class ChatAPI {
     }, token: token);
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
+
+  // ============ "I'M READY" FLOW ============
+  static Future<Map<String, dynamic>> acceptReady({
+    required int roomId,
+    double? mechLat,
+    double? mechLng,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/accept-ready/',
+      {
+        if (mechLat != null) 'mechanic_latitude': mechLat,
+        if (mechLng != null) 'mechanic_longitude': mechLng,
+      },
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> getReadyStatus(int roomId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'chat/rooms/$roomId/ready-status/', token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
 }
 
 

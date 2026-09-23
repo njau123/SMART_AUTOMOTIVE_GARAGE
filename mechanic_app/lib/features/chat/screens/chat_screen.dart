@@ -31,12 +31,76 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isRecording = false;
   int _recordSeconds = 0;
   Timer? _recordTimer;
+  // I'M READY (mechanic anaona + ana-accept)
+  bool _hasPendingReady = false;
+  bool _readyAccepted = false;
+  String _readyStatus = '';
+  int _readyRemainingSeconds = 0;
+  Timer? _readyTimer;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
     _markRead();
+    _startReadyPolling();
+  }
+
+  void _startReadyPolling() {
+    _readyTimer?.cancel();
+    _readyTimer = Timer.periodic(const Duration(seconds: 3), (_) => _checkReadyStatus());
+    _checkReadyStatus();
+  }
+
+  Future<void> _checkReadyStatus() async {
+    try {
+      final res = await ChatAPI.getReadyStatus(widget.roomId);
+      final data = res['data'] as Map? ?? {};
+      if (!mounted) return;
+      setState(() {
+        final active = data['active'] == true;
+        final status = data['status']?.toString() ?? '';
+        final isUser = data['is_user'] == true;
+
+        if (active && status == 'pending' && isUser) {
+          // User ameomba — mechanic anaona button
+          _hasPendingReady = true;
+          _readyAccepted = false;
+          _readyStatus = 'pending';
+        } else if (active && status == 'accepted') {
+          _hasPendingReady = false;
+          _readyAccepted = true;
+          _readyStatus = 'accepted';
+          _readyRemainingSeconds = int.tryParse(data['remaining_seconds']?.toString() ?? '0') ?? 0;
+        } else {
+          _hasPendingReady = false;
+          _readyAccepted = false;
+          _readyStatus = '';
+          _readyRemainingSeconds = 0;
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _acceptReady() async {
+    try {
+      final res = await ChatAPI.acceptReady(roomId: widget.roomId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['message']?.toString() ?? 'Umekubali'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _checkReadyStatus();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Future<void> _loadMessages() async {
@@ -92,6 +156,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _recordTimer?.cancel();
+    _readyTimer?.cancel();
     _audioRecorder.dispose();
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
@@ -108,6 +173,9 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
+          // READY BANNER
+          if (_hasPendingReady) _readyRequestBanner(),
+          if (_readyAccepted) _readyCountdownBanner(),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -457,6 +525,72 @@ class _ChatScreenState extends State<ChatScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  Widget _readyRequestBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      color: Colors.orange.withValues(alpha: 0.15),
+      child: Row(
+        children: [
+          const Icon(Icons.notifications_active, color: Colors.orange),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Mteja anakuhitaji! Uko tayari?',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.orange.shade900,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: _acceptReady,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('NDIYO'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _readyCountdownBanner() {
+    final mins = (_readyRemainingSeconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (_readyRemainingSeconds % 60).toString().padLeft(2, '0');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      color: Colors.green.withValues(alpha: 0.15),
+      child: Row(
+        children: [
+          const Icon(Icons.timer, color: Colors.green),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Mteja anakusubiri — fika ndani ya:',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.green.shade900,
+              ),
+            ),
+          ),
+          Text(
+            '$mins:$secs',
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.green.shade900,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _inputBar() {
