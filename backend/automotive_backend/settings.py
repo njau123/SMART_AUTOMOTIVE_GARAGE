@@ -36,6 +36,8 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '.o
 
 # Application definition
 INSTALLED_APPS = [
+    'cloudinary_storage',
+    'cloudinary',
     'api',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -140,6 +142,18 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# ============ CLOUDINARY CONFIG ============
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY', ''),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', ''),
+}
+
+# Default storage — Cloudinary (kama credentials zipo)
+if os.environ.get('CLOUDINARY_CLOUD_NAME'):
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    print(f"[CLOUDINARY] Enabled: {os.environ.get('CLOUDINARY_CLOUD_NAME')}")
 
 # === UPLOAD LIMITS (kwa chat, media, n.k.) ===
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB

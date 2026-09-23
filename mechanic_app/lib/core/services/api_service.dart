@@ -300,9 +300,18 @@ class ChatAPI {
   static Future<List<dynamic>> getRooms() async {
     final token = await TokenStorage.getAccessToken();
     final data = await ApiService.get('chat/rooms/', token: token);
-    if (data is Map && data['results'] is List) return data['results'];
+    // Format 1: {success, data: {items: [...]}}
+    if (data is Map &&
+        data['data'] is Map &&
+        data['data']['items'] is List) {
+      return data['data']['items'] as List;
+    }
+    // Format 2: {data: [...]}
     if (data is Map && data['data'] is List) return data['data'];
+    // Format 3: [...] directly
     if (data is List) return data;
+    // Format 4: {results: [...]}
+    if (data is Map && data['results'] is List) return data['results'];
     return [];
   }
 
@@ -310,9 +319,13 @@ class ChatAPI {
   static Future<List<dynamic>> getMessages(int roomId) async {
     final token = await TokenStorage.getAccessToken();
     final data = await ApiService.get('chat/rooms/$roomId/messages/', token: token);
+    // Format 1: {success, data: {messages: [...], total, ...}}
     if (data is Map && data['data'] is Map && data['data']['messages'] is List) {
       return data['data']['messages'];
     }
+    // Format 2: {data: [...]}
+    if (data is Map && data['data'] is List) return data['data'];
+    // Format 3: [...] directly
     if (data is List) return data;
     return [];
   }

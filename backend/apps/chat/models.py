@@ -106,10 +106,11 @@ class Message(models.Model):
 
 
 class MessageAttachment(models.Model):
-    """Message Attachment Model"""
-    
+    """Message Attachment Model — inatumia Cloudinary kwa storage"""
+
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='attachments')
-    file = models.FileField(upload_to='chat/attachments/')
+    file = models.FileField(upload_to='chat/attachments/', blank=True, null=True)
+    file_url = models.URLField(blank=True, null=True, help_text="Direct Cloudinary URL")
     file_name = models.CharField(max_length=255)
     file_size = models.PositiveIntegerField(help_text="File size in bytes")
     file_type = models.CharField(max_length=100)
@@ -119,6 +120,18 @@ class MessageAttachment(models.Model):
 
     def __str__(self):
         return self.file_name
+
+    def get_file_url(self):
+        """Rudisha Cloudinary URL au local URL."""
+        if self.file_url:
+            return self.file_url
+        if self.file:
+            try:
+                return self.file.url
+            except Exception:
+                return None
+        return None
+
 
 
 class UserChatStatus(models.Model):
