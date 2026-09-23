@@ -48,6 +48,36 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  static Future<dynamic> postMultipart(
+    String endpoint, {
+    required Map<String, String> fields,
+    Map<String, List<int>>? fileBytes,
+    Map<String, String>? fileNames,
+    String? token,
+  }) async {
+    final uri = Uri.parse(AppConstants.baseUrl + endpoint);
+    final request = http.MultipartRequest('POST', uri);
+    request.headers.addAll({
+      if (token != null) 'Authorization': 'Bearer $token',
+    });
+    request.fields.addAll(fields);
+    if (fileBytes != null) {
+      for (final entry in fileBytes.entries) {
+        final filename = fileNames?[entry.key] ?? 'upload.bin';
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            entry.key,
+            entry.value,
+            filename: filename,
+          ),
+        );
+      }
+    }
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+    return _handleResponse(response);
+  }
+
   static dynamic _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return jsonDecode(response.body);
@@ -357,6 +387,23 @@ class ChatAPI {
     final data = await ApiService.post(
       'chat/messages/$messageId/delete-message/',
       {},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Upload attachment (image, video, audio, document).
+  static Future<Map<String, dynamic>> uploadAttachment({
+    required int messageId,
+    required List<int> bytes,
+    required String fileName,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.postMultipart(
+      'chat/attachments/',
+      fields: {'message_id': messageId.toString()},
+      fileBytes: {'file': bytes},
+      fileNames: {'file': fileName},
       token: token,
     );
     return Map<String, dynamic>.from(data as Map);

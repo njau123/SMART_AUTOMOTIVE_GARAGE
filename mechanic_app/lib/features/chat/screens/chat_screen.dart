@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
+import 'package:record/record.dart';
+import 'dart:async';
 
 class ChatScreen extends StatefulWidget {
   final int roomId;
@@ -23,6 +25,12 @@ class _ChatScreenState extends State<ChatScreen> {
   List<dynamic> _messages = [];
   bool _loading = true;
   bool _sending = false;
+  final _audioRecorder = AudioRecorder();
+  final List<int> _audioChunks = [];
+  StreamSubscription? _audioStreamSub;
+  bool _isRecording = false;
+  int _recordSeconds = 0;
+  Timer? _recordTimer;
 
   @override
   void initState() {
@@ -83,6 +91,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _recordTimer?.cancel();
+    _audioRecorder.dispose();
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -126,44 +136,91 @@ class _ChatScreenState extends State<ChatScreen> {
     final content = msg['content']?.toString() ?? '';
     final sender = msg['sender_name']?.toString() ?? '';
     final time = msg['formatted_time']?.toString() ?? '';
+    final msgType = msg['message_type']?.toString() ?? 'text';
+    final mediaUrls = (msg['media_urls'] as List?) ?? [];
+    final isDeleted = msg['is_deleted'] == true;
+    final isEdited = msg['is_edited'] == true;
+    final canEdit = msg['can_edit'] == true;
+    final canDelete = msg['can_delete'] == true;
 
-    return Align(
-      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
+    Widget bubble = Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: msgType == 'image' || msgType == 'video' ? 6 : 14,
+        vertical: msgType == 'image' || msgType == 'video' ? 6 : 10,
+      ),
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.75,
+      ),
+      decoration: BoxDecoration(
+        color: isDeleted
+            ? Colors.grey.shade300
+            : (isMine ? AppTheme.primary : Colors.white),
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(16),
+          topRight: const Radius.circular(16),
+          bottomLeft: Radius.circular(isMine ? 16 : 4),
+          bottomRight: Radius.circular(isMine ? 4 : 16),
         ),
-        decoration: BoxDecoration(
-          color: isMine ? AppTheme.primary : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMine ? 16 : 4),
-            bottomRight: Radius.circular(isMine ? 4 : 16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment:
-              isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            if (!isMine && sender.isNotEmpty)
-              Text(
-                sender,
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primary,
-                ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment:
+            isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          if (!isMine && sender.isNotEmpty)
+            Text(
+              sender,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primary,
               ),
+            ),
+          if (isDeleted)
+            Text(
+              '🚫 Message imefutwa',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey.shade700,
+              ),
+            )
+          else if (msgType == 'image' && mediaUrls.isNotEmpty)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                mediaUrls.first.toString(),
+                width: 200,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+              ),
+            )
+          else if (msgType == 'video' && mediaUrls.isNotEmpty)
+            Container(
+              width: 200, height: 140,
+              color: Colors.black26,
+              child: const Center(
+                child: Icon(Icons.play_circle_fill, size: 50, color: Colors.white),
+              ),
+            )
+          else if (msgType == 'audio' && mediaUrls.isNotEmpty)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.play_arrow, color: Colors.white),
+                const SizedBox(width: 6),
+                Text('Voice note',
+                    style: GoogleFonts.poppins(color: Colors.white)),
+              ],
+            )
+          else
             Text(
               content,
               style: GoogleFonts.poppins(
@@ -171,23 +228,235 @@ class _ChatScreenState extends State<ChatScreen> {
                 fontSize: 14,
               ),
             ),
-            if (time.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  time,
-                  style: GoogleFonts.poppins(
-                    fontSize: 10,
-                    color: isMine
-                        ? Colors.white.withValues(alpha: 0.8)
-                        : Colors.grey,
+          if (time.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    time,
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      color: isMine && !isDeleted
+                          ? Colors.white.withValues(alpha: 0.8)
+                          : Colors.grey,
+                    ),
                   ),
-                ),
+                  if (isEdited && !isDeleted) ...[
+                    const SizedBox(width: 4),
+                    Text('(edited)',
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          fontStyle: FontStyle.italic,
+                          color: isMine
+                              ? Colors.white.withValues(alpha: 0.7)
+                              : Colors.grey,
+                        )),
+                  ],
+                ],
               ),
+            ),
+        ],
+      ),
+    );
+
+    if (isMine && !isDeleted && (canEdit || canDelete)) {
+      bubble = GestureDetector(
+        onLongPress: () => _showMessageOptions(msg),
+        child: bubble,
+      );
+    }
+
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: bubble,
+    );
+  }
+
+  void _showMessageOptions(dynamic msg) {
+    final canEdit = msg['can_edit'] == true;
+    final canDelete = msg['can_delete'] == true;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            if (canEdit)
+              ListTile(
+                leading: const Icon(Icons.edit, color: Colors.blue),
+                title: const Text('Hariri message'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editMessageDialog(msg);
+                },
+              ),
+            if (canDelete)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Futa message',
+                    style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDelete(msg);
+                },
+              ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete(dynamic msg) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Futa Message?'),
+        content: const Text('Message itafutwa kwa wote wawili.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hapana'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Futa'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ChatAPI.deleteMessage(msg['id'] as int);
+      await _loadMessages();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _editMessageDialog(dynamic msg) async {
+    final ctrl = TextEditingController(text: msg['content']?.toString() ?? '');
+    final newContent = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Hariri Message'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 3,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Ghairi'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            child: const Text('Hifadhi'),
+          ),
+        ],
+      ),
+    );
+    if (newContent == null || newContent.isEmpty) return;
+    try {
+      await ChatAPI.editMessage(
+        messageId: msg['id'] as int,
+        content: newContent,
+      );
+      await _loadMessages();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        _audioChunks.clear();
+        final stream = await _audioRecorder.startStream(
+          const RecordConfig(encoder: AudioEncoder.aacLc),
+        );
+        _audioStreamSub = stream.listen((data) => _audioChunks.addAll(data));
+        setState(() { _isRecording = true; _recordSeconds = 0; });
+        _recordTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+          if (mounted) setState(() => _recordSeconds++);
+          if (_recordSeconds >= 120) _stopAndSendRecording();
+        });
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Recording error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _stopAndSendRecording() async {
+    _recordTimer?.cancel();
+    try {
+      await _audioRecorder.stop();
+      await _audioStreamSub?.cancel();
+      setState(() => _isRecording = false);
+      if (_audioChunks.isEmpty) return;
+      final bytes = List<int>.from(_audioChunks);
+      final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _uploadAndSend(bytes, fileName, 'audio/m4a');
+      _audioChunks.clear();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Send error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    _recordTimer?.cancel();
+    try {
+      await _audioRecorder.stop();
+      await _audioStreamSub?.cancel();
+    } catch (_) {}
+    _audioChunks.clear();
+    setState(() { _isRecording = false; _recordSeconds = 0; });
+  }
+
+  Future<void> _uploadAndSend(List<int> bytes, String fileName, String contentType) async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    try {
+      final msgType = contentType.startsWith('image/') ? 'image'
+          : contentType.startsWith('video/') ? 'video'
+          : contentType.startsWith('audio/') ? 'audio'
+          : 'file';
+      final msgRes = await ChatAPI.sendMessage(
+        roomId: widget.roomId,
+        content: fileName,
+        messageType: msgType,
+      );
+      final msgId = msgRes['id'] as int?;
+      if (msgId == null) throw Exception('Message ID haipo');
+      await ChatAPI.uploadAttachment(
+        messageId: msgId,
+        bytes: bytes,
+        fileName: fileName,
+      );
+      await _loadMessages();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   Widget _inputBar() {
@@ -205,45 +474,96 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _msgCtrl,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  hintText: 'Andika message...',
-                  hintStyle: GoogleFonts.poppins(color: Colors.grey),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10,
-                  ),
-                ),
-                onSubmitted: (_) => _send(),
-              ),
-            ),
-            const SizedBox(width: 8),
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: AppTheme.primary,
-              child: IconButton(
-                icon: _sending
-                    ? const SizedBox(
-                        width: 18, height: 18,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send, color: Colors.white, size: 20),
-                onPressed: _sending ? null : _send,
-              ),
-            ),
-          ],
-        ),
+        child: _isRecording ? _recordingBar() : _normalBar(),
       ),
+    );
+  }
+
+  Widget _normalBar() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _msgCtrl,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              hintText: 'Andika message...',
+              hintStyle: GoogleFonts.poppins(color: Colors.grey),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade100,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 10,
+              ),
+            ),
+            onSubmitted: (_) => _send(),
+          ),
+        ),
+        const SizedBox(width: 6),
+        CircleAvatar(
+          radius: 22,
+          backgroundColor: Colors.grey.shade200,
+          child: IconButton(
+            icon: const Icon(Icons.mic, color: AppTheme.primary, size: 22),
+            onPressed: _sending ? null : _startRecording,
+          ),
+        ),
+        const SizedBox(width: 6),
+        CircleAvatar(
+          radius: 22,
+          backgroundColor: AppTheme.primary,
+          child: IconButton(
+            icon: _sending
+                ? const SizedBox(width: 18, height: 18,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.send, color: Colors.white, size: 20),
+            onPressed: _sending ? null : _send,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _recordingBar() {
+    final mins = (_recordSeconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (_recordSeconds % 60).toString().padLeft(2, '0');
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.close, color: Colors.red),
+          onPressed: _cancelRecording,
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.red.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            children: [
+              Container(width: 10, height: 10,
+                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
+              const SizedBox(width: 8),
+              Text('$mins:$secs',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Text('Inarekodi...',
+          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey, fontStyle: FontStyle.italic))),
+        CircleAvatar(
+          radius: 22,
+          backgroundColor: AppTheme.primary,
+          child: IconButton(
+            icon: const Icon(Icons.send, color: Colors.white, size: 20),
+            onPressed: _stopAndSendRecording,
+          ),
+        ),
+      ],
     );
   }
 }
