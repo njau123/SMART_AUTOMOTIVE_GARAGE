@@ -30,7 +30,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
-      final data = await AuthAPI.login(
+      // Tumia loginByIdentifier — inaruhusu ME-XXXX au email
+      final data = await AuthAPI.loginByIdentifier(
         _emailCtrl.text.trim(),
         _passCtrl.text,
       );
