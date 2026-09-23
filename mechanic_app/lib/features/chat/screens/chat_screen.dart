@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
 import 'package:record/record.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:async';
 
 class ChatScreen extends StatefulWidget {
@@ -613,9 +614,111 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Future<void> _showAttachmentPicker() async {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _attachOpt(Icons.camera_alt, 'Camera', Colors.blue,
+                    () => _pickImage(ImageSource.camera)),
+                _attachOpt(Icons.photo_library, 'Gallery', Colors.purple,
+                    () => _pickImage(ImageSource.gallery)),
+                _attachOpt(Icons.videocam, 'Video', Colors.red,
+                    () => _pickVideo()),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _attachOpt(IconData icon, String label, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: () {
+        Navigator.pop(context);
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: GoogleFonts.poppins(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(source: source, imageQuality: 75);
+      if (file != null) {
+        final bytes = await file.readAsBytes();
+        await _uploadAndSend(bytes, file.name, file.mimeType ?? 'image/jpeg');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickVideo() async {
+    try {
+      final picker = ImagePicker();
+      final file = await picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(minutes: 2),
+      );
+      if (file != null) {
+        final bytes = await file.readAsBytes();
+        await _uploadAndSend(bytes, file.name, 'video/mp4');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Widget _normalBar() {
     return Row(
       children: [
+        // ATTACHMENT
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.attach_file, color: AppTheme.primary),
+            onPressed: _sending ? null : _showAttachmentPicker,
+          ),
+        ),
+        const SizedBox(width: 4),
         Expanded(
           child: TextField(
             controller: _msgCtrl,
