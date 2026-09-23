@@ -231,6 +231,69 @@ class MessageViewSet(viewsets.ModelViewSet):
             'data': MessageSerializer(message, context={'request': request}).data
         })
 
+    @action(detail=True, methods=['post'], url_path='delete-message')
+    def delete_message(self, request, pk=None):
+        """Soft delete — sender pekee."""
+        message = self.get_object()
+
+        if message.sender_id != request.user.id:
+            return Response(
+                {'success': False, 'message': 'Hauna ruhusa kufuta message hii'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if message.is_deleted:
+            return Response(
+                {'success': False, 'message': 'Message imefutwa tayari'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        message.soft_delete(request.user)
+
+        return Response({
+            'success': True,
+            'message': 'Message imefutwa',
+            'data': MessageSerializer(message, context={'request': request}).data,
+        })
+
+    @action(detail=True, methods=['post'], url_path='edit-message')
+    def edit_message(self, request, pk=None):
+        """Edit message — sender pekee, text tu."""
+        message = self.get_object()
+
+        new_content = (request.data.get('content') or '').strip()
+        if not new_content:
+            return Response(
+                {'success': False, 'message': 'Content ni lazima'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if message.sender_id != request.user.id:
+            return Response(
+                {'success': False, 'message': 'Hauna ruhusa ku-edit message hii'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if message.is_deleted:
+            return Response(
+                {'success': False, 'message': 'Message imefutwa, haiwezi ku-edit'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if message.message_type != 'text':
+            return Response(
+                {'success': False, 'message': 'Edit inaruhusiwa kwa text tu'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        message.edit_content(new_content)
+
+        return Response({
+            'success': True,
+            'message': 'Message imeupdate',
+            'data': MessageSerializer(message, context={'request': request}).data,
+        })
+
 
 
 

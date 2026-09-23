@@ -87,6 +87,17 @@ class Message(models.Model):
         default='sent'
     )
     metadata = models.JSONField(default=dict, blank=True)
+    # ===== SOFT DELETE + EDIT =====
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='deleted_messages'
+    )
+    is_edited = models.BooleanField(default=False)
+    edited_at = models.DateTimeField(null=True, blank=True)
+    original_content = models.TextField(blank=True, default='')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -95,6 +106,22 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.sender.get_full_name()}: {self.content[:50]}"
+
+    def soft_delete(self, user):
+        """Soft delete — onyesha 'message imefutwa'."""
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.deleted_by = user
+        self.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by', 'updated_at'])
+
+    def edit_content(self, new_content):
+        """Edit message — hifadhi original."""
+        if not self.is_edited:
+            self.original_content = self.content
+        self.content = new_content
+        self.is_edited = True
+        self.edited_at = timezone.now()
+        self.save(update_fields=['content', 'original_content', 'is_edited', 'edited_at', 'updated_at'])
 
     def mark_as_read(self, user):
         if user != self.sender:
