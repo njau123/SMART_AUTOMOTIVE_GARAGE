@@ -34,6 +34,11 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isRecording = false;
   int _recordSeconds = 0;
   Timer? _recordTimer;
+  // I'M READY
+  bool _imReady = false;
+  int _readyRemainingSeconds = 0;
+  String _readyStatus = '';
+  Timer? _readyTimer;
 
   @override
   void initState() {
@@ -326,6 +331,64 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  // ============ I'M READY FLOW ============
+  Future<void> _toggleReady() async {
+    if (_imReady) {
+      // Cancel
+      try {
+        await ChatAPI.cancelReady(widget.roomId);
+        setState(() {
+          _imReady = false;
+          _readyStatus = '';
+          _readyRemainingSeconds = 0;
+        });
+        _readyTimer?.cancel();
+      } catch (e) {
+        _snackError(e.toString());
+      }
+      return;
+    }
+
+    try {
+      await ChatAPI.sendReady(roomId: widget.roomId);
+      setState(() {
+        _imReady = true;
+        _readyStatus = 'pending';
+      });
+      _startReadyPolling();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ombi limetumwa kwa mechanic...'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      _snackError(e.toString());
+    }
+  }
+
+  void _startReadyPolling() {
+    _readyTimer?.cancel();
+    _readyTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      try {
+        final res = await ChatAPI.getReadyStatus(widget.roomId);
+        final data = res['data'] as Map? ?? {};
+        if (!mounted) return;
+        setState(() {
+          _readyStatus = data['status']?.toString() ?? '';
+          _readyRemainingSeconds = int.tryParse(data['remaining_seconds']?.toString() ?? '0') ?? 0;
+          if (_readyStatus == 'accepted') {
+            _imReady = true;
+          } else if (_readyStatus == 'cancelled' || _readyStatus == 'completed' || data['active'] == false) {
+            _imReady = false;
+          }
+        });
+      } catch (_) {}
+    });
+  }
+
   void _snackError(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -339,6 +402,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _pollTimer?.cancel();
     _recordTimer?.cancel();
+    _readyTimer?.cancel();
     _audioRecorder.dispose();
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
@@ -768,8 +832,38 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _normalInputBar() {
-    return Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
+        // I'M READY TOGGLE
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _imReady
+                    ? (_readyStatus == 'accepted'
+                        ? 'Mechanic anakuja — ETA ${(_readyRemainingSeconds ~/ 60)}:${(_readyRemainingSeconds % 60).toString().padLeft(2, '0')}'
+                        : 'Inasubiri mechanic akubali...')
+                    : 'Je, uko tayari kupata mechanic?',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _imReady ? Colors.green : Colors.grey.shade700,
+                  ),
+                ),
+              ),
+              Switch(
+                value: _imReady,
+                onChanged: (_) => _toggleReady(),
+                activeThumbColor: Colors.green,
+              ),
+            ],
+          ),
+        ),
+        Row(
+          children: [
         // Attachment button
         Container(
           decoration: BoxDecoration(
@@ -828,6 +922,8 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
       ],
+    ),
+    ],
     );
   }
 

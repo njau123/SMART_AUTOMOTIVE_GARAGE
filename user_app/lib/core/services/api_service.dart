@@ -828,6 +828,73 @@ class ChatAPI {
   }
 
 
+  // ============ "I'M READY" FLOW ============
+  static Future<Map<String, dynamic>> sendReady({
+    required int roomId,
+    double? userLat,
+    double? userLng,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/ready/',
+      {
+        if (userLat != null) 'user_latitude': userLat,
+        if (userLng != null) 'user_longitude': userLng,
+      },
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> acceptReady({
+    required int roomId,
+    double? mechLat,
+    double? mechLng,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/accept-ready/',
+      {
+        if (mechLat != null) 'mechanic_latitude': mechLat,
+        if (mechLng != null) 'mechanic_longitude': mechLng,
+      },
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> cancelReady(int roomId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/cancel-ready/', {}, token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> confirmArrival({
+    required int roomId,
+    required bool confirmed,
+    String feedback = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/confirm-arrival/',
+      {'confirmed': confirmed, 'feedback': feedback},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> getReadyStatus(int roomId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'chat/rooms/$roomId/ready-status/', token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+
+
   /// Pata mechanics waliopo available kwa chat.
   static Future<List<dynamic>> getAvailableMechanics() async {
     final token = await TokenStorage.getAccessToken();
