@@ -221,7 +221,15 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const UserDashboardScreen(),
+              ),
+              (route) => false,
+            );
+          },
         ),
       ),
       body: SafeArea(

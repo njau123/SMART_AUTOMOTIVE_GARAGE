@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:record/record.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/services/api_service.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -332,6 +333,43 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // ============ I'M READY FLOW ============
+  Future<Position?> _requestLocation() async {
+    try {
+      // Check kama location services zipo
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _snackError('Tafadhali washa GPS kwenye simu yako');
+        return null;
+      }
+
+      // Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _snackError('Tunahitaji location yako ili mechanic akufikie');
+          return null;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _snackError('Location imezuiwa. Fungua settings na uruhusu.');
+        await Geolocator.openAppSettings();
+        return null;
+      }
+
+      // Pata location
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 15),
+      );
+      return position;
+    } catch (e) {
+      _snackError('Imeshindwa kupata location: $e');
+      return null;
+    }
+  }
+
   Future<void> _toggleReady() async {
     if (_imReady) {
       // Cancel
@@ -349,8 +387,16 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
+    // Omba location KABLA ya kutuma request
+    final position = await _requestLocation();
+    if (position == null) return;
+
     try {
-      await ChatAPI.sendReady(roomId: widget.roomId);
+      await ChatAPI.sendReady(
+        roomId: widget.roomId,
+        userLat: position.latitude,
+        userLng: position.longitude,
+      );
       setState(() {
         _imReady = true;
         _readyStatus = 'pending';
