@@ -7,6 +7,7 @@ import '../../../core/state/auth_state.dart';
 import '../../../core/utils/auth_guard.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../../bookings/screens/booking_create_screen.dart';
+import '../../chat/screens/chat_screen.dart';
 
 class MechanicsScreen extends StatefulWidget {
   const MechanicsScreen({super.key});
@@ -287,6 +288,72 @@ class _MechanicsScreenState extends State<MechanicsScreen> {
     );
   }
 
+  Future<void> _startChat(Map<String, dynamic> m) async {
+    if (!AuthGuard.requireLogin(context)) return;
+
+    final mechanicUserId = int.tryParse(m['user']?.toString() ?? '0') ?? 0;
+    if (mechanicUserId == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mechanic hana user ID sahihi'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    Navigator.pop(context); // Funga sheet
+
+    try {
+      // Onyesha loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // Unda room au pata iliyopo
+      final res = await ChatAPI.createRoom(
+        otherUserId: mechanicUserId,
+        name: m['full_name']?.toString() ?? 'Chat',
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Funga loading
+
+      final roomId = int.tryParse(res['id']?.toString() ?? '0') ?? 0;
+      if (roomId == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Imeshindwa kuunda chat'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            roomId: roomId,
+            roomName: m['full_name']?.toString() ?? 'Chat',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Funga loading kama ipo
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _mechanicSheet(Map<String, dynamic> m) {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -359,6 +426,20 @@ class _MechanicsScreenState extends State<MechanicsScreen> {
           _detailRow(Icons.work_outline, 'Experience',
               m['experience']?.toString() ?? '-'),
           const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: OutlinedButton.icon(
+              onPressed: () => _startChat(m),
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('Start a Conversation'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary, width: 2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             height: 52,

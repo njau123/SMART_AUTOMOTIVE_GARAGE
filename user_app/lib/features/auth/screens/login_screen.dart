@@ -10,6 +10,7 @@ import '../../../core/state/auth_state.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
 import '../../dashboard/screens/user_dashboard_screen.dart';
+import '../../home/screens/home_screen.dart';
 import '../../../core/utils/session_guard.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -225,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
-                builder: (_) => const UserDashboardScreen(),
+                builder: (_) => const HomeScreen(),
               ),
               (route) => false,
             );
