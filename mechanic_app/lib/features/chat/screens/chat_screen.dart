@@ -34,6 +34,7 @@ class _ChatScreenState extends State<ChatScreen> {
   StreamSubscription? _audioStreamSub;
   bool _isRecording = false;
   int _recordSeconds = 0;
+  Map<String, dynamic>? _replyTo;
   Timer? _recordTimer;
   // I'M READY (mechanic anaona + ana-accept)
   bool _hasPendingReady = false;
@@ -255,6 +256,30 @@ class _ChatScreenState extends State<ChatScreen> {
                 color: AppTheme.primary,
               ),
             ),
+          if (msg['reply_to_content'] != null && !isDeleted)
+            Container(
+              padding: const EdgeInsets.all(6),
+              margin: const EdgeInsets.only(bottom: 6),
+              decoration: BoxDecoration(
+                color: (isMine ? Colors.white : AppTheme.primary).withValues(alpha: 0.15),
+                border: Border(
+                  left: BorderSide(
+                    color: isMine ? Colors.white : AppTheme.primary,
+                    width: 3,
+                  ),
+                ),
+              ),
+              child: Text(
+                msg['reply_to_content'].toString(),
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  color: isMine ? Colors.white : AppTheme.primary,
+                  fontStyle: FontStyle.italic,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           if (isDeleted)
             Text(
               '🚫 Message imefutwa',
@@ -359,6 +384,14 @@ class _ChatScreenState extends State<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.reply, color: Colors.green),
+              title: const Text('Reply'),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() => _replyTo = Map<String, dynamic>.from(msg as Map));
+              },
+            ),
             if (canEdit)
               ListTile(
                 leading: const Icon(Icons.edit, color: Colors.blue),
@@ -746,7 +779,46 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _normalBar() {
-    return Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_replyTo != null)
+          Container(
+            padding: const EdgeInsets.all(8),
+            color: AppTheme.primary.withValues(alpha: 0.1),
+            child: Row(
+              children: [
+                const Icon(Icons.reply, color: AppTheme.primary, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _replyTo!['sender_name']?.toString() ?? 'Reply',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                      Text(
+                        _replyTo!['content']?.toString() ?? '',
+                        style: GoogleFonts.poppins(fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () => setState(() => _replyTo = null),
+                ),
+              ],
+            ),
+          ),
+        Row(
       children: [
         // ATTACHMENT
         Container(
@@ -802,6 +874,8 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
       ],
+    ),
+    ],
     );
   }
 

@@ -944,12 +944,14 @@ class ChatAPI {
     required int roomId,
     required String content,
     String messageType = 'text',
+    int? replyTo,
   }) async {
     final token = await TokenStorage.getAccessToken();
     final data = await ApiService.post('chat/messages/', {
       'room': roomId,
       'content': content,
       'message_type': messageType,
+      if (replyTo != null) 'reply_to': replyTo,
     }, token: token);
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }

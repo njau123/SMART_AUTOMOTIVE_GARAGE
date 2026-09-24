@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
@@ -37,6 +36,8 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isRecording = false;
   int _recordSeconds = 0;
   Timer? _recordTimer;
+  // REPLY
+  Map<String, dynamic>? _replyTo;
   // I'M READY
   bool _imReady = false;
   int _readyRemainingSeconds = 0;
@@ -546,6 +547,32 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
             ),
+          // REPLY PREVIEW
+          if (msg['reply_to_content'] != null && !isDeleted)
+            Container(
+              padding: const EdgeInsets.all(6),
+              margin: const EdgeInsets.only(bottom: 6),
+              decoration: BoxDecoration(
+                color: (isMine ? Colors.white : AppColors.primary)
+                    .withValues(alpha: 0.15),
+                border: Border(
+                  left: BorderSide(
+                    color: isMine ? Colors.white : AppColors.primary,
+                    width: 3,
+                  ),
+                ),
+              ),
+              child: Text(
+                msg['reply_to_content'].toString(),
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  color: isMine ? Colors.white : AppColors.primary,
+                  fontStyle: FontStyle.italic,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           if (isDeleted)
             Text(
               '🚫 Message imefutwa',
@@ -883,6 +910,43 @@ class _ChatScreenState extends State<ChatScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // REPLY PREVIEW
+        if (_replyTo != null)
+          Container(
+            padding: const EdgeInsets.all(8),
+            color: AppColors.primary.withValues(alpha: 0.1),
+            child: Row(
+              children: [
+                const Icon(Icons.reply, color: AppColors.primary, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _replyTo!['sender_name']?.toString() ?? 'Reply',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      Text(
+                        _replyTo!['content']?.toString() ?? '',
+                        style: GoogleFonts.poppins(fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () => setState(() => _replyTo = null),
+                ),
+              ],
+            ),
+          ),
         // I'M READY TOGGLE
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
