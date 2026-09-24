@@ -11,6 +11,7 @@ import '../../features/spare_parts/screens/admin_spare_parts_screen.dart';
 import '../../features/bookings/screens/admin_bookings_screen.dart';
 import '../../features/users/screens/admin_users_screen.dart';
 import '../../features/notifications/screens/admin_notifications_screen.dart';
+import '../../features/chat/screens/admin_chat_monitor_screen.dart';
 import '../../features/auth/screens/admin_login_screen.dart';
 import '../../features/contact/screens/admin_contact_screen.dart';
 import '../../features/orders/screens/admin_orders_screen.dart';
@@ -114,6 +115,8 @@ class AdminDrawer extends StatelessWidget {
                       _item(Icons.notifications_active_outlined,
                           'Notifications',
                           () => _push(context, const NotificationsScreen())),
+                      _item(Icons.forum_outlined, 'Chat Monitoring',
+                          () => _push(context, const AdminChatMonitorScreen())),
                     ],
                   ),
                 ),

@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
 import 'package:record/record.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'dart:async';
 
 class ChatScreen extends StatefulWidget {
@@ -634,6 +635,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     () => _pickImage(ImageSource.gallery)),
                 _attachOpt(Icons.videocam, 'Video', Colors.red,
                     () => _pickVideo()),
+                _attachOpt(Icons.description, 'Document', Colors.orange,
+                    () => _pickDocument()),
               ],
             ),
             const SizedBox(height: 20),
@@ -694,6 +697,23 @@ class _ChatScreenState extends State<ChatScreen> {
       if (file != null) {
         final bytes = await file.readAsBytes();
         await _uploadAndSend(bytes, file.name, 'video/mp4');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickDocument() async {
+    try {
+      const typeGroup = XTypeGroup(label: 'Documents');
+      final file = await openFile(acceptedTypeGroups: [typeGroup]);
+      if (file != null) {
+        final bytes = await file.readAsBytes();
+        await _uploadAndSend(bytes, file.name, file.mimeType ?? 'application/octet-stream');
       }
     } catch (e) {
       if (mounted) {

@@ -968,3 +968,30 @@ class AdminOrderAPI {
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
 }
+
+// =================== ADMIN CHAT API ===================
+class AdminChatAPI {
+  /// Pata chat rooms zote (admin anaona zote)
+  static Future<List<dynamic>> getRooms() async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.get('chat/rooms/', token: token);
+    if (data is Map && data['data'] is Map && data['data']['items'] is List) {
+      return data['data']['items'] as List;
+    }
+    if (data is Map && data['data'] is List) return data['data'];
+    if (data is List) return data;
+    return [];
+  }
+
+  /// Pata messages za room
+  static Future<List<dynamic>> getMessages(int roomId) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.get('chat/rooms/$roomId/messages/', token: token);
+    if (data is Map && data['data'] is Map && data['data']['messages'] is List) {
+      return data['data']['messages'];
+    }
+    if (data is Map && data['data'] is List) return data['data'];
+    if (data is List) return data;
+    return [];
+  }
+}
