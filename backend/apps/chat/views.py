@@ -484,7 +484,16 @@ class MessageViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        message = self.get_object()
+        # IMPORTANT: Tumia Message.objects.get badala ya self.get_object()
+        # (admin si participant wa room)
+        try:
+            message = Message.objects.get(pk=pk)
+        except Message.DoesNotExist:
+            return Response(
+                {'success': False, 'message': 'Message haipo'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         if message.is_deleted:
             return Response(
                 {'success': False, 'message': 'Message imefutwa tayari'},

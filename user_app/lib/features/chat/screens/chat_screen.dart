@@ -523,7 +523,6 @@ class _ChatScreenState extends State<ChatScreen> {
     final mediaUrls = (msg['media_urls'] as List?) ?? [];
     final isDeleted = msg['is_deleted'] == true;
     final isEdited = msg['is_edited'] == true;
-    final canEdit = msg['can_edit'] == true;
 
     Widget bubble = Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -662,7 +661,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _showMessageOptions(dynamic msg) {
-    final canEdit = msg['can_edit'] == true;
     final isDeleted = msg['is_deleted'] == true;
     final content = msg['content']?.toString() ?? '';
 
@@ -687,6 +685,14 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             ListTile(
+              leading: const Icon(Icons.reply, color: Colors.green),
+              title: const Text('Reply'),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() => _replyTo = Map<String, dynamic>.from(msg as Map));
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.copy, color: Colors.purple),
               title: const Text('Copy'),
               onTap: () {
@@ -700,7 +706,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 );
               },
             ),
-            if (canEdit)
+            if (msg['can_edit'] == true)
               ListTile(
                 leading: const Icon(Icons.edit, color: Colors.blue),
                 title: const Text('Hariri message'),
