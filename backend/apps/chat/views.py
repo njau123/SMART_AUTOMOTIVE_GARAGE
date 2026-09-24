@@ -415,6 +415,29 @@ class MessageViewSet(viewsets.ModelViewSet):
                 except Exception as e:
                     print(f"[FCM ERROR] {e}")
 
+        # 3. ADMIN NOTIFICATION — admin anaona kila message
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            admins = User.objects.filter(
+                is_staff=True, is_active=True
+            ).exclude(id=self.request.user.id)
+
+            for admin in admins:
+                try:
+                    ChatNotification.objects.create(
+                        recipient=admin,
+                        message=message,
+                        room=message.room,
+                        notification_type='system',
+                    )
+                except Exception:
+                    pass
+
+            print(f"[ADMIN NOTIF] Sent to {admins.count()} admins")
+        except Exception as e:
+            print(f"[ADMIN NOTIF ERROR] {e}")
+
     @action(detail=True, methods=['post'])
     def read(self, request, pk=None):
         """Mark message as read"""

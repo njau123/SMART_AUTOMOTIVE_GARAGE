@@ -190,7 +190,6 @@ class _AdminChatDetailScreenState extends State<AdminChatDetailScreen> {
   }
 
   Widget _bubble(dynamic msg) {
-    final isUser = msg['sender_id'] != null;
     final senderName = msg['sender_name']?.toString() ?? 'Unknown';
     final content = msg['content']?.toString() ?? '';
     final time = msg['formatted_time']?.toString() ?? '';
@@ -198,20 +197,46 @@ class _AdminChatDetailScreenState extends State<AdminChatDetailScreen> {
     final mediaUrls = (msg['media_urls'] as List?) ?? [];
     final isDeleted = msg['is_deleted'] == true;
 
+    // Rangi tofauti kwa sender tofauti (kwa admin kuona nani ni nani)
+    final colors = [
+      Colors.blue.shade700,
+      Colors.purple.shade700,
+      Colors.orange.shade800,
+      Colors.green.shade700,
+      Colors.red.shade700,
+    ];
+    final colorIdx = senderName.hashCode.abs() % colors.length;
+    final senderColor = colors[colorIdx];
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            senderName,
-            style: GoogleFonts.poppins(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: senderColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  senderName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: senderColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(time,
+                  style: GoogleFonts.poppins(
+                      fontSize: 10, color: AppColors.textMuted)),
+            ],
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -230,23 +255,22 @@ class _AdminChatDetailScreenState extends State<AdminChatDetailScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: Image.network(mediaUrls.first.toString(),
-                        width: 200, fit: BoxFit.cover),
+                        width: 200, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            Text('[IMAGE] ${mediaUrls.first}',
+                                style: GoogleFonts.poppins(color: Colors.blue))),
                   )
                 else if (msgType == 'video' && mediaUrls.isNotEmpty)
                   Text('[VIDEO] ${mediaUrls.first}',
                       style: GoogleFonts.poppins(color: Colors.blue))
                 else if (msgType == 'audio' && mediaUrls.isNotEmpty)
-                  Text('[VOICE NOTE]',
+                  Text('[VOICE NOTE] ${mediaUrls.first}',
                       style: GoogleFonts.poppins(color: Colors.purple))
                 else if (msgType == 'file' && mediaUrls.isNotEmpty)
                   Text('[FILE] ${mediaUrls.first}',
                       style: GoogleFonts.poppins(color: Colors.orange))
                 else
                   Text(content, style: GoogleFonts.poppins(fontSize: 13)),
-                const SizedBox(height: 4),
-                Text(time,
-                    style: GoogleFonts.poppins(
-                        fontSize: 10, color: AppColors.textMuted)),
               ],
             ),
           ),
