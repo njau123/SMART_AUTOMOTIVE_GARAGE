@@ -212,7 +212,9 @@ class _AdminChatDetailScreenState extends State<AdminChatDetailScreen> {
     final colorIdx = senderName.hashCode.abs() % colors.length;
     final senderColor = colors[colorIdx];
 
-    return Padding(
+    return GestureDetector(
+      onLongPress: () => _showDeleteOption(msg, isDeleted),
+      child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,6 +243,28 @@ class _AdminChatDetailScreenState extends State<AdminChatDetailScreen> {
             ],
           ),
           const SizedBox(height: 4),
+          // REPLY CONTEXT
+          if (msg['reply_to_content'] != null && !isDeleted)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              margin: const EdgeInsets.only(bottom: 4),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.15),
+                border: Border(
+                  left: BorderSide(color: Colors.amber.shade700, width: 3),
+                ),
+              ),
+              child: Text(
+                'Replied to: ${msg['reply_to_content']}',
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  color: Colors.amber.shade900,
+                  fontStyle: FontStyle.italic,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -279,6 +303,55 @@ class _AdminChatDetailScreenState extends State<AdminChatDetailScreen> {
             ),
           ),
         ],
+      ),
+    ),
+    );
+  }
+
+  void _showDeleteOption(dynamic msg, bool isDeleted) {
+    if (isDeleted) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Futa message (Admin)',
+                  style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                Navigator.pop(context);
+                try {
+                  await AdminChatAPI.deleteMessage(msg['id'] as int);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Message imefutwa'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    _load();
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(e.toString()),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }

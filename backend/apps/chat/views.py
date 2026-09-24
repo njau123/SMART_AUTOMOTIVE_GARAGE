@@ -474,6 +474,31 @@ class MessageViewSet(viewsets.ModelViewSet):
             'data': MessageSerializer(message, context={'request': request}).data,
         })
 
+    @action(detail=True, methods=['post'], url_path='admin-delete')
+    def admin_delete_message(self, request, pk=None):
+        """Admin — anaweza kufuta message yoyote."""
+        # Check kama ni admin
+        if not (request.user.is_staff or request.user.role in ['ADMIN', 'SUPER_ADMIN']):
+            return Response(
+                {'success': False, 'message': 'Admin pekee anaweza kufuta'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        message = self.get_object()
+        if message.is_deleted:
+            return Response(
+                {'success': False, 'message': 'Message imefutwa tayari'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        message.soft_delete(request.user)
+
+        return Response({
+            'success': True,
+            'message': 'Admin amefuta message',
+            'data': MessageSerializer(message, context={'request': request}).data,
+        })
+
     @action(detail=True, methods=['post'], url_path='edit-message')
     def edit_message(self, request, pk=None):
         """Edit message — sender pekee, text tu."""

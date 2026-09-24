@@ -355,9 +355,14 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
 
-    if (isMine && !isDeleted && (canEdit || canDelete)) {
+    if (!isDeleted) {
       bubble = GestureDetector(
         onLongPress: () => _showMessageOptions(msg),
+        onTap: () {
+          if (msgType == 'text') {
+            _showMessageOptions(msg);
+          }
+        },
         child: bubble,
       );
     }

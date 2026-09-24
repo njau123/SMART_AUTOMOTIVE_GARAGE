@@ -994,4 +994,15 @@ class AdminChatAPI {
     if (data is List) return data;
     return [];
   }
+
+  /// Admin — futa message
+  static Future<Map<String, dynamic>> deleteMessage(int messageId) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/messages/$messageId/admin-delete/',
+      {},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }

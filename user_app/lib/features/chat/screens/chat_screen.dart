@@ -524,7 +524,6 @@ class _ChatScreenState extends State<ChatScreen> {
     final isDeleted = msg['is_deleted'] == true;
     final isEdited = msg['is_edited'] == true;
     final canEdit = msg['can_edit'] == true;
-    final canDelete = msg['can_delete'] == true;
 
     Widget bubble = Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -641,10 +640,17 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
 
-    // Long press menu (kama ni yangu na haijafutwa)
-    if (isMine && !isDeleted && (canEdit || canDelete)) {
+    // Long-press menu kwa messages ZOTE (kama haijafutwa)
+    if (!isDeleted) {
       bubble = GestureDetector(
         onLongPress: () => _showMessageOptions(msg),
+        onTap: () {
+          // Tap inafungua menu tu kwa text messages
+          // (kwa audio/video/image, tap ni playback/view)
+          if (msgType == 'text') {
+            _showMessageOptions(msg);
+          }
+        },
         child: bubble,
       );
     }
@@ -657,7 +663,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showMessageOptions(dynamic msg) {
     final canEdit = msg['can_edit'] == true;
-    final canDelete = msg['can_delete'] == true;
+    final isDeleted = msg['is_deleted'] == true;
+    final content = msg['content']?.toString() ?? '';
+
+    if (isDeleted) return; // Hakuna menu kwa message iliyofutwa
 
     showModalBottomSheet(
       context: context,
@@ -682,9 +691,7 @@ class _ChatScreenState extends State<ChatScreen> {
               title: const Text('Copy'),
               onTap: () {
                 Navigator.pop(context);
-                Clipboard.setData(
-                  ClipboardData(text: msg['content']?.toString() ?? ''),
-                );
+                Clipboard.setData(ClipboardData(text: content));
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Message imecopy'),
@@ -702,7 +709,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   _editMessageDialog(msg);
                 },
               ),
-            if (canDelete)
+            if (msg['can_delete'] == true)
               ListTile(
                 leading: const Icon(Icons.delete, color: Colors.red),
                 title: const Text('Futa message',
