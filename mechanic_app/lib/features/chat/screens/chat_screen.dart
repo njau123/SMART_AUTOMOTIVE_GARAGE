@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
@@ -454,10 +456,18 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       if (await _audioRecorder.hasPermission()) {
         _audioChunks.clear();
-        final stream = await _audioRecorder.startStream(
-          const RecordConfig(encoder: AudioEncoder.aacLc),
-        );
-        _audioStreamSub = stream.listen((data) => _audioChunks.addAll(data));
+        if (kIsWeb) {
+          final path = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+          await _audioRecorder.start(
+            const RecordConfig(encoder: AudioEncoder.opus),
+            path: path,
+          );
+        } else {
+          final stream = await _audioRecorder.startStream(
+            const RecordConfig(encoder: AudioEncoder.aacLc),
+          );
+          _audioStreamSub = stream.listen((data) => _audioChunks.addAll(data));
+        }
         setState(() { _isRecording = true; _recordSeconds = 0; });
         _recordTimer = Timer.periodic(const Duration(seconds: 1), (t) {
           if (mounted) setState(() => _recordSeconds++);
@@ -474,12 +484,23 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _stopAndSendRecording() async {
     _recordTimer?.cancel();
     try {
-      await _audioRecorder.stop();
+      final path = await _audioRecorder.stop();
       await _audioStreamSub?.cancel();
       setState(() => _isRecording = false);
-      if (_audioChunks.isEmpty) return;
-      final bytes = List<int>.from(_audioChunks);
-      final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      List<int> bytes;
+      String fileName;
+      if (kIsWeb && path != null) {
+        final response = await http.get(Uri.parse(path));
+        bytes = response.bodyBytes;
+        fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      } else {
+        if (_audioChunks.isEmpty) return;
+        bytes = List<int>.from(_audioChunks);
+        fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      }
+
+      if (bytes.isEmpty) return;
       await _uploadAndSend(bytes, fileName, 'audio/m4a');
       _audioChunks.clear();
     } catch (e) {
