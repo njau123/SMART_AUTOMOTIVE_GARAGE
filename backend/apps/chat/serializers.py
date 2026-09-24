@@ -70,6 +70,7 @@ class ChatRoomCreateSerializer(serializers.ModelSerializer):
 
 class MessageSerializer(serializers.ModelSerializer):
     sender_name = serializers.CharField(source='sender.get_full_name', read_only=True)
+    sender_role = serializers.CharField(source='sender.role', read_only=True)
     sender_image = serializers.SerializerMethodField()
     reply_to_content = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
@@ -78,7 +79,7 @@ class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = [
-            'id', 'room', 'sender', 'sender_name',
+            'id', 'room', 'sender', 'sender_name', 'sender_role',
             'sender_image', 'content', 'message_type',
             'media_urls', 'latitude', 'longitude',
             'reply_to', 'reply_to_content', 'is_read',

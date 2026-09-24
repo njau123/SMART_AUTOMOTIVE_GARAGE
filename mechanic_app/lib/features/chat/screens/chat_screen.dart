@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
 import 'package:record/record.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_selector/file_selector.dart';
 import 'dart:async';
@@ -308,14 +310,9 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             )
           else if (msgType == 'audio' && mediaUrls.isNotEmpty)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.play_arrow, color: Colors.white),
-                const SizedBox(width: 6),
-                Text('Voice note',
-                    style: GoogleFonts.poppins(color: Colors.white)),
-              ],
+            _VoiceNotePlayer(
+              url: mediaUrls.first.toString(),
+              isMine: isMine,
             )
           else
             Text(
@@ -384,6 +381,22 @@ class _ChatScreenState extends State<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.copy, color: Colors.purple),
+              title: const Text('Copy'),
+              onTap: () {
+                Navigator.pop(context);
+                Clipboard.setData(
+                  ClipboardData(text: msg['content']?.toString() ?? ''),
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Message imecopy'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.reply, color: Colors.green),
               title: const Text('Reply'),
@@ -836,6 +849,7 @@ class _ChatScreenState extends State<ChatScreen> {
           child: TextField(
             controller: _msgCtrl,
             textCapitalization: TextCapitalization.sentences,
+            style: GoogleFonts.poppins(color: Colors.black87, fontSize: 14),
             decoration: InputDecoration(
               hintText: 'Andika message...',
               hintStyle: GoogleFonts.poppins(color: Colors.grey),
@@ -914,6 +928,116 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.send, color: Colors.white, size: 20),
             onPressed: _stopAndSendRecording,
           ),
+        ),
+      ],
+    );
+  }
+}
+
+
+// ==================== VOICE NOTE PLAYER ====================
+class _VoiceNotePlayer extends StatefulWidget {
+  final String url;
+  final bool isMine;
+  const _VoiceNotePlayer({required this.url, required this.isMine});
+
+  @override
+  State<_VoiceNotePlayer> createState() => _VoiceNotePlayerState();
+}
+
+class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
+  final _player = AudioPlayer();
+  bool _isPlaying = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _setup();
+  }
+
+  Future<void> _setup() async {
+    try {
+      await _player.setUrl(widget.url);
+      _player.durationStream.listen((d) {
+        if (mounted) setState(() => _duration = d ?? Duration.zero);
+      });
+      _player.positionStream.listen((p) {
+        if (mounted) setState(() => _position = p);
+      });
+      _player.playerStateStream.listen((s) {
+        if (mounted) setState(() => _isPlaying = s.playing);
+      });
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes.toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: Icon(
+            _isPlaying ? Icons.pause_circle : Icons.play_circle_fill,
+            color: widget.isMine ? Colors.white : AppTheme.primary,
+            size: 32,
+          ),
+          onPressed: () async {
+            if (_isPlaying) {
+              await _player.pause();
+            } else {
+              await _player.play();
+            }
+          },
+        ),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 100,
+              height: 3,
+              decoration: BoxDecoration(
+                color: widget.isMine
+                    ? Colors.white.withValues(alpha: 0.3)
+                    : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: _duration.inSeconds > 0
+                    ? (_position.inSeconds / _duration.inSeconds).clamp(0, 1)
+                    : 0,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: widget.isMine ? Colors.white : AppTheme.primary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${_fmt(_position)} / ${_fmt(_duration)}',
+              style: GoogleFonts.poppins(
+                fontSize: 10,
+                color: widget.isMine ? Colors.white70 : Colors.grey,
+              ),
+            ),
+          ],
         ),
       ],
     );

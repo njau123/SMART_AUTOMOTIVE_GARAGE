@@ -45,7 +45,7 @@ class UserApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
-          themeMode: ThemeController.instance.mode,
+          themeMode: ThemeMode.light,  // Force light (dark mode inasababisha blur)
           home: const SplashScreen(),
         );
       },

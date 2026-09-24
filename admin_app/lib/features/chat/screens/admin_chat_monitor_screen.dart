@@ -191,6 +191,10 @@ class _AdminChatDetailScreenState extends State<AdminChatDetailScreen> {
 
   Widget _bubble(dynamic msg) {
     final senderName = msg['sender_name']?.toString() ?? 'Unknown';
+    final senderRole = msg['sender_role']?.toString() ?? 'USER';
+    final senderLabel = senderRole == 'MECHANIC'
+        ? 'This from Mechanic: $senderName'
+        : 'This from User: $senderName';
     final content = msg['content']?.toString() ?? '';
     final time = msg['formatted_time']?.toString() ?? '';
     final msgType = msg['message_type']?.toString() ?? 'text';
@@ -222,7 +226,7 @@ class _AdminChatDetailScreenState extends State<AdminChatDetailScreen> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  senderName,
+                  senderLabel,
                   style: GoogleFonts.poppins(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
