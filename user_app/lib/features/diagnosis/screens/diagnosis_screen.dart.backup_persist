@@ -36,47 +36,13 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
   final _scrollCtrl = ScrollController();
   final _messages = <_ChatMessage>[];
   bool _sending = false;
-  int? _conversationId;
-  bool _loadingHistory = false;
   Uint8List? _pendingImage;
   String? _pendingImageName;
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
-  }
-
-  Future<void> _loadHistory() async {
-    setState(() => _loadingHistory = true);
-    try {
-      final hist = await MethodsAPI.diagnosisChatHistory();
-      if (!mounted) return;
-      if (hist != null && hist['messages'] is List) {
-        final msgs = (hist['messages'] as List).cast<Map>();
-        setState(() {
-          _conversationId = hist['conversation_id'] is int
-              ? hist['conversation_id'] as int
-              : int.tryParse(hist['conversation_id']?.toString() ?? '');
-          _messages.clear();
-          for (final m in msgs) {
-            _messages.add(_ChatMessage(
-              role: m['role']?.toString() ?? 'assistant',
-              content: m['content']?.toString() ?? '',
-            ));
-          }
-        });
-        if (_messages.isEmpty) _addGreeting();
-        _scrollToBottom();
-      } else {
-        setState(() { _messages.clear(); });
-        _addGreeting();
-      }
-    } catch (_) {
-      _addGreeting();
-    } finally {
-      if (mounted) setState(() => _loadingHistory = false);
-    }
+    _addGreeting();
   }
 
   @override
@@ -181,18 +147,12 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
         vehicleMake: v['make']!,
         vehicleModel: v['model']!,
         vehicleYear: v['year']!,
-        conversationId: _conversationId,
+        history: history,
         imageBytes: userMsg.imageBytes,
         imageName: _pendingImageName ?? 'car_part.jpg',
       );
       final data = (res['data'] ?? res) as Map;
       final reply = data['reply']?.toString() ?? 'Samahani, sikuweza kujibu.';
-      // Hifadhi conversation_id
-      if (data['conversation_id'] != null) {
-        _conversationId = data['conversation_id'] is int
-            ? data['conversation_id'] as int
-            : int.tryParse(data['conversation_id'].toString());
-      }
 
       if (!mounted) return;
       setState(() {
@@ -253,11 +213,9 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
             child: const Text('Ghairi'),
           ),
           ElevatedButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(context);
-              await MethodsAPI.diagnosisChatReset();
               setState(() {
-                _conversationId = null;
                 _messages.clear();
                 _addGreeting();
               });

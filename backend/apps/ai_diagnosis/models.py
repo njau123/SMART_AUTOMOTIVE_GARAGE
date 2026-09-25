@@ -51,3 +51,50 @@ class DiagnosisSession(models.Model):
 
     def __str__(self):
         return f"AI Diagnosis #{self.pk}"
+
+# ==================== CONVERSATIONAL AI CHAT ====================
+class ChatConversation(models.Model):
+    """Mazungumzo ya user na AI mechanic — persistent."""
+    user = models.ForeignKey(
+        'accounts.User', on_delete=models.CASCADE,
+        related_name='ai_conversations', null=True, blank=True,
+    )
+    title = models.CharField(max_length=200, blank=True)
+    vehicle_make = models.CharField(max_length=100, blank=True)
+    vehicle_model = models.CharField(max_length=100, blank=True)
+    vehicle_year = models.CharField(max_length=20, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'ai_chat_conversations'
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"Conv#{self.id} — {self.user.email if self.user else 'anon'}"
+
+
+class ChatMessageLog(models.Model):
+    """Ujumbe mmoja kwenye conversation."""
+    ROLE_CHOICES = [
+        ('user', 'User'),
+        ('assistant', 'Assistant'),
+    ]
+    conversation = models.ForeignKey(
+        ChatConversation, on_delete=models.CASCADE,
+        related_name='messages',
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    content = models.TextField()
+    has_image = models.BooleanField(default=False)
+    image_url = models.URLField(blank=True)  # Cloudinary URL kama ipo
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'ai_chat_messages'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.role}: {self.content[:50]}"
+

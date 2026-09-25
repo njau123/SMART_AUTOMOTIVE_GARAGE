@@ -1797,53 +1797,32 @@ from .pagination import SparePartPagination, VehiclePagination, BookingPaginatio
 
 # ==================== CONVERSATIONAL DIAGNOSIS ====================
 class DiagnosisChatView(APIView):
-    """Chat-style AI diagnosis — multi-turn with persistence."""
+    """Chat-style AI diagnosis — multi-turn."""
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
         from apps.ai_diagnosis.services.groq_service import chat_with_ai
-        from apps.ai_diagnosis.models import ChatConversation, ChatMessageLog
         import json
 
         message = request.data.get('message', '').strip()
         vehicle_make = request.data.get('vehicle_make', '')
         vehicle_model = request.data.get('vehicle_model', '')
         vehicle_year = request.data.get('vehicle_year', '')
-        conversation_id = request.data.get('conversation_id')
 
-        # Pata au unda conversation
-        user = request.user if request.user.is_authenticated else None
-        conv = None
-        if conversation_id:
-            try:
-                conv = ChatConversation.objects.get(id=conversation_id)
-                if user and conv.user_id and conv.user_id != user.id:
-                    conv = None  # Usiruhusu user mwingine
-            except ChatConversation.DoesNotExist:
-                conv = None
-
-        if not conv:
-            conv = ChatConversation.objects.create(
-                user=user,
-                vehicle_make=vehicle_make,
-                vehicle_model=vehicle_model,
-                vehicle_year=vehicle_year,
-            )
-
-        # Chukua history kutoka DB (sio kutoka frontend)
-        history = []
-        for msg in conv.messages.all()[:20]:
-            history.append({'role': msg.role, 'content': msg.content})
+        # History
+        history_raw = request.data.get('history', '[]')
+        try:
+            history = json.loads(history_raw) if isinstance(history_raw, str) else history_raw
+        except Exception:
+            history = []
 
         # Image
         image_bytes = None
-        has_image = False
         image_file = request.FILES.get('image')
         if image_file:
             try:
                 image_bytes = image_file.read()
-                has_image = True
             except Exception as e:
                 print(f"[Chat] Image read error: {e}")
 
@@ -1853,15 +1832,6 @@ class DiagnosisChatView(APIView):
                 'message': 'Tuma ujumbe au picha',
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Save user message
-        ChatMessageLog.objects.create(
-            conversation=conv,
-            role='user',
-            content=message or '(picha)',
-            has_image=has_image,
-        )
-
-        # Call AI
         try:
             result = chat_with_ai(
                 message=message,
@@ -1877,73 +1847,12 @@ class DiagnosisChatView(APIView):
                 'message': f'AI imeshindwa: {str(e)}',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        reply = result.get('reply', '')
-
-        # Save assistant message
-        ChatMessageLog.objects.create(
-            conversation=conv,
-            role='assistant',
-            content=reply,
-        )
-
-        # Update conv timestamp
-        conv.save(update_fields=['updated_at'])
-
         return Response({
             'success': True,
             'data': {
-                'conversation_id': conv.id,
-                'reply': reply,
+                'reply': result.get('reply', ''),
                 'model_used': result.get('model_used', ''),
                 'has_image': result.get('has_image', False),
             },
         })
-
-    def get(self, request):
-        """Pata conversation ya user (ya mwisho) pamoja na messages."""
-        from apps.ai_diagnosis.models import ChatConversation
-
-        if not request.user.is_authenticated:
-            return Response({'success': True, 'data': None})
-
-        conv = ChatConversation.objects.filter(
-            user=request.user, is_active=True
-        ).order_by('-updated_at').first()
-
-        if not conv:
-            return Response({'success': True, 'data': None})
-
-        messages = [
-            {
-                'role': m.role,
-                'content': m.content,
-                'has_image': m.has_image,
-                'created_at': m.created_at.isoformat(),
-            }
-            for m in conv.messages.all()[:50]
-        ]
-
-        return Response({
-            'success': True,
-            'data': {
-                'conversation_id': conv.id,
-                'vehicle_make': conv.vehicle_make,
-                'vehicle_model': conv.vehicle_model,
-                'vehicle_year': conv.vehicle_year,
-                'messages': messages,
-            },
-        })
-
-    def delete(self, request):
-        """Anzisha upya — futa conversation ya sasa."""
-        from apps.ai_diagnosis.models import ChatConversation
-
-        if not request.user.is_authenticated:
-            return Response({'success': False}, status=401)
-
-        ChatConversation.objects.filter(
-            user=request.user, is_active=True
-        ).update(is_active=False)
-
-        return Response({'success': True, 'message': 'Conversation imefutwa'})
 
