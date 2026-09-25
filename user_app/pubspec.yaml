@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # Networking
   http: ^1.6.0
@@ -38,7 +40,7 @@ dependencies:
   flutter_blue_plus: ^1.32.0
 
   # Utilities
-  intl: ^0.18.1
+  intl: 0.20.2
   url_launcher: ^6.2.1
   geolocator: ^10.1.0
   permission_handler: ^11.0.0

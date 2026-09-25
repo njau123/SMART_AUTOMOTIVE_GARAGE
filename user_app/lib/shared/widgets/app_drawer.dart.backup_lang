@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
-import '../../core/localization/language_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/state/auth_state.dart';
@@ -27,7 +25,6 @@ import '../../features/why_us/screens/why_us_screen.dart';
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
 
-  // ignore: unused_element
   void _comingSoon(BuildContext context, String title) {
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -154,8 +151,6 @@ class AppDrawer extends StatelessWidget {
                         _item(Icons.person_outline, 'Profile',
                             () => _push(context, const ProfileScreen())),
                       ],
-                      _item(Icons.language, 'Lugha / Language',
-                          () => _showLanguagePicker(context)),
                       _item(Icons.info_outline, 'About Us',
                           () => _push(context, const AboutScreen())),
                       _item(Icons.location_on_outlined, 'Location',
@@ -215,100 +210,6 @@ class AppDrawer extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  void _showLanguagePicker(BuildContext context) {
-    final langProvider = context.read<LanguageProvider>();
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              const Icon(Icons.language, color: AppColors.primary),
-              const SizedBox(width: 10),
-              Text(
-                'Chagua Lugha / Select Language',
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _langOption(ctx, langProvider, 'sw', 'Kiswahili', '🇹🇿'),
-              const SizedBox(height: 8),
-              _langOption(ctx, langProvider, 'en', 'English', '🇬🇧'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                'Funga / Close',
-                style: GoogleFonts.poppins(),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _langOption(
-    BuildContext ctx,
-    LanguageProvider provider,
-    String code,
-    String label,
-    String flag,
-  ) {
-    final isSelected = provider.locale.languageCode == code;
-    return InkWell(
-      onTap: () async {
-        await provider.changeLanguage(code);
-        if (ctx.mounted) Navigator.pop(ctx);
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : Colors.grey.shade300,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Text(flag, style: const TextStyle(fontSize: 22)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight:
-                      isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected ? AppColors.primary : null,
-                ),
-              ),
-            ),
-            if (isSelected)
-              const Icon(Icons.check_circle,
-                  color: AppColors.primary, size: 22),
-          ],
-        ),
-      ),
     );
   }
 
