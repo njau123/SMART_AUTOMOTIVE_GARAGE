@@ -453,6 +453,37 @@ class MethodsAPI {
     });
     return Map<String, dynamic>.from(data as Map);
   }
+
+  /// AI Diagnosis na picha (multipart).
+  static Future<Map<String, dynamic>> diagnoseWithImage({
+    required String vehicleMake,
+    required String vehicleModel,
+    required String vehicleYear,
+    required String symptoms,
+    String additionalInfo = '',
+    List<int>? imageBytes,
+    String? imageName,
+  }) async {
+    Map<String, List<int>>? fileBytes;
+    Map<String, String>? fileNames;
+    if (imageBytes != null && imageBytes.isNotEmpty) {
+      fileBytes = {'image': imageBytes};
+      fileNames = {'image': imageName ?? 'car_part.jpg'};
+    }
+    final data = await ApiService.postMultipart(
+      'diagnosis/service/',
+      fields: {
+        'vehicle_make': vehicleMake,
+        'vehicle_model': vehicleModel,
+        'vehicle_year': vehicleYear,
+        'symptoms': symptoms,
+        'additional_info': additionalInfo,
+      },
+      fileBytes: fileBytes,
+      fileNames: fileNames,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 // =================== WALLET API ===================

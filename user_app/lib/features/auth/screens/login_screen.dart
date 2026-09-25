@@ -14,7 +14,11 @@ import '../../home/screens/home_screen.dart';
 import '../../../core/utils/session_guard.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  /// Kama `true`, baada ya login itarudi kwenye screen iliyoita
+  /// (badala ya kwenda Dashboard). Inatumika kwa _requireLogin flow.
+  final bool returnOnSuccess;
+
+  const LoginScreen({super.key, this.returnOnSuccess = false});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();

@@ -1,9 +1,11 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
-import '../../payments/screens/payment_screen.dart';
 import '../../../core/state/auth_state.dart';
+import '../../mechanics/screens/mechanics_screen.dart';
 
 class DiagnosisScreen extends StatefulWidget {
   const DiagnosisScreen({super.key});
@@ -19,6 +21,8 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
   final _year = TextEditingController();
   final _symptoms = TextEditingController();
 
+  Uint8List? _imageBytes;
+  String? _imageName;
   bool _loading = false;
   Map<String, dynamic>? _result;
   String? _error;
@@ -43,6 +47,35 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
     super.dispose();
   }
 
+  String get _userName {
+    final f = AuthState.instance.user?['first_name']?.toString() ?? '';
+    return f.isEmpty ? 'Driver' : f;
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 75,
+        maxWidth: 1200,
+      );
+      if (file != null) {
+        final bytes = await file.readAsBytes();
+        setState(() {
+          _imageBytes = bytes;
+          _imageName = file.name;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
@@ -51,11 +84,13 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
       _result = null;
     });
     try {
-      final data = await MethodsAPI.diagnose(
+      final data = await MethodsAPI.diagnoseWithImage(
         vehicleMake: _make.text.trim(),
         vehicleModel: _model.text.trim(),
         vehicleYear: _year.text.trim(),
         symptoms: _symptoms.text.trim(),
+        imageBytes: _imageBytes,
+        imageName: _imageName,
       );
       if (!mounted) return;
       setState(() {
@@ -73,10 +108,17 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
     }
   }
 
+  void _goToMechanics() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MechanicsScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -89,7 +131,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Header
+            // GREETING
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -98,43 +140,117 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                 ),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.psychology_outlined,
-                      color: Colors.white, size: 40),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Smart Diagnosis',
-                            style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Describe symptoms — get instant analysis',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.85),
-                          ),
+                  Row(
+                    children: [
+                      const Icon(Icons.psychology_outlined,
+                          color: Colors.white, size: 40),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Hello $_userName! 👋',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white)),
+                            const SizedBox(height: 4),
+                            Text(
+                              'What\'s wrong with your car today?',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
+
+            // IMAGE UPLOAD
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                height: 140,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    width: 2,
+                    style: BorderStyle.solid,
+                  ),
+                ),
+                child: _imageBytes != null
+                    ? Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Image.memory(
+                              _imageBytes!,
+                              width: double.infinity,
+                              height: 140,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: GestureDetector(
+                              onTap: () => setState(() {
+                                _imageBytes = null;
+                                _imageName = null;
+                              }),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close,
+                                    color: Colors.white, size: 18),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.add_photo_alternate_outlined,
+                              size: 40, color: AppColors.primary),
+                          const SizedBox(height: 8),
+                          Text('Upload picha ya shida (optional)',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          Text('AI itaichambua picha yako',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  color: AppColors.textMuted)),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
             _label('Vehicle Make'),
             TextFormField(
               controller: _make,
               decoration: const InputDecoration(
                   hintText: 'e.g. Toyota',
                   prefixIcon: Icon(Icons.directions_car_outlined)),
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Required' : null,
+              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 14),
             _label('Model'),
@@ -143,8 +259,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
               decoration: const InputDecoration(
                   hintText: 'e.g. Corolla',
                   prefixIcon: Icon(Icons.directions_car_outlined)),
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Required' : null,
+              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 14),
             _label('Year'),
@@ -154,8 +269,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
               decoration: const InputDecoration(
                   hintText: 'e.g. 2018',
                   prefixIcon: Icon(Icons.calendar_today_outlined)),
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Required' : null,
+              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 14),
             _label('Symptoms'),
@@ -164,10 +278,9 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
               maxLines: 4,
               decoration: const InputDecoration(
                   hintText:
-                      'e.g. gari linazima ghafla, check engine light ipo, sauti ya kawaida...',
+                      'e.g. gari linazima ghafla, check engine light ipo...',
                   alignLabelWithHint: true),
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Required' : null,
+              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 20),
             SizedBox(
@@ -184,7 +297,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                                 AlwaysStoppedAnimation(Colors.white)),
                       )
                     : const Icon(Icons.auto_awesome_outlined, size: 20),
-                label: Text(_loading ? 'Analyzing...' : 'Run Diagnosis'),
+                label: Text(_loading ? 'AI inachambua...' : 'Run AI Diagnosis'),
               ),
             ),
             if (_error != null) ...[
@@ -210,30 +323,6 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
     );
   }
 
-  Future<void> _payForDiagnosis() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const PaymentScreen(
-          amount: 5000,
-          purpose: 'SERVICE',
-          title: 'AI Car Scanner - Siku ya Ziada',
-          referenceId: 'AI_SCANNER_DAILY',
-        ),
-      ),
-    );
-    if (result == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Malipo yameanzishwa. Admin atathibitisha ili kuendelea kutumia AI Scanner.',
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
-    }
-  }
-
   Widget _label(String t) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(t,
@@ -246,39 +335,74 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
     final actions = (_result?['recommended_actions'] as List?) ?? [];
     final warnings = (_result?['safety_warnings'] as List?) ?? [];
     final specialty = _result?['mechanic_specialty']?.toString() ?? '';
+    final summary = _result?['summary']?.toString() ?? '';
+    final severity = _result?['severity']?.toString() ?? 'MEDIUM';
+    final detailed = _result?['detailed_explanation']?.toString() ?? '';
+
+    final severityColor = severity == 'CRITICAL'
+        ? Colors.red.shade900
+        : severity == 'HIGH'
+            ? Colors.red
+            : severity == 'MEDIUM'
+                ? Colors.orange
+                : Colors.green;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // SUMMARY
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.success.withValues(alpha: 0.08),
+            color: severityColor.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-                color: AppColors.success.withValues(alpha: 0.3)),
+            border: Border.all(color: severityColor.withValues(alpha: 0.3)),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.check_circle_outline,
-                  color: AppColors.success, size: 28),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text('Analysis complete',
-                    style: GoogleFonts.poppins(
-                        fontSize: 14, fontWeight: FontWeight.w600)),
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome, color: severityColor, size: 24),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text('AI Diagnosis Complete',
+                        style: GoogleFonts.poppins(
+                            fontSize: 14, fontWeight: FontWeight.w700)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: severityColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(severity,
+                        style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
+                  ),
+                ],
               ),
+              if (summary.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(summary,
+                    style: GoogleFonts.poppins(
+                        fontSize: 13, height: 1.5)),
+              ],
             ],
           ),
         ),
         const SizedBox(height: 16),
+
         if (causes.isNotEmpty) ...[
-          _sectionTitle('Possible causes'),
+          _sectionTitle('🔍 Sababu Zinazowezekana'),
           ...causes.map((c) => _bullet(c.toString())),
           const SizedBox(height: 16),
         ],
         if (actions.isNotEmpty) ...[
-          _sectionTitle('Recommended actions'),
+          _sectionTitle('🔧 Hatua za Kuchukua'),
           ...actions.map((a) => _bullet(a.toString())),
           const SizedBox(height: 16),
         ],
@@ -299,7 +423,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                     const Icon(Icons.warning_amber_rounded,
                         color: AppColors.warning, size: 20),
                     const SizedBox(width: 8),
-                    Text('Safety warnings',
+                    Text('⚠️ Tahadhari za Usalama',
                         style: GoogleFonts.poppins(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -307,14 +431,28 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                ...warnings.map((w) => _bullet(w.toString(),
-                    color: AppColors.warning)),
+                ...warnings.map((w) =>
+                    _bullet(w.toString(), color: AppColors.warning)),
               ],
             ),
           ),
           const SizedBox(height: 16),
         ],
-        if (specialty.isNotEmpty)
+        if (detailed.isNotEmpty) ...[
+          _sectionTitle('📖 Maelezo ya Kina'),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(detailed,
+                style: GoogleFonts.poppins(fontSize: 13, height: 1.6)),
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (specialty.isNotEmpty) ...[
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -334,6 +472,41 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 24),
+        ],
+
+        // FIND MECHANIC BUTTON
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.amber.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.amber),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'If you\'re not satisfied with our AI diagnosis analysis, you may find out our mechanic.',
+                style: GoogleFonts.poppins(fontSize: 12, height: 1.5),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: _goToMechanics,
+                  icon: const Icon(Icons.engineering, size: 18),
+                  label: const Text('Find a Mechanic'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -365,9 +538,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
             Expanded(
               child: Text(t,
                   style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      height: 1.5,
-                      color: color)),
+                      fontSize: 13, height: 1.5, color: color)),
             ),
           ],
         ),

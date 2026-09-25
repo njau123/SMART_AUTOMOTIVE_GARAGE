@@ -108,7 +108,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final ok = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(returnOnSuccess: true),
+      ),
     );
     return ok == true;
   }
