@@ -1962,6 +1962,7 @@ class DiagnosisChatView(APIView):
 
         return Response({'success': True, 'message': 'Conversation imefutwa'})
 
+# ==================== TEMPORARY MIGRATION ENDPOINT ====================
 class RunMigrationsView(APIView):
     """TEMPORARY — endesha migrations. Futa baada ya kutumia."""
     permission_classes = [AllowAny]

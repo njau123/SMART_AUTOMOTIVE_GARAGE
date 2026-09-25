@@ -41,7 +41,6 @@ from apps.spare_parts.views import (
     AdminOrderListView, AdminOrderUpdateStatusView,
 )
 from .views import (
-    RunMigrationsView,
     DiagnosisChatView,
     RegisterView, UserProfileView,
     VehicleViewSet,
@@ -110,7 +109,6 @@ from .views import ServiceDiagnosisView
 urlpatterns += [
     path('diagnosis/service/', ServiceDiagnosisView.as_view(), name='service-diagnosis'),
     path('diagnosis/chat/', DiagnosisChatView.as_view(), name='diagnosis-chat'),
-    path('admin/run-migrations/', RunMigrationsView.as_view(), name='run-migrations'),
 ]
 
 # ============ OBD DIAGNOSIS PAYMENT URL ============

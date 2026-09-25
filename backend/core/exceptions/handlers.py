@@ -265,37 +265,13 @@ def custom_exception_handler(
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # === TEMPORARY DEBUG — ondoa baada ya kumaliza ===
-    import traceback
-    import os
-    debug_enabled = os.environ.get('DEBUG', 'False').lower() == 'true'
-    
-    if debug_enabled:
-        return Response(
-            {
-                "success": False,
-                "message": "An unexpected error occurred.",
-                "data": None,
-                "errors": {
-                    "detail": str(exc),
-                    "type": type(exc).__name__,
-                    "traceback": traceback.format_exc().split('\n'),
-                },
-            },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-    
     return Response(
         {
             "success": False,
-            "message": (
-                "An unexpected error occurred."
-            ),
+            "message": "An unexpected error occurred.",
             "data": None,
             "errors": {
-                "detail": (
-                    "Internal server error."
-                )
+                "detail": str(exc) or "Internal server error."
             },
         },
         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
