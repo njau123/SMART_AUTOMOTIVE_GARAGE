@@ -271,7 +271,16 @@ class _HomeScreenState extends State<HomeScreen> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        actions: const [],
+        actions: [
+          IconButton(
+            icon: Icon(
+              ThemeController.instance.isDark
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined,
+            ),
+            onPressed: () => ThemeController.instance.toggle(),
+          ),
+        ],
       ),
       body: Column(
         children: [
