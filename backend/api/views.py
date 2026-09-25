@@ -1947,3 +1947,36 @@ class DiagnosisChatView(APIView):
 
         return Response({'success': True, 'message': 'Conversation imefutwa'})
 
+# ==================== TEMPORARY MIGRATION ENDPOINT ====================
+class RunMigrationsView(APIView):
+    """TEMPORARY — endesha migrations. Futa baada ya kutumia."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        import os
+        from io import StringIO
+        from django.core.management import call_command
+
+        secret = request.GET.get('secret', '')
+        expected = os.environ.get('CRON_SECRET', '')
+        if not expected or secret != expected:
+            return Response({'success': False, 'message': 'Forbidden'}, status=403)
+
+        out = StringIO()
+        results = {}
+        try:
+            call_command('migrate', '--noinput', stdout=out)
+            results['migrate'] = out.getvalue()
+        except Exception as e:
+            results['migrate_error'] = str(e)
+
+        # Show status ya ai_diagnosis
+        try:
+            out2 = StringIO()
+            call_command('showmigrations', 'ai_diagnosis', stdout=out2)
+            results['ai_diagnosis_migrations'] = out2.getvalue()
+        except Exception as e:
+            results['show_error'] = str(e)
+
+        return Response({'success': True, 'data': results})
+
