@@ -1824,12 +1824,20 @@ class DiagnosisChatView(APIView):
                 conv = None
 
         if not conv:
-            conv = ChatConversation.objects.create(
-                user=user,
-                vehicle_make=vehicle_make,
-                vehicle_model=vehicle_model,
-                vehicle_year=vehicle_year,
-            )
+            try:
+                conv = ChatConversation.objects.create(
+                    user=user,
+                    vehicle_make=vehicle_make,
+                    vehicle_model=vehicle_model,
+                    vehicle_year=vehicle_year,
+                )
+            except Exception as db_e:
+                import traceback
+                return Response({
+                    'success': False,
+                    'message': f'DB error: {type(db_e).__name__}: {str(db_e)}',
+                    'traceback': traceback.format_exc() if request.GET.get('debug') else None,
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # Chukua history kutoka DB (sio kutoka frontend)
         history = []
@@ -1872,6 +1880,13 @@ class DiagnosisChatView(APIView):
                 image_bytes=image_bytes,
             )
         except Exception as e:
+            import traceback
+            if request.data.get('debug') or request.GET.get('debug'):
+                return Response({
+                    'success': False,
+                    'message': f'AI imeshindwa: {type(e).__name__}: {str(e)}',
+                    'traceback': traceback.format_exc(),
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             return Response({
                 'success': False,
                 'message': f'AI imeshindwa: {str(e)}',
