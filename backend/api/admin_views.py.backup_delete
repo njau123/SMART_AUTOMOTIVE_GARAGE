@@ -391,12 +391,10 @@ class AdminUserBlockView(APIView):
 
 
 class AdminUserDeleteView(APIView):
-    """Admin - HARD delete user (user + data yote inafutwa)."""
+    """Admin - HARD delete user (user na data yake yote inafutwa)."""
     permission_classes = [IsAdminUser]
 
     def delete(self, request, pk):
-        from django.db import transaction
-
         try:
             user = User.objects.get(pk=pk)
         except User.DoesNotExist:
@@ -404,109 +402,42 @@ class AdminUserDeleteView(APIView):
                 {"success": False, "message": "User haipo"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        if user.role in ('ADMIN', 'SUPER_ADMIN') or user.is_superuser or user.is_staff:
+        if user.role == 'ADMIN' or user.is_superuser:
             return Response(
-                {"success": False, "message": "Hauwezi kumfuta admin/staff"},
+                {"success": False, "message": "Hauwezi kumfuta admin"},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         original_email = user.email
-        cleanup_log = []
+
+        # Futa related objects (kwa usalama wa foreign keys)
+        from apps.notifications.models import Notification, NotificationDevice, NotificationLog
+        from apps.spare_parts.models import SparePartOrder
+        from apps.vehicles.models import Vehicle
+        from apps.payments.models import Payment
 
         try:
-            with transaction.atomic():
-                # ============ MANUAL CLEANUP (kabla ya CASCADE) ============
-                # Chat app
-                try:
-                    from apps.chat.models import (
-                        Message, MessageAttachment, ChatNotification,
-                        ChatBlock, UserChatStatus, ReadyRequest, BookingApproval,
-                        ChatRoom,
-                    )
-                    MessageAttachment.objects.filter(message__sender=user).delete()
-                    Message.objects.filter(sender=user).delete()
-                    ChatNotification.objects.filter(recipient=user).delete()
-                    ChatBlock.objects.filter(blocker=user).delete()
-                    ChatBlock.objects.filter(blocked=user).delete()
-                    UserChatStatus.objects.filter(user=user).delete()
-                    ReadyRequest.objects.filter(user=user).delete()
-                    ReadyRequest.objects.filter(mechanic=user).delete()
-                    BookingApproval.objects.filter(user=user).delete()
-                    BookingApproval.objects.filter(mechanic=user).delete()
-                    cleanup_log.append('chat')
-                except Exception as e:
-                    cleanup_log.append(f'chat_err:{e}')
+            Notification.objects.filter(recipient=user).delete()
+            NotificationDevice.objects.filter(user=user).delete()
+            NotificationLog.objects.filter(recipient=user).delete()
+            SparePartOrder.objects.filter(user=user).delete()
+            Vehicle.objects.filter(user=user).delete()
+            # Payments — PROTECT, hivyo tunabadilisha
+            Payment.objects.filter(user=user).update(user_id=None) if False else None
+        except Exception as e:
+            print(f"[DELETE CLEANUP] {e}")
 
-                # Bookings
-                try:
-                    from apps.bookings.models import Booking
-                    Booking.objects.filter(customer=user).delete()
-                    cleanup_log.append('bookings')
-                except Exception as e:
-                    cleanup_log.append(f'bookings_err:{e}')
-
-                # Notifications
-                try:
-                    from apps.notifications.models import (
-                        Notification, NotificationDevice, NotificationLog,
-                    )
-                    Notification.objects.filter(recipient=user).delete()
-                    NotificationDevice.objects.filter(user=user).delete()
-                    NotificationLog.objects.filter(recipient=user).delete()
-                    cleanup_log.append('notif')
-                except Exception as e:
-                    cleanup_log.append(f'notif_err:{e}')
-
-                # Spare parts
-                try:
-                    from apps.spare_parts.models import SparePartOrder
-                    SparePartOrder.objects.filter(user=user).delete()
-                    cleanup_log.append('spare_parts')
-                except Exception as e:
-                    cleanup_log.append(f'spare_parts_err:{e}')
-
-                # Vehicles
-                try:
-                    from apps.vehicles.models import Vehicle
-                    Vehicle.objects.filter(user=user).delete()
-                    cleanup_log.append('vehicles')
-                except Exception as e:
-                    cleanup_log.append(f'vehicles_err:{e}')
-
-                # Payments — PROTECT, weka user=None
-                try:
-                    from apps.payments.models import Payment
-                    Payment.objects.filter(user=user).update(user=None)
-                    cleanup_log.append('payments')
-                except Exception as e:
-                    cleanup_log.append(f'payments_err:{e}')
-
-                # MechanicProfile (OneToOne CASCADE inatosha, lakini kwa usalama)
-                try:
-                    from apps.mechanics.models import MechanicProfile
-                    MechanicProfile.objects.filter(user=user).delete()
-                    cleanup_log.append('mech_profile')
-                except Exception as e:
-                    cleanup_log.append(f'mech_err:{e}')
-
-                # Soft-delete email ili kuruhusu re-registration
-                user.email = f'deleted_{user.id}_{user.email}'
-                user.save(update_fields=['email'])
-
-                # Hard delete user
-                user.delete()
-                cleanup_log.append('user_deleted')
-
+        # HARD DELETE
+        try:
+            user.delete()
         except Exception as e:
             return Response({
                 "success": False,
                 "message": f"Imeshindwa kufuta: {str(e)}",
-                "errors": {"detail": cleanup_log},
             }, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({
             "success": True,
             "message": f"User {original_email} amefutwa kabisa",
-            "data": {"id": pk, "cleanup": cleanup_log},
+            "data": {"id": pk},
         })

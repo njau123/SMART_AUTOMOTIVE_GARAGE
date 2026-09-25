@@ -106,7 +106,7 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   void _showUserDetails(BuildContext context, dynamic u) {
-    final isActive = (u['is_active'] != false && u['is_active'] != 'false' && u['is_active'] != 0);
+    final isActive = u['is_active'] == true;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -151,11 +151,7 @@ class _UsersScreenState extends State<UsersScreen> {
             _detailRow('Email', u['email']?.toString() ?? '-'),
             _detailRow('Simu', u['phone_number']?.toString() ?? '-'),
             _detailRow('Role', u['role']?.toString() ?? '-'),
-            _detailRow('Hali', isActive
-                ? 'Active'
-                : ((u['email']?.toString() ?? '').contains('@pending.')
-                    ? 'Pending Registration'
-                    : 'Blocked')),
+            _detailRow('Hali', isActive ? 'Active' : 'Blocked'),
             _detailRow('Password',
                 (u['plain_password']?.toString().isNotEmpty == true)
                     ? u['plain_password'].toString()
@@ -252,7 +248,7 @@ class _UsersScreenState extends State<UsersScreen> {
                     itemCount: _users.length,
                     itemBuilder: (_, i) {
                       final u = _users[i];
-                      final isActive = (u['is_active'] != false && u['is_active'] != 'false' && u['is_active'] != 0);
+                      final isActive = u['is_active'] == true;
                       return Card(
                         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         child: ListTile(
@@ -282,17 +278,11 @@ class _UsersScreenState extends State<UsersScreen> {
                                 backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                               ),
                               if (!isActive)
-                                Text(
-                                  (u['email']?.toString() ?? '').contains('@pending.')
-                                      ? 'PENDING'
-                                      : 'BLOCKED',
-                                  style: TextStyle(
-                                      color: (u['email']?.toString() ?? '').contains('@pending.')
-                                          ? Colors.orange
-                                          : Colors.red,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold),
-                                ),
+                                const Text('BLOCKED',
+                                    style: TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -331,7 +321,7 @@ class _UserEditFormState extends State<_UserEditForm> {
     _lastNameCtrl.text = widget.user['last_name']?.toString() ?? '';
     _phoneCtrl.text = widget.user['phone_number']?.toString() ?? '';
     _role = widget.user['role']?.toString() ?? 'USER';
-    _isActive = (widget.user['is_active'] != false && widget.user['is_active'] != 'false' && widget.user['is_active'] != 0);
+    _isActive = widget.user['is_active'] == true;
   }
 
   @override
