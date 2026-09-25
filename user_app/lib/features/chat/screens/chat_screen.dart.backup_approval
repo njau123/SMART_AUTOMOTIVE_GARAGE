@@ -46,19 +46,12 @@ class _ChatScreenState extends State<ChatScreen> {
   int _readyRemainingSeconds = 0;
   String _readyStatus = '';
   Timer? _readyTimer;
-  // BOOKING APPROVAL (user)
-  String _approvalStatus = 'none';
-  // ignore: unused_field
-  String? _approvalId;
-  Timer? _approvalPoller;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
     _markRead();
-    _loadApprovalStatus();
-    _startApprovalPolling();
 
     // Polling: angalia messages mpya kila sekunde 3
     _pollTimer = Timer.periodic(
@@ -478,7 +471,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    _approvalPoller?.cancel();
     _pollTimer?.cancel();
     _recordTimer?.cancel();
     _readyTimer?.cancel();
@@ -499,7 +491,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          _approvalBanner(),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -969,135 +960,6 @@ class _ChatScreenState extends State<ChatScreen> {
         child: _isRecording ? _recordingBar() : _normalInputBar(),
       ),
     );
-  }
-
-  Future<void> _loadApprovalStatus() async {
-    try {
-      final res = await ChatAPI.getApprovalStatus(widget.roomId);
-      final data = (res['data'] ?? res) as Map;
-      final status = (data['status'] ?? 'none').toString().toLowerCase();
-      if (!mounted) return;
-      if (status != _approvalStatus) {
-        setState(() {
-          _approvalStatus = status.isEmpty ? 'none' : status;
-          _approvalId = data['approval_id']?.toString();
-        });
-      }
-      if (status == 'approved' || status == 'rejected') {
-        _approvalPoller?.cancel();
-      }
-    } catch (_) {}
-  }
-
-  void _startApprovalPolling() {
-    _approvalPoller?.cancel();
-    _approvalPoller = Timer.periodic(
-      const Duration(seconds: 3),
-      (_) => _loadApprovalStatus(),
-    );
-  }
-
-  Future<void> _requestBookingApproval() async {
-    try {
-      setState(() => _approvalStatus = 'pending');
-      final res = await ChatAPI.requestApproval(widget.roomId);
-      final data = (res['data'] ?? res) as Map;
-      if (!mounted) return;
-      setState(() {
-        _approvalId = data['approval_id']?.toString();
-        _approvalStatus = (data['status'] ?? 'pending').toString().toLowerCase();
-      });
-      _startApprovalPolling();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Request sent. Waiting for mechanic...')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _approvalStatus = 'none');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed: $e')),
-      );
-    }
-  }
-
-  Widget _approvalBanner() {
-    switch (_approvalStatus) {
-      case 'pending':
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: Colors.amber.shade100,
-          child: Row(children: [
-            const SizedBox(
-              width: 14, height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(
-              'Waiting for mechanic approval...',
-              style: GoogleFonts.poppins(fontSize: 12),
-            )),
-          ]),
-        );
-      case 'approved':
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: Colors.green.shade100,
-          child: Row(children: [
-            const Icon(Icons.check_circle, size: 18, color: Colors.green),
-            const SizedBox(width: 8),
-            Expanded(child: Text(
-              'You can now book this mechanic!',
-              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600),
-            )),
-          ]),
-        );
-      case 'rejected':
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: Colors.red.shade100,
-          child: Row(children: [
-            const Icon(Icons.cancel, size: 18, color: Colors.red),
-            const SizedBox(width: 8),
-            Expanded(child: Text(
-              'Request declined.',
-              style: GoogleFonts.poppins(fontSize: 12),
-            )),
-            TextButton(
-              onPressed: _requestBookingApproval,
-              child: const Text('Retry'),
-            ),
-          ]),
-        );
-      default:
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: AppColors.primary.withValues(alpha: 0.08),
-          child: Row(children: [
-            const Icon(Icons.event_available, size: 18, color: AppColors.primary),
-            const SizedBox(width: 8),
-            Expanded(child: Text(
-              'Want to book this mechanic?',
-              style: GoogleFonts.poppins(fontSize: 12),
-            )),
-            ElevatedButton(
-              onPressed: _requestBookingApproval,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                minimumSize: const Size(0, 32),
-              ),
-              child: Text(
-                'Request',
-                style: GoogleFonts.poppins(fontSize: 11, color: Colors.white),
-              ),
-            ),
-          ]),
-        );
-    }
   }
 
   Widget _normalInputBar() {

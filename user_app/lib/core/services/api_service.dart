@@ -924,6 +924,39 @@ class ChatAPI {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  // ============ BOOKING APPROVAL ============
+  static Future<Map<String, dynamic>> requestApproval(int roomId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/request-approval/',
+      {},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> approveUser({
+    required int roomId,
+    required String action,
+    String note = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/approve-user/',
+      {'action': action, 'note': note},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> getApprovalStatus(int roomId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'chat/rooms/$roomId/approval-status/', token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
 
 
   /// Pata mechanics waliopo available kwa chat.

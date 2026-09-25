@@ -44,10 +44,6 @@ class _ChatScreenState extends State<ChatScreen> {
   String _readyStatus = '';
   int _readyRemainingSeconds = 0;
   Timer? _readyTimer;
-  // BOOKING APPROVAL (mechanic)
-  String _approvalStatus = 'none';
-  String? _approvalId;
-  Timer? _approvalPoller;
 
   @override
   void initState() {
@@ -55,8 +51,6 @@ class _ChatScreenState extends State<ChatScreen> {
     _loadMessages();
     _markRead();
     _startReadyPolling();
-    _loadApprovalStatus();
-    _startApprovalPolling();
   }
 
   void _startReadyPolling() {
@@ -173,7 +167,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    _approvalPoller?.cancel();
     _recordTimer?.cancel();
     _readyTimer?.cancel();
     _audioRecorder.dispose();
@@ -192,7 +185,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-                     _approvalBanner(),
           // READY BANNER
           if (_hasPendingReady) _readyRequestBanner(),
           if (_readyAccepted) _readyCountdownBanner(),
