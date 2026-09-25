@@ -573,6 +573,87 @@ class MethodsAPI {
 
 
 // =================== CONTACT API ===================
+class WalletAPI {
+  static Future<Map<String, dynamic>> getWallet() async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get('wallet/', token: token);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<List<dynamic>> getTransactions() async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get('transactions/', token: token);
+    return ApiService.asList(data);
+  }
+}
+
+
+// =================== OBD API ===================
+class ObdAPI {
+  /// Unda DiagnosisSession mpya.
+  static Future<Map<String, dynamic>> createSession({
+    required int vehicleId,
+    required String adapterName,
+    required String protocol,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'diagnosis/scans/create_with_payment/',
+      {
+        'vehicle': vehicleId,
+        'adapter_name': adapterName,
+        'protocol': protocol,
+        'source': 'OBD',
+      },
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Tuma DTCs na live data kwa backend kuchambua.
+  static Future<Map<String, dynamic>> processScan({
+    required int sessionId,
+    required List<String> dtcCodes,
+    required Map<String, num> liveData,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'diagnosis/scans/$sessionId/process/',
+      {
+        'responses': {
+          'raw_dtc_response': dtcCodes.isEmpty ? '430000' : '43${dtcCodes.length}',
+        },
+        'live_data': liveData,
+      },
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Chukua ripoti kamili ya scan.
+  static Future<Map<String, dynamic>> getReport(int sessionId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'diagnosis/scans/$sessionId/report/',
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Chukua historia ya scans.
+  static Future<List<dynamic>> getHistory() async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'diagnosis/scans/',
+      token: token,
+    );
+    return ApiService.asList(data);
+  }
+}
+
+
+// =================== CONTACT API ===================
+
 class ContactAPI {
   static Future<Map<String, dynamic>> sendMessage({
     required String fullName,
