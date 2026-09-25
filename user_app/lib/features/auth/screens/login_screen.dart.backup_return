@@ -153,17 +153,12 @@ class _LoginScreenState extends State<LoginScreen> {
       await AuthState.instance.login(user ?? {});
       if (!mounted) return;
       SessionGuard.instance.start(context);
-      if (widget.returnOnSuccess) {
-        // Rudi kwa screen iliyoita (mfano DiagnosisScreen)
-        Navigator.pop(context, true);
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const UserDashboardScreen(),
-          ),
-        );
-      }
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const UserDashboardScreen(),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       _snack(e.toString().replaceAll('Exception: ', ''), error: true);
@@ -195,16 +190,12 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         if (!mounted) return;
         SessionGuard.instance.start(context);
-        if (widget.returnOnSuccess) {
-          Navigator.pop(context, true);
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const UserDashboardScreen(),
-            ),
-          );
-        }
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const UserDashboardScreen(),
+          ),
+        );
       }
     } on GoogleSignInCancelled catch (e) {
       if (!mounted) return;
