@@ -1794,3 +1794,65 @@ from .pagination import SparePartPagination, VehiclePagination, BookingPaginatio
 
 # Kwa notifications viewset:
 # pagination_class = NotificationPagination
+
+# ==================== CONVERSATIONAL DIAGNOSIS ====================
+class DiagnosisChatView(APIView):
+    """Chat-style AI diagnosis — multi-turn."""
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def post(self, request):
+        from apps.ai_diagnosis.services.groq_service import chat_with_ai
+        import json
+
+        message = request.data.get('message', '').strip()
+        vehicle_make = request.data.get('vehicle_make', '')
+        vehicle_model = request.data.get('vehicle_model', '')
+        vehicle_year = request.data.get('vehicle_year', '')
+
+        # History
+        history_raw = request.data.get('history', '[]')
+        try:
+            history = json.loads(history_raw) if isinstance(history_raw, str) else history_raw
+        except Exception:
+            history = []
+
+        # Image
+        image_bytes = None
+        image_file = request.FILES.get('image')
+        if image_file:
+            try:
+                image_bytes = image_file.read()
+            except Exception as e:
+                print(f"[Chat] Image read error: {e}")
+
+        if not message and not image_bytes:
+            return Response({
+                'success': False,
+                'message': 'Tuma ujumbe au picha',
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            result = chat_with_ai(
+                message=message,
+                vehicle_make=vehicle_make,
+                vehicle_model=vehicle_model,
+                vehicle_year=vehicle_year,
+                history=history,
+                image_bytes=image_bytes,
+            )
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'AI imeshindwa: {str(e)}',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({
+            'success': True,
+            'data': {
+                'reply': result.get('reply', ''),
+                'model_used': result.get('model_used', ''),
+                'has_image': result.get('has_image', False),
+            },
+        })
+

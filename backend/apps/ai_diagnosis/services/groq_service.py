@@ -63,7 +63,9 @@ def diagnose_with_ai(
     Returns dict: {summary, causes, actions, safety_warnings, severity, mechanic_specialty, detailed_explanation}
     """
     import json
+    import logging
 
+    logger = logging.getLogger(__name__)
     client = _get_client()
 
     # Unda user prompt
@@ -86,35 +88,64 @@ Tafadhali nichambulie tatizo hili."""
         content = user_text
         model = TEXT_MODEL
 
-    # Call Groq
-    response = client.chat.completions.create(
-        messages=[
+    # Call Groq — BILA response_format (inaweza kusababisha 400 error)
+    request_params = {
+        'messages': [
             {'role': 'system', 'content': SYSTEM_PROMPT},
             {'role': 'user', 'content': content},
         ],
-        model=model,
-        temperature=0.7,
-        max_tokens=2000,
-        response_format={'type': 'json_object'} if not image_bytes else None,
-    )
+        'model': model,
+        'temperature': 0.7,
+        'max_tokens': 2000,
+    }
+
+    logger.info(f"[Groq] Calling model={model}, has_image={bool(image_bytes)}")
+
+    try:
+        response = client.chat.completions.create(**request_params)
+    except Exception as e:
+        logger.error(f"[Groq] API error: {type(e).__name__}: {e}")
+        raise Exception(f"Groq API error: {str(e)}")
 
     raw = response.choices[0].message.content
+    logger.info(f"[Groq] Response length: {len(raw)}")
 
-    # Parse JSON
+    # Parse JSON — robust
+    result = None
+
+    # Jaribu 1: Parse moja kwa moja
     try:
-        # Tafuta JSON kwenye response
-        start = raw.find('{')
-        end = raw.rfind('}') + 1
-        if start >= 0 and end > start:
-            result = json.loads(raw[start:end])
-        else:
-            result = json.loads(raw)
-    except Exception as e:
-        # Fallback kama JSON parsing imefeli
+        result = json.loads(raw)
+    except Exception:
+        pass
+
+    # Jaribu 2: Tafuta JSON block
+    if result is None:
+        try:
+            start = raw.find('{')
+            end = raw.rfind('}') + 1
+            if start >= 0 and end > start:
+                result = json.loads(raw[start:end])
+        except Exception:
+            pass
+
+    # Jaribu 3: Ondoa ```json ... ``` markdown
+    if result is None:
+        try:
+            import re
+            match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw, re.DOTALL)
+            if match:
+                result = json.loads(match.group(1))
+        except Exception:
+            pass
+
+    # Fallback
+    if result is None:
+        logger.warning(f"[Groq] JSON parse failed, using fallback")
         result = {
-            'summary': raw[:300],
-            'causes': ['Uchambuzi unahitaji mechanic'],
-            'actions': ['Tafadhali wasiliana na mechanic'],
+            'summary': raw[:500],
+            'causes': [],
+            'actions': [],
             'safety_warnings': [],
             'severity': 'MEDIUM',
             'mechanic_specialty': 'General Mechanic',
@@ -136,3 +167,103 @@ Tafadhali nichambulie tatizo hili."""
             result[key] = default
 
     return result
+
+
+# ==================== CONVERSATIONAL CHAT ====================
+CHAT_SYSTEM_PROMPT = """Wewe ni "Mechanic AI" — msaidizi wa magari wa Smart Automotive Garage.
+Unazungumza kwa upole, kwa heshima, na kwa lugha ambayo user ameandika (Kiswahili au English).
+
+KANUNI ZAKO:
+1. Onyesha huruma kwa changamoto ya user kwanza: "Pole sana...", "Nashukuru kwa maelezo..."
+2. Uliza maswali ya ziada kama hujui vya kutosha (mfano: "Inatokea wakati gani?", "Kuna sauti gani?")
+3. Kama una uhakika wa kutosha, toa uchambuzi wa kina:
+   - Sababu zinazowezekana (numbered)
+   - Kwa nini kila sababu inawezekana
+   - Hatua za kuchukua
+   - Tahadhari za usalama
+   - Kiwango cha hatari (LOW/MEDIUM/HIGH/CRITICAL)
+4. Kama hujui, sema ukweli: "Hii inahitaji mechanic kuangalia moja kwa moja"
+5. Kama user anatuma picha, ichambue kwa makini
+6. MWISHO wa diagnosis, ongeza mstari huu kama CTA:
+   "Kama hujaridhika na uchambuzi wetu, unaweza kuona mechanic wetu."
+
+Tumia markdown yenye nguvu:
+- **Bold** kwa maneno muhimu
+- Namba (1., 2., 3.) kwa orodha
+- Viwango vya hatari kwa CAPS (HIGH, MEDIUM, n.k.)
+
+USIRUDIE maelezo marefu kama hayahitajiki. Kuwa mfupi kwa maswali, mrefu kwa uchambuzi wa mwisho.
+"""
+
+
+def chat_with_ai(
+    message: str,
+    vehicle_make: str = '',
+    vehicle_model: str = '',
+    vehicle_year: str = '',
+    history: list = None,
+    image_bytes: bytes = None,
+) -> dict:
+    """
+    Multi-turn chat na AI mechanic.
+    Returns: {'reply': str, 'model_used': str}
+    """
+    import json
+    import logging
+
+    logger = logging.getLogger(__name__)
+    client = _get_client()
+
+    history = history or []
+
+    # Unda context
+    vehicle_context = ''
+    if vehicle_make or vehicle_model or vehicle_year:
+        vehicle_context = f"\n[Gari la user: {vehicle_make} {vehicle_model} ({vehicle_year})]"
+
+    # Unda messages
+    messages = [
+        {'role': 'system', 'content': CHAT_SYSTEM_PROMPT + vehicle_context},
+    ]
+
+    # Ongeza history
+    for h in history[-10:]:  # last 10 messages for context
+        role = h.get('role', 'user')
+        content = h.get('content', '')
+        if role in ('user', 'assistant') and content:
+            messages.append({'role': role, 'content': content})
+
+    # Unda user message ya sasa
+    if image_bytes:
+        img_b64 = base64.b64encode(image_bytes).decode()
+        messages.append({
+            'role': 'user',
+            'content': [
+                {'type': 'text', 'text': message or 'Chambua picha hii ya gari langu.'},
+                {'type': 'image_url', 'image_url': {'url': f'data:image/jpeg;base64,{img_b64}'}},
+            ],
+        })
+        model = VISION_MODEL
+    else:
+        messages.append({'role': 'user', 'content': message})
+        model = TEXT_MODEL
+
+    logger.info(f"[Chat] model={model}, history_len={len(history)}, has_image={bool(image_bytes)}")
+
+    try:
+        response = client.chat.completions.create(
+            messages=messages,
+            model=model,
+            temperature=0.7,
+            max_tokens=1500,
+        )
+        reply = response.choices[0].message.content
+    except Exception as e:
+        logger.error(f"[Chat] API error: {type(e).__name__}: {e}")
+        raise Exception(f"AI error: {str(e)}")
+
+    return {
+        'reply': reply,
+        'model_used': model,
+        'has_image': bool(image_bytes),
+    }

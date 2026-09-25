@@ -455,38 +455,6 @@ class MethodsAPI {
   }
 
   /// AI Diagnosis na picha (multipart).
-
-  /// Conversational AI diagnosis — multi-turn chat.
-  static Future<Map<String, dynamic>> diagnosisChat({
-    required String message,
-    String vehicleMake = '',
-    String vehicleModel = '',
-    String vehicleYear = '',
-    List<Map<String, dynamic>> history = const [],
-    List<int>? imageBytes,
-    String? imageName,
-  }) async {
-    Map<String, List<int>>? fileBytes;
-    Map<String, String>? fileNames;
-    if (imageBytes != null && imageBytes.isNotEmpty) {
-      fileBytes = {'image': imageBytes};
-      fileNames = {'image': imageName ?? 'car_part.jpg'};
-    }
-    final data = await ApiService.postMultipart(
-      'diagnosis/chat/',
-      fields: {
-        'message': message,
-        'vehicle_make': vehicleMake,
-        'vehicle_model': vehicleModel,
-        'vehicle_year': vehicleYear,
-        'history': jsonEncode(history),
-      },
-      fileBytes: fileBytes,
-      fileNames: fileNames,
-    );
-    return Map<String, dynamic>.from(data as Map);
-  }
-
   static Future<Map<String, dynamic>> diagnoseWithImage({
     required String vehicleMake,
     required String vehicleModel,

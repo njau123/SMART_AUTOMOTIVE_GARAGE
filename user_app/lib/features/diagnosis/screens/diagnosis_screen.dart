@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,42 +15,72 @@ class DiagnosisScreen extends StatefulWidget {
   State<DiagnosisScreen> createState() => _DiagnosisScreenState();
 }
 
-class _DiagnosisScreenState extends State<DiagnosisScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _make = TextEditingController();
-  final _model = TextEditingController();
-  final _year = TextEditingController();
-  final _symptoms = TextEditingController();
+class _ChatMessage {
+  final String role; // 'user' | 'assistant'
+  String content;
+  final Uint8List? imageBytes;
+  final DateTime timestamp;
+  bool isLoading;
 
-  Uint8List? _imageBytes;
-  String? _imageName;
-  bool _loading = false;
-  Map<String, dynamic>? _result;
-  String? _error;
+  _ChatMessage({
+    required this.role,
+    required this.content,
+    this.imageBytes,
+    DateTime? timestamp,
+    this.isLoading = false,
+  }) : timestamp = timestamp ?? DateTime.now();
+}
+
+class _DiagnosisScreenState extends State<DiagnosisScreen> {
+  final _msgCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+  final _messages = <_ChatMessage>[];
+  bool _sending = false;
+  Uint8List? _pendingImage;
+  String? _pendingImageName;
 
   @override
   void initState() {
     super.initState();
-    final v = AuthState.instance.user?['vehicle'];
-    if (v is Map) {
-      _make.text = v['make']?.toString() ?? '';
-      _model.text = v['model']?.toString() ?? '';
-      _year.text = v['year']?.toString() ?? '';
-    }
+    _addGreeting();
   }
 
   @override
   void dispose() {
-    _make.dispose();
-    _model.dispose();
-    _year.dispose();
-    _symptoms.dispose();
+    _msgCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
   String get _userName {
     final f = AuthState.instance.user?['first_name']?.toString() ?? '';
     return f.isEmpty ? 'Driver' : f;
+  }
+
+  Map<String, String> get _vehicle {
+    final v = AuthState.instance.user?['vehicle'];
+    if (v is Map) {
+      return {
+        'make': v['make']?.toString() ?? '',
+        'model': v['model']?.toString() ?? '',
+        'year': v['year']?.toString() ?? '',
+      };
+    }
+    return {'make': '', 'model': '', 'year': ''};
+  }
+
+  void _addGreeting() {
+    final v = _vehicle;
+    final vehicleLine = (v['make']!.isNotEmpty || v['model']!.isNotEmpty)
+        ? '\n\nI see your **${v['make']} ${v['model']} (${v['year']})**.'
+        : '';
+    _messages.add(_ChatMessage(
+      role: 'assistant',
+      content: 'Hello **$_userName** 👋\n\n'
+          'What\'s wrong with your car today?$vehicleLine\n\n'
+          'Unaweza kuniambia kwa **Kiswahili** au **English** — '
+          'au tuma picha ya sehemu ya gari. 📷',
+    ));
   }
 
   Future<void> _pickImage() async {
@@ -63,55 +94,136 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
       if (file != null) {
         final bytes = await file.readAsBytes();
         setState(() {
-          _imageBytes = bytes;
-          _imageName = file.name;
+          _pendingImage = bytes;
+          _pendingImageName = file.name;
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
+      _showError('Image error: $e');
     }
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _send([String? preset]) async {
+    final text = (preset ?? _msgCtrl.text).trim();
+    if (text.isEmpty && _pendingImage == null) return;
+
+    final userMsg = _ChatMessage(
+      role: 'user',
+      content: text.isEmpty ? '📷 (picha)' : text,
+      imageBytes: _pendingImage,
+    );
     setState(() {
-      _loading = true;
-      _error = null;
-      _result = null;
+      _messages.add(userMsg);
+      _msgCtrl.clear();
+      _pendingImage = null;
+      _pendingImageName = null;
+      _sending = true;
     });
+    _scrollToBottom();
+
+    // Unda history (bila ya message hii ya sasa)
+    final history = _messages
+        .sublist(0, _messages.length - 1)
+        .where((m) => !m.isLoading)
+        .map((m) => <String, dynamic>{
+              'role': m.role,
+              'content': m.content,
+            })
+        .toList();
+
+    // Placeholder ya typing
+    final loadingMsg = _ChatMessage(
+      role: 'assistant',
+      content: '...',
+      isLoading: true,
+    );
+    setState(() => _messages.add(loadingMsg));
+    _scrollToBottom();
+
     try {
-      final data = await MethodsAPI.diagnoseWithImage(
-        vehicleMake: _make.text.trim(),
-        vehicleModel: _model.text.trim(),
-        vehicleYear: _year.text.trim(),
-        symptoms: _symptoms.text.trim(),
-        imageBytes: _imageBytes,
-        imageName: _imageName,
+      final v = _vehicle;
+      final res = await MethodsAPI.diagnosisChat(
+        message: text.isEmpty ? 'Tafadhali chambua picha hii ya gari langu.' : text,
+        vehicleMake: v['make']!,
+        vehicleModel: v['model']!,
+        vehicleYear: v['year']!,
+        history: history,
+        imageBytes: userMsg.imageBytes,
+        imageName: _pendingImageName ?? 'car_part.jpg',
       );
+      final data = (res['data'] ?? res) as Map;
+      final reply = data['reply']?.toString() ?? 'Samahani, sikuweza kujibu.';
+
       if (!mounted) return;
       setState(() {
-        _result = data['data'] is Map
-            ? Map<String, dynamic>.from(data['data'] as Map)
-            : Map<String, dynamic>.from(data);
-        _loading = false;
+        _messages.remove(loadingMsg);
+        _messages.add(_ChatMessage(role: 'assistant', content: reply));
+        _sending = false;
       });
+      _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString().replaceAll('Exception: ', '');
-        _loading = false;
+        _messages.remove(loadingMsg);
+        _messages.add(_ChatMessage(
+          role: 'assistant',
+          content: '❌ Samahani, kuna tatizo la mtandao. Jaribu tena.\n\n_${e.toString()}_',
+        ));
+        _sending = false;
       });
+      _scrollToBottom();
     }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent + 200,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _showError(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(m), backgroundColor: Colors.red),
+    );
   }
 
   void _goToMechanics() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const MechanicsScreen()),
+    );
+  }
+
+  void _resetChat() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Anza upya?'),
+        content: const Text('Ujumbe wote utafutwa.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Ghairi'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _messages.clear();
+                _addGreeting();
+              });
+            },
+            child: const Text('Anza Upya'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -124,423 +236,362 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('AI Diagnosis'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+        title: Row(
           children: [
-            // GREETING
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryDark],
-                ),
-                borderRadius: BorderRadius.circular(16),
+                color: AppColors.primary.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.psychology_outlined,
-                          color: Colors.white, size: 40),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Hello $_userName! 👋',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white)),
-                            const SizedBox(height: 4),
-                            Text(
-                              'What\'s wrong with your car today?',
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                color: Colors.white.withValues(alpha: 0.9),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // IMAGE UPLOAD
-            GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                height: 140,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    width: 2,
-                    style: BorderStyle.solid,
-                  ),
-                ),
-                child: _imageBytes != null
-                    ? Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: Image.memory(
-                              _imageBytes!,
-                              width: double.infinity,
-                              height: 140,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: GestureDetector(
-                              onTap: () => setState(() {
-                                _imageBytes = null;
-                                _imageName = null;
-                              }),
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.close,
-                                    color: Colors.white, size: 18),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.add_photo_alternate_outlined,
-                              size: 40, color: AppColors.primary),
-                          const SizedBox(height: 8),
-                          Text('Upload picha ya shida (optional)',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 4),
-                          Text('AI itaichambua picha yako',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 11,
-                                  color: AppColors.textMuted)),
-                        ],
-                      ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            _label('Vehicle Make'),
-            TextFormField(
-              controller: _make,
-              decoration: const InputDecoration(
-                  hintText: 'e.g. Toyota',
-                  prefixIcon: Icon(Icons.directions_car_outlined)),
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 14),
-            _label('Model'),
-            TextFormField(
-              controller: _model,
-              decoration: const InputDecoration(
-                  hintText: 'e.g. Corolla',
-                  prefixIcon: Icon(Icons.directions_car_outlined)),
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 14),
-            _label('Year'),
-            TextFormField(
-              controller: _year,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                  hintText: 'e.g. 2018',
-                  prefixIcon: Icon(Icons.calendar_today_outlined)),
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 14),
-            _label('Symptoms'),
-            TextFormField(
-              controller: _symptoms,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                  hintText:
-                      'e.g. gari linazima ghafla, check engine light ipo...',
-                  alignLabelWithHint: true),
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: _loading ? null : _submit,
-                icon: _loading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation(Colors.white)),
-                      )
-                    : const Icon(Icons.auto_awesome_outlined, size: 20),
-                label: Text(_loading ? 'AI inachambua...' : 'Run AI Diagnosis'),
-              ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.danger.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(_error!,
-                    style: GoogleFonts.poppins(
-                        fontSize: 13, color: AppColors.danger)),
-              ),
-            ],
-            if (_result != null) ...[
-              const SizedBox(height: 24),
-              _resultView(),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _label(String t) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(t,
-            style: GoogleFonts.poppins(
-                fontSize: 13, fontWeight: FontWeight.w600)),
-      );
-
-  Widget _resultView() {
-    final causes = (_result?['possible_causes'] as List?) ?? [];
-    final actions = (_result?['recommended_actions'] as List?) ?? [];
-    final warnings = (_result?['safety_warnings'] as List?) ?? [];
-    final specialty = _result?['mechanic_specialty']?.toString() ?? '';
-    final summary = _result?['summary']?.toString() ?? '';
-    final severity = _result?['severity']?.toString() ?? 'MEDIUM';
-    final detailed = _result?['detailed_explanation']?.toString() ?? '';
-
-    final severityColor = severity == 'CRITICAL'
-        ? Colors.red.shade900
-        : severity == 'HIGH'
-            ? Colors.red
-            : severity == 'MEDIUM'
-                ? Colors.orange
-                : Colors.green;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // SUMMARY
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: severityColor.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: severityColor.withValues(alpha: 0.3)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.auto_awesome, color: severityColor, size: 24),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text('AI Diagnosis Complete',
-                        style: GoogleFonts.poppins(
-                            fontSize: 14, fontWeight: FontWeight.w700)),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: severityColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(severity,
-                        style: GoogleFonts.poppins(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white)),
-                  ),
-                ],
-              ),
-              if (summary.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(summary,
-                    style: GoogleFonts.poppins(
-                        fontSize: 13, height: 1.5)),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        if (causes.isNotEmpty) ...[
-          _sectionTitle('🔍 Sababu Zinazowezekana'),
-          ...causes.map((c) => _bullet(c.toString())),
-          const SizedBox(height: 16),
-        ],
-        if (actions.isNotEmpty) ...[
-          _sectionTitle('🔧 Hatua za Kuchukua'),
-          ...actions.map((a) => _bullet(a.toString())),
-          const SizedBox(height: 16),
-        ],
-        if (warnings.isNotEmpty) ...[
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: AppColors.warning.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.warning_amber_rounded,
-                        color: AppColors.warning, size: 20),
-                    const SizedBox(width: 8),
-                    Text('⚠️ Tahadhari za Usalama',
-                        style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.warning)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ...warnings.map((w) =>
-                    _bullet(w.toString(), color: AppColors.warning)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-        if (detailed.isNotEmpty) ...[
-          _sectionTitle('📖 Maelezo ya Kina'),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Text(detailed,
-                style: GoogleFonts.poppins(fontSize: 13, height: 1.6)),
-          ),
-          const SizedBox(height: 16),
-        ],
-        if (specialty.isNotEmpty) ...[
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.engineering_outlined,
-                    color: AppColors.primary, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text('Recommended: $specialty',
-                      style: GoogleFonts.poppins(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-
-        // FIND MECHANIC BUTTON
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.amber.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.amber),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'If you\'re not satisfied with our AI diagnosis analysis, you may find out our mechanic.',
-                style: GoogleFonts.poppins(fontSize: 12, height: 1.5),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: _goToMechanics,
-                  icon: const Icon(Icons.engineering, size: 18),
-                  label: const Text('Find a Mechanic'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _sectionTitle(String t) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(t,
-            style: GoogleFonts.poppins(
-                fontSize: 15, fontWeight: FontWeight.w700)),
-      );
-
-  Widget _bullet(String t, {Color? color}) => Padding(
-        padding: const EdgeInsets.only(bottom: 6, left: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: color ?? AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
+              child: const Icon(Icons.smart_toy_outlined,
+                  color: AppColors.primary, size: 20),
             ),
             const SizedBox(width: 10),
-            Expanded(
-              child: Text(t,
-                  style: GoogleFonts.poppins(
-                      fontSize: 13, height: 1.5, color: color)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Mechanic AI',
+                    style: GoogleFonts.poppins(
+                        fontSize: 15, fontWeight: FontWeight.bold)),
+                Text('Online • Multi-language',
+                    style: GoogleFonts.poppins(
+                        fontSize: 10, color: AppColors.textMuted)),
+              ],
             ),
           ],
         ),
-      );
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _resetChat,
+            tooltip: 'Anza upya',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: _messages.length == 1
+                ? _emptyState()
+                : ListView.builder(
+                    controller: _scrollCtrl,
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                    itemCount: _messages.length,
+                    itemBuilder: (_, i) => _bubble(_messages[i]),
+                  ),
+          ),
+          if (_messages.length > 1 && !_sending) _findMechanicCTA(),
+          _inputBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    final prompts = [
+      '🚗 Gari linatoa moshi mweusi',
+      '🔊 Breki zinasikika kwa kelele',
+      '⚠️ Check engine light ipo',
+      '🔋 Gari halizimi asubuhi',
+      '💧 Kuna mafuta yanachuruzika',
+      '🌡️ Gari linaoverheat',
+    ];
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.primary, AppColors.primaryDark],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.smart_toy_outlined,
+                size: 40, color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+          Text('Mechanic AI',
+              style: GoogleFonts.poppins(
+                  fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Text('Ninaweza kukusaidia kuchunguza tatizo la gari lako',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                  fontSize: 12, color: AppColors.textMuted)),
+          const SizedBox(height: 28),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('💡 Jaribu kuuliza:',
+                style: GoogleFonts.poppins(
+                    fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(height: 10),
+          ...prompts.map((p) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: InkWell(
+                  onTap: () => _send(p.substring(2).trim()),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Text(p,
+                        style: GoogleFonts.poppins(
+                            fontSize: 13, color: AppColors.textPrimary)),
+                  ),
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  Widget _bubble(_ChatMessage m) {
+    final isUser = m.role == 'user';
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.82),
+        child: Column(
+          crossAxisAlignment:
+              isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            if (m.imageBytes != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(
+                    m.imageBytes!,
+                    width: 200,
+                    height: 200,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isUser ? AppColors.primary : Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(16),
+                  topRight: const Radius.circular(16),
+                  bottomLeft: Radius.circular(isUser ? 16 : 4),
+                  bottomRight: Radius.circular(isUser ? 4 : 16),
+                ),
+                border: isUser
+                    ? null
+                    : Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: m.isLoading
+                  ? _typingIndicator()
+                  : _markdownish(
+                      m.content,
+                      isUser ? Colors.white : AppColors.textPrimary,
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 2, left: 4, right: 4),
+              child: Text(
+                '${m.timestamp.hour}:${m.timestamp.minute.toString().padLeft(2, '0')}',
+                style: GoogleFonts.poppins(
+                    fontSize: 9, color: AppColors.textMuted),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _typingIndicator() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        width: 8, height: 8,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.5 + i * 0.15),
+          shape: BoxShape.circle,
+        ),
+      )),
+    );
+  }
+
+  /// Simple markdown-ish formatter: **bold**, line breaks, numbered lists.
+  Widget _markdownish(String text, Color color) {
+    final lines = text.split('\n');
+    final spans = <TextSpan>[];
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      // Bold segments
+      final parts = line.split('**');
+      for (var j = 0; j < parts.length; j++) {
+        spans.add(TextSpan(
+          text: parts[j],
+          style: GoogleFonts.poppins(
+            fontSize: 13.5,
+            height: 1.5,
+            color: color,
+            fontWeight: j.isOdd ? FontWeight.bold : FontWeight.normal,
+          ),
+        ));
+      }
+      if (i < lines.length - 1) {
+        spans.add(TextSpan(
+          text: '\n',
+          style: GoogleFonts.poppins(fontSize: 13.5, color: color),
+        ));
+      }
+    }
+    return RichText(text: TextSpan(children: spans));
+  }
+
+  Widget _findMechanicCTA() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      color: Colors.amber.withValues(alpha: 0.15),
+      child: Row(
+        children: [
+          const Icon(Icons.engineering_outlined,
+              color: Colors.orange, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Hujaridhika? Mwone mechanic wetu.',
+              style: GoogleFonts.poppins(fontSize: 11.5),
+            ),
+          ),
+          TextButton(
+            onPressed: _goToMechanics,
+            style: TextButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              minimumSize: const Size(0, 34),
+            ),
+            child: Text('Find Mechanic',
+                style: GoogleFonts.poppins(
+                    fontSize: 11, color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _inputBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            if (_pendingImage != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8, left: 8, right: 8),
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.memory(_pendingImage!,
+                          width: 70, height: 70, fit: BoxFit.cover),
+                    ),
+                    Positioned(
+                      top: 2, right: 2,
+                      child: GestureDetector(
+                        onTap: () => setState(() {
+                          _pendingImage = null;
+                          _pendingImageName = null;
+                        }),
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                              color: Colors.red, shape: BoxShape.circle),
+                          child: const Icon(Icons.close,
+                              color: Colors.white, size: 14),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Row(
+              children: [
+                IconButton(
+                  onPressed: _sending ? null : _pickImage,
+                  icon: const Icon(Icons.add_photo_alternate_outlined,
+                      color: AppColors.primary),
+                  tooltip: 'Tuma picha',
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _msgCtrl,
+                    minLines: 1,
+                    maxLines: 4,
+                    enabled: !_sending,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _send(),
+                    decoration: InputDecoration(
+                      hintText: 'Andika tatizo la gari lako...',
+                      hintStyle: GoogleFonts.poppins(fontSize: 13),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: AppColors.border),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  decoration: BoxDecoration(
+                    color: _sending
+                        ? Colors.grey
+                        : AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    onPressed: _sending ? null : () => _send(),
+                    icon: _sending
+                        ? const SizedBox(
+                            width: 18, height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation(
+                                    Colors.white)),
+                          )
+                        : const Icon(Icons.send, color: Colors.white, size: 20),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
