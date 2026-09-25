@@ -1450,77 +1450,76 @@ class PasswordResetConfirmView(APIView):
 
 # ============ SERVICE DIAGNOSIS (AI) ============
 class ServiceDiagnosisView(APIView):
+    """
+    AI Diagnosis — Groq-powered, multi-language, vision-capable.
+    """
     permission_classes = [AllowAny]
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+        JSONParser,
+    ]
 
     def post(self, request):
+        from apps.ai_diagnosis.services.groq_service import diagnose_with_ai
+        import uuid
+
         vehicle_make = request.data.get('vehicle_make', 'Unknown')
         vehicle_model = request.data.get('vehicle_model', 'Unknown')
         vehicle_year = request.data.get('vehicle_year', '')
-        symptoms = request.data.get('symptoms', '').lower()
+        symptoms = request.data.get('symptoms', '')
         additional_info = request.data.get('additional_info', '')
-        diagnosis_id = f"DX-{uuid.uuid4().hex[:8].upper()}"
-        possible_causes = []
-        recommended_actions = []
-        safety_warnings = []
-        should_call_mechanic = True
-        mechanic_specialty = "General Mechanic"
-        if "zima" in symptoms or "start" in symptoms or "stall" in symptoms:
-            possible_causes.append("Engine belt broken or loose")
-            possible_causes.append("Fuel delivery problem (clogged filter or pump failure)")
-            possible_causes.append("Battery or alternator failure")
-            possible_causes.append("Ignition system fault (spark plugs or coils)")
-            recommended_actions.append("Check engine belt tension and condition")
-            recommended_actions.append("Check fuel pump and filter")
-            recommended_actions.append("Test battery voltage and alternator output")
-            recommended_actions.append("Inspect spark plugs and ignition coils")
-            safety_warnings.append("Do not attempt to start the vehicle if you suspect fuel leak")
-            safety_warnings.append("If you smell fuel, turn off the engine immediately")
-            mechanic_specialty = "Engine Specialist"
-        if "overheat" in symptoms or "joto" in symptoms:
-            possible_causes.append("Coolant level low")
-            possible_causes.append("Thermostat stuck closed")
-            possible_causes.append("Radiator fan failure")
-            recommended_actions.append("Check coolant level when engine is cold")
-            recommended_actions.append("Inspect radiator fan operation")
-            safety_warnings.append("Never open radiator cap while engine is hot")
-            mechanic_specialty = "Cooling System Specialist"
-        if "brake" in symptoms or "breki" in symptoms:
-            possible_causes.append("Brake pads worn out")
-            possible_causes.append("Brake fluid low")
-            possible_causes.append("Brake rotor damage")
-            recommended_actions.append("Check brake pad thickness")
-            recommended_actions.append("Check brake fluid level")
-            safety_warnings.append("Brake failure can cause serious accidents")
-            mechanic_specialty = "Brake Specialist"
-        if "engine light" in symptoms or "check engine" in symptoms:
-            possible_causes.append("O2 sensor failure")
-            possible_causes.append("Mass air flow sensor issue")
-            possible_causes.append("Catalytic converter problem")
-            recommended_actions.append("Read OBD-II codes using a scanner")
-            recommended_actions.append("Check O2 sensor readings")
-            mechanic_specialty = "Auto Electrician"
-        if not possible_causes:
-            possible_causes.append(f"Unknown issue with {vehicle_make} {vehicle_model}")
-            recommended_actions.append("Visit a certified mechanic for physical inspection")
-            safety_warnings.append("Do not drive if you feel unsafe")
-            mechanic_specialty = "General Mechanic"
-        if vehicle_make.lower() in ['toyota', 'land cruiser']:
-            possible_causes.append("Common issue with toyota land cruiser models (check recalls)")
-        response_data = {
-            "diagnosis_id": diagnosis_id,
-            "possible_causes": possible_causes[:5],
-            "recommended_actions": recommended_actions[:4],
-            "safety_warnings": safety_warnings[:2],
-            "should_call_mechanic": should_call_mechanic,
-            "mechanic_specialty": mechanic_specialty
-        }
-        return Response({
-            "success": True,
-            "message": "Diagnosis complete",
-            "data": response_data
-        })
 
-# ============ PAYMENT GATEWAY (SELCOM) ============
+        # Image (optional)
+        image_bytes = None
+        image_name = ''
+        image_file = request.FILES.get('image')
+        if image_file:
+            try:
+                image_bytes = image_file.read()
+                image_name = image_file.name
+            except Exception as e:
+                print(f"[AI] Image read error: {e}")
+
+        # Fanya AI diagnosis
+        try:
+            result = diagnose_with_ai(
+                vehicle_make=vehicle_make,
+                vehicle_model=vehicle_model,
+                vehicle_year=vehicle_year,
+                symptoms=symptoms,
+                additional_info=additional_info,
+                image_bytes=image_bytes,
+                image_name=image_name,
+            )
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'AI diagnosis imeshindwa: {str(e)}',
+                'data': None,
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Response
+        diagnosis_id = f"DX-{uuid.uuid4().hex[:8].upper()}"
+
+        return Response({
+            'success': True,
+            'message': 'Uchambuzi umekamilika',
+            'data': {
+                'diagnosis_id': diagnosis_id,
+                'vehicle': f"{vehicle_make} {vehicle_model} ({vehicle_year})",
+                'summary': result.get('summary', ''),
+                'possible_causes': result.get('causes', []),
+                'recommended_actions': result.get('actions', []),
+                'safety_warnings': result.get('safety_warnings', []),
+                'severity': result.get('severity', 'MEDIUM'),
+                'mechanic_specialty': result.get('mechanic_specialty', 'General Mechanic'),
+                'detailed_explanation': result.get('detailed_explanation', ''),
+                'should_call_mechanic': True,
+                'has_image': image_bytes is not None,
+            },
+        }, status=status.HTTP_200_OK)
+
 class PaymentGatewayInitiateView(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request):
