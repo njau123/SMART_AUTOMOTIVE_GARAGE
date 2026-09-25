@@ -237,17 +237,6 @@ _Kama hujaridhika na uchambuzi wetu, unaweza kuona mechanic wetu._
 
 FUPI. MOJA KWA MOJA. MSaada, sio mazungumzo.
 """
-
-
-def chat_with_ai(
-    message: str,
-    vehicle_make: str = '',
-    vehicle_model: str = '',
-    vehicle_year: str = '',
-    history: list = None,
-    image_bytes: bytes = None,
-) -> dict:
-    """
     Multi-turn chat na AI mechanic.
     Returns: {'reply': str, 'model_used': str}
     """
