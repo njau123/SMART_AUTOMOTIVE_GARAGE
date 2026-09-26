@@ -1182,6 +1182,48 @@ class ChatAPI {
     );
     return Map<String, dynamic>.from(data as Map);
   }
+
+  /// User anathibitisha service (YES = amehudumiwa, NO = extend).
+  static Future<Map<String, dynamic>> serviceConfirm({
+    required int roomId,
+    required String answer,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/service-confirm/',
+      {'answer': answer},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// User anaongeza +15 min extension.
+  static Future<Map<String, dynamic>> extendTime({
+    required int roomId,
+    int minutes = 15,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/extend-time/',
+      {'minutes': minutes},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// User anatuma feedback baada ya service.
+  static Future<Map<String, dynamic>> sendFeedback({
+    required int roomId,
+    required String feedback,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/send-feedback/',
+      {'feedback': feedback},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 

@@ -227,7 +227,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='accept-ready')
     def accept_ready(self, request, pk=None):
-        """Mechanic anakubali + ana-set ETA mwenyewe (masaa + dakika)."""
+        """Mechanic anakubali + ana-set location yake."""
         room = self.get_object()
 
         if not room.participants.filter(id=request.user.id).exists():
@@ -241,211 +241,31 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             return Response({'success': False, 'message': 'Hakuna ready request'},
                 status=status.HTTP_404_NOT_FOUND)
 
-        # Mechanic location (optional)
+        # Mechanic location
         req.mechanic_latitude = request.data.get('mechanic_latitude')
         req.mechanic_longitude = request.data.get('mechanic_longitude')
 
-        # ===== MANUAL ETA (kutoka mechanic) =====
-        try:
-            travel_hours = int(request.data.get('travel_hours', 0))
-            travel_minutes = int(request.data.get('travel_minutes', 0))
-        except (ValueError, TypeError):
-            travel_hours = 0
-            travel_minutes = 0
+        # Calculate ETA
+        req.calculate_eta()
 
-        manual_minutes = travel_hours * 60 + travel_minutes
-        if manual_minutes <= 0:
-            return Response({
-                'success': False,
-                'message': 'Weka muda wa kufika (masaa au dakika)',
-            }, status=status.HTTP_400_BAD_REQUEST)
+        if req.eta_minutes:
+            from django.utils import timezone
+            req.countdown_ends_at = timezone.now() + timezone.timedelta(minutes=req.eta_minutes)
 
-        req.eta_minutes = manual_minutes
-
-        # Calculate distance kama location zipo (kwa taarifa)
-        try:
-            if req.user_latitude and req.mechanic_latitude:
-                import math
-                R = 6371
-                lat1 = math.radians(float(req.user_latitude))
-                lat2 = math.radians(float(req.mechanic_latitude))
-                dlat = lat2 - lat1
-                dlng = math.radians(float(req.mechanic_longitude) - float(req.user_longitude))
-                a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlng/2)**2
-                req.distance_km = round(R * 2 * math.asin(math.sqrt(a)), 2)
-        except Exception:
-            pass
-
-        from django.utils import timezone as tz
-        req.countdown_ends_at = tz.now() + tz.timedelta(minutes=manual_minutes)
         req.status = 'accepted'
+        from django.utils import timezone as tz
         req.accepted_at = tz.now()
         req.save()
 
-        # Notification kwa user
-        try:
-            from apps.notifications.services import send_notification_to_user
-            send_notification_to_user(
-                user=req.user,
-                title='✅ Mechanic anakuja',
-                message=f'{request.user.get_full_name()} atakufikia baada ya dakika {manual_minutes}.',
-                notification_type='mechanic',
-                data={
-                    'type': 'ready_accepted',
-                    'room_id': str(room.id),
-                    'request_id': req.id,
-                },
-            )
-        except Exception as e:
-            print(f'[Notif accept_ready] {e}')
-
         return Response({
             'success': True,
-            'message': f'Ume-set muda wa dakika {manual_minutes}',
+            'message': f'Umekubali. ETA: dakika {req.eta_minutes}',
             'data': {
                 'request_id': req.id,
                 'status': req.status,
-                'eta_minutes': manual_minutes,
-                'countdown_ends_at': req.countdown_ends_at.isoformat(),
-                'distance_km': float(req.distance_km) if req.distance_km else None,
-            },
-        })
-
-    @action(detail=True, methods=['post'], url_path='service-confirm')
-    def service_confirm(self, request, pk=None):
-        """User anajibu: YES (amehudumiwa) au NO (extend time)."""
-        room = self.get_object()
-
-        if not room.participants.filter(id=request.user.id).exists():
-            return Response({'success': False, 'message': 'Hauna ruhusa'},
-                status=status.HTTP_403_FORBIDDEN)
-
-        req = ReadyRequest.objects.filter(
-            room=room, status='accepted'
-        ).order_by('-id').first()
-
-        if not req:
-            return Response({'success': False, 'message': 'Hakuna request active'},
-                status=status.HTTP_404_NOT_FOUND)
-
-        answer = (request.data.get('answer') or '').lower()
-
-        if answer == 'yes':
-            # Service complete
-            req.status = 'completed'
-            from django.utils import timezone as tz
-            req.completed_at = tz.now()
-            if hasattr(req, 'metadata'):
-                meta = req.metadata if isinstance(req.metadata, dict) else {}
-                meta['feedback_pending'] = True
-                req.metadata = meta
-            req.save()
-
-            # Notification kwa mechanic + admin
-            try:
-                from apps.notifications.services import send_notification_to_user
-                send_notification_to_user(
-                    user=req.mechanic,
-                    title='✅ Service imekamilika',
-                    message=f'{req.user.get_full_name()} amethibitisha huduma.',
-                    notification_type='service',
-                )
-                # Admin
-                try:
-                    from apps.accounts.models import User as _U
-                    for admin in _U.objects.filter(role__in=['ADMIN', 'SUPER_ADMIN']):
-                        send_notification_to_user(
-                            user=admin,
-                            title='📋 Service Completed',
-                            message=f'User {req.user.email} amekamilisha na mechanic {req.mechanic.email}.',
-                            notification_type='system',
-                        )
-                except Exception:
-                    pass
-            except Exception as e:
-                print(f'[Notif service_confirm yes] {e}')
-
-            return Response({
-                'success': True,
-                'message': 'Asante! Tafadhali toa maoni yako.',
-                'data': {
-                    'status': 'completed',
-                    'feedback_pending': True,
-                },
-            })
-
-        elif answer == 'no':
-            # Omba extension
-            return Response({
-                'success': True,
-                'message': 'Je, unaruhusu dakika 15 za ziada?',
-                'data': {
-                    'status': 'waiting_extension',
-                    'extension_minutes': 15,
-                },
-            })
-
-        return Response({
-            'success': False,
-            'message': 'Jibu YES au NO',
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=True, methods=['post'], url_path='extend-time')
-    def extend_time(self, request, pk=None):
-        """User ana-accept +15 min extension."""
-        room = self.get_object()
-
-        if not room.participants.filter(id=request.user.id).exists():
-            return Response({'success': False, 'message': 'Hauna ruhusa'},
-                status=status.HTTP_403_FORBIDDEN)
-
-        req = ReadyRequest.objects.filter(
-            room=room, status='accepted'
-        ).order_by('-id').first()
-
-        if not req:
-            return Response({'success': False, 'message': 'Hakuna request active'},
-                status=status.HTTP_404_NOT_FOUND)
-
-        extension = int(request.data.get('minutes', 15))
-        from django.utils import timezone as tz
-
-        # Ongeza kwenye countdown ya sasa
-        base = req.countdown_ends_at or tz.now()
-        req.countdown_ends_at = base + tz.timedelta(minutes=extension)
-        req.save()
-
-        # Notification kwa mechanic
-        try:
-            from apps.notifications.services import send_notification_to_user
-            send_notification_to_user(
-                user=req.mechanic,
-                title='⏱️ Muda wa ziada',
-                message=f'{req.user.get_full_name()} ameongeza dakika {extension}.',
-                notification_type='mechanic',
-                data={'type': 'time_extension', 'minutes': extension},
-            )
-            # Admin
-            try:
-                from apps.accounts.models import User as _U
-                for admin in _U.objects.filter(role__in=['ADMIN', 'SUPER_ADMIN']):
-                    send_notification_to_user(
-                        user=admin,
-                        title='⚠️ Emergency Extension',
-                        message=f'User {req.user.email} ameongeza dakika {extension}. Mechanic: {req.mechanic.email}.',
-                        notification_type='alert',
-                    )
-            except Exception:
-                pass
-        except Exception as e:
-            print(f'[Notif extend] {e}')
-
-        return Response({
-            'success': True,
-            'message': f'Dakika {extension} zimeongezwa',
-            'data': {
-                'countdown_ends_at': req.countdown_ends_at.isoformat(),
-                'extension_minutes': extension,
+                'eta_minutes': req.eta_minutes,
+                'distance_km': str(req.distance_km) if req.distance_km else None,
+                'countdown_ends_at': req.countdown_ends_at.isoformat() if req.countdown_ends_at else None,
             },
         })
 
@@ -988,52 +808,6 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                 'address': address,
                 'distance_km': float(rr.distance_km) if rr.distance_km else None,
             },
-        })
-
-
-
-    @action(detail=True, methods=['post'], url_path='send-feedback')
-    def send_feedback(self, request, pk=None):
-        """User anatuma feedback baada ya service."""
-        room = self.get_object()
-
-        if not room.participants.filter(id=request.user.id).exists():
-            return Response({'success': False, 'message': 'Hauna ruhusa'},
-                status=status.HTTP_403_FORBIDDEN)
-
-        feedback = (request.data.get('feedback') or '').strip()
-        if not feedback:
-            return Response({'success': False, 'message': 'Feedback ni tupu'},
-                status=status.HTTP_400_BAD_REQUEST)
-
-        req = ReadyRequest.objects.filter(room=room).order_by('-id').first()
-        if req:
-            meta = req.metadata if hasattr(req, 'metadata') and isinstance(req.metadata, dict) else {}
-            meta['user_feedback'] = feedback
-            meta['feedback_at'] = str(__import__('django.utils.timezone', fromlist=['now']).now())
-            try:
-                req.metadata = meta
-                req.save()
-            except Exception:
-                pass
-
-        # Notification kwa admin
-        try:
-            from apps.notifications.services import send_notification_to_user
-            from apps.accounts.models import User as _U
-            for admin in _U.objects.filter(role__in=['ADMIN', 'SUPER_ADMIN']):
-                send_notification_to_user(
-                    user=admin,
-                    title='📩 User Feedback',
-                    message=f'{request.user.email}: {feedback[:80]}',
-                    notification_type='system',
-                )
-        except Exception as e:
-            print(f'[Feedback notif] {e}')
-
-        return Response({
-            'success': True,
-            'message': 'Asante kwa maoni yako!',
         })
 
 
