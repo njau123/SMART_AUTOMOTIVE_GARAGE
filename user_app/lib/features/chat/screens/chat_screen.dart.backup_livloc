@@ -50,7 +50,6 @@ class _ChatScreenState extends State<ChatScreen> {
   // BOOKING APPROVAL (user)
   String _approvalStatus = 'none';
   bool _sharingLocation = false;
-  StreamSubscription<Position>? _locationStream;
   // ignore: unused_field
   String? _approvalId;
   Timer? _approvalPoller;
@@ -499,7 +498,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    _locationStream?.cancel();
     _approvalPoller?.cancel();
     _pollTimer?.cancel();
     _recordTimer?.cancel();
@@ -1176,59 +1174,6 @@ class _ChatScreenState extends State<ChatScreen> {
     } finally {
       if (mounted) setState(() => _sharingLocation = false);
     }
-  }
-
-
-  /// Live tracking — inatuma location kila mita 30.
-  Future<void> _startLiveTracking() async {
-    try {
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
-        throw Exception('Ruhusa ya location haijatolewa');
-      }
-
-      await _locationStream?.cancel();
-
-      const settings = LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 30,
-      );
-
-      _locationStream =
-          Geolocator.getPositionStream(locationSettings: settings)
-              .listen((pos) async {
-        try {
-          await ChatAPI.shareLocation(
-            roomId: widget.roomId,
-            latitude: pos.latitude,
-            longitude: pos.longitude,
-            address: '',
-          );
-        } catch (_) {}
-      });
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🛰️ Live tracking imeanza'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Stream: $e'), backgroundColor: Colors.red),
-      );
-    }
-  }
-
-  void _stopLiveTracking() {
-    _locationStream?.cancel();
-    _locationStream = null;
   }
 
   Widget _normalInputBar() {

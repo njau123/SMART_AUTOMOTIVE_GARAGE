@@ -1,5 +1,3 @@
-import 'package:geolocator/geolocator.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -50,7 +48,6 @@ class _ChatScreenState extends State<ChatScreen> {
   String _approvalStatus = 'none';
   String? _approvalId;
   Timer? _approvalPoller;
-  bool _sharingLocation = false;
 
   @override
   void initState() {
@@ -119,15 +116,15 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _loadMessages({bool silent = false}) async {
+  Future<void> _loadMessages() async {
     try {
       final data = await ChatAPI.getMessages(widget.roomId);
       if (mounted) {
-        setState(() { _messages = data; if (!silent) _loading = false; });
-        if (!silent) _scrollToBottom();
+        setState(() { _messages = data; _loading = false; });
+        _scrollToBottom();
       }
     } catch (_) {
-      if (mounted && !silent) setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -330,8 +327,6 @@ class _ChatScreenState extends State<ChatScreen> {
               url: mediaUrls.first.toString(),
               isMine: isMine,
             )
-          else if (msgType == 'location')
-            _locationCard(msg, isMine)
           else
             Text(
               content,
@@ -388,141 +383,6 @@ class _ChatScreenState extends State<ChatScreen> {
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: bubble,
-    );
-  }
-
-
-  Widget _locationCard(dynamic msg, bool isMine) {
-    final content = msg['content']?.toString() ?? '';
-    final address = content.replaceAll('📍', '').trim();
-    final meta = msg['metadata'] is Map ? msg['metadata'] as Map : {};
-    final lat = meta['latitude'] ?? '';
-    final lng = meta['longitude'] ?? '';
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isMine ? Colors.white.withValues(alpha: 0.15) : Colors.green.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isMine ? Colors.white54 : Colors.green.shade200,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.location_on,
-                color: isMine ? Colors.white : Colors.green.shade700,
-                size: 20,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'Location ya mteja',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: isMine ? Colors.white : Colors.green.shade900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            address.isEmpty ? 'Location haipo' : address,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              height: 1.4,
-              color: isMine ? Colors.white : Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              // Open in Google Maps
-              InkWell(
-                onTap: () async {
-                  final query = address.isNotEmpty
-                      ? Uri.encodeComponent(address)
-                      : '$lat,$lng';
-                  final url = Uri.parse(
-                    'https://www.google.com/maps/search/?api=1&query=$query',
-                  );
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isMine ? Colors.white : AppTheme.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.map_outlined,
-                        size: 14,
-                        color: isMine ? AppTheme.primary : Colors.white,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Fungua Maps',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: isMine ? AppTheme.primary : Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Share my location back
-              InkWell(
-                onTap: _shareLocation,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isMine
-                        ? Colors.white.withValues(alpha: 0.2)
-                        : Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.my_location,
-                        size: 14,
-                        color: isMine ? Colors.white : Colors.green.shade800,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Tuma yangu',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: isMine ? Colors.white : Colors.green.shade800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -948,47 +808,6 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       default:
         return const SizedBox.shrink();
-    }
-  }
-
-
-  Future<void> _shareLocation() async {
-    if (_sharingLocation) return;
-    setState(() => _sharingLocation = true);
-    try {
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
-        throw Exception('Ruhusa ya location haijatolewa');
-      }
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 15),
-      );
-      await ChatAPI.shareLocation(
-        roomId: widget.roomId,
-        latitude: pos.latitude,
-        longitude: pos.longitude,
-        address: '',
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Location imetumwa ✅'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      _loadMessages(silent: true);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Imeshindwa: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _sharingLocation = false);
     }
   }
 

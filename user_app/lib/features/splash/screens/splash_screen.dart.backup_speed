@@ -24,7 +24,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1500),
     );
     _fadeIn = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeIn),
@@ -34,8 +34,8 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _ctrl.forward();
 
-    // Baada ya sekunde 1.5, enda Home (haraka)
-    Timer(const Duration(milliseconds: 1500), () {
+    // Baada ya sekunde 3.5, enda Home
+    Timer(const Duration(milliseconds: 3500), () {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,

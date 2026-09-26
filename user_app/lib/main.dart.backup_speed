@@ -18,18 +18,20 @@ import 'features/splash/screens/splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // FCM background handler — lazima iwe kabla ya Firebase
+  // Firebase init
+  try {
+    await Firebase.initializeApp(options: firebaseOptions);
+    debugPrint('Firebase initialized');
+  } catch (e) {
+    debugPrint('Firebase init failed: $e');
+  }
+
+  // FCM background handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  // App lifecycle (haraka)
   AppLifecycleService().initialize();
-
-  // Init zote kwa PARALLEL (haraka mara 2-3)
-  await Future.wait([
-    _initFirebase(),
-    ThemeController.instance.init(),
-    AuthState.instance.init(),
-  ], eagerError: false);
+  await ThemeController.instance.init();
+  await AuthState.instance.init();
 
   runApp(
     ChangeNotifierProvider(
@@ -38,17 +40,8 @@ void main() async {
     ),
   );
 
-  // Background services — bila kusubiri
+  // Anza auto-update service (bila kusubiri)
   UpdateService.init();
-}
-
-Future<void> _initFirebase() async {
-  try {
-    await Firebase.initializeApp(options: firebaseOptions);
-    debugPrint('Firebase initialized');
-  } catch (e) {
-    debugPrint('Firebase init failed: $e');
-  }
 }
 
 class UserApp extends StatelessWidget {

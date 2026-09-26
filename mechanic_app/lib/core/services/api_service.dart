@@ -501,30 +501,6 @@ class ChatAPI {
     return Map<String, dynamic>.from(data as Map);
   }
 
-}
-
-
-// =================== BOOKING MECHANIC API ===================
-  /// Tuma location ya user/mechanic kwenye chat room.
-  static Future<Map<String, dynamic>> shareLocation({
-    required int roomId,
-    required double latitude,
-    required double longitude,
-    String address = '',
-  }) async {
-    final token = await TokenStorage.getAccessToken();
-    final data = await ApiService.post(
-      'chat/rooms/$roomId/share-location/',
-      {
-        'latitude': latitude,
-        'longitude': longitude,
-        'address': address,
-      },
-      token: token,
-    );
-    return Map<String, dynamic>.from(data as Map);
-  
-
   /// Tuma location ya user/mechanic kwenye chat room.
   static Future<Map<String, dynamic>> shareLocation({
     required int roomId,
@@ -544,6 +520,7 @@ class ChatAPI {
     );
     return Map<String, dynamic>.from(data as Map);
   }
+
 }
 
 
