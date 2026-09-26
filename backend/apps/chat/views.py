@@ -2,9 +2,12 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 from .models import (
     ChatRoom, Message, MessageAttachment, UserChatStatus,
     ChatNotification, ChatBlock, ReadyRequest, BookingApproval,
+    OfflineMechanicRequest,
 )
 from .serializers import (
     ChatRoomSerializer, ChatRoomCreateSerializer,
@@ -1570,3 +1573,265 @@ class ChatBlockViewSet(viewsets.ModelViewSet):
                 'success': False,
                 'message': 'User not found in block list'
             }, status=status.HTTP_404_NOT_FOUND)
+
+# ==================== OFFLINE MECHANIC REQUESTS (GROUP 4) ====================
+class OfflineMechanicRequestView(APIView):
+    """User anatuma request kwa mechanic ambaye yupo offline."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from apps.accounts.models import User
+        from apps.mechanics.models import MechanicProfile
+        from apps.notifications.services import send_notification_to_user
+        import json
+
+        mechanic_user_id = request.data.get("mechanic_user_id")
+        message = (request.data.get("message") or "").strip()
+        lat = request.data.get("user_latitude")
+        lng = request.data.get("user_longitude")
+
+        if not mechanic_user_id:
+            return Response({
+                "success": False,
+                "message": "Mechanic haipo",
+            }, status=400)
+
+        try:
+            mechanic_user = User.objects.get(id=int(mechanic_user_id))
+        except (User.DoesNotExist, ValueError, TypeError):
+            return Response({
+                "success": False,
+                "message": "Mechanic haipo",
+            }, status=404)
+
+        # Check kama kuna pending request tayari
+        existing = OfflineMechanicRequest.objects.filter(
+            user=request.user, mechanic=mechanic_user,
+            status__in=['PENDING', 'NOTIFIED'],
+        ).first()
+
+        if existing:
+            return Response({
+                "success": True,
+                "message": "Request yako ilishatumwa. Subiri mechanic ajibu.",
+                "data": {
+                    "request_id": existing.id,
+                    "status": existing.status,
+                },
+            })
+
+        # Unda request
+        from django.utils import timezone as tz
+        req = OfflineMechanicRequest.objects.create(
+            user=request.user,
+            mechanic=mechanic_user,
+            user_message=message,
+            user_latitude=lat,
+            user_longitude=lng,
+            status='PENDING',
+            expires_at=tz.now() + tz.timedelta(hours=48),
+        )
+
+        # Check kama mechanic yupo online
+        mech_profile = MechanicProfile.objects.filter(user=mechanic_user).first()
+        if mech_profile and mech_profile.is_online:
+            # Notify mara moja
+            try:
+                send_notification_to_user(
+                    user=mechanic_user,
+                    title=f"🔔 Ombi jipya — {request.user.get_full_name()}",
+                    message=f"{request.user.get_full_name()} anaomba huduma. Fungua app kujibu.",
+                    notification_type='mechanic',
+                    data={
+                        "type": "offline_mechanic_request",
+                        "request_id": str(req.id),
+                        "user_id": str(request.user.id),
+                    },
+                )
+                req.status = 'NOTIFIED'
+                req.save(update_fields=['status'])
+            except Exception as e:
+                print(f"[Notif] {e}")
+
+        return Response({
+            "success": True,
+            "message": "Ombi limetumwa kwa mechanic",
+            "data": {
+                "request_id": req.id,
+                "status": req.status,
+                "mechanic_online": mech_profile.is_online if mech_profile else False,
+            },
+        }, status=201)
+
+
+class MechanicOfflineRequestsView(APIView):
+    """Mechanic anaona requests zote zilizosubiri (PENDING + NOTIFIED)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        requests_qs = OfflineMechanicRequest.objects.filter(
+            mechanic=request.user,
+            status__in=['PENDING', 'NOTIFIED', 'ACCEPTED'],
+        ).select_related('user', 'room').order_by('-created_at')[:50]
+
+        data = []
+        for r in requests_qs:
+            data.append({
+                "id": r.id,
+                "user_id": r.user.id,
+                "user_name": r.user.get_full_name(),
+                "user_email": r.user.email,
+                "user_phone": r.user.phone_number or "",
+                "user_message": r.user_message,
+                "user_latitude": float(r.user_latitude) if r.user_latitude else None,
+                "user_longitude": float(r.user_longitude) if r.user_longitude else None,
+                "status": r.status,
+                "room_id": r.room.id if r.room else None,
+                "created_at": r.created_at.isoformat(),
+                "expires_at": r.expires_at.isoformat() if r.expires_at else None,
+            })
+
+        return Response({
+            "success": True,
+            "count": len(data),
+            "data": data,
+        })
+
+
+class MechanicRespondOfflineRequestView(APIView):
+    """Mechanic anakubali au anakataa request."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        from apps.notifications.services import send_notification_to_user
+        from django.utils import timezone as tz
+
+        try:
+            req = OfflineMechanicRequest.objects.get(pk=pk, mechanic=request.user)
+        except OfflineMechanicRequest.DoesNotExist:
+            return Response({"success": False, "message": "Request haipo"}, status=404)
+
+        action = (request.data.get("action") or "accept").lower()
+        response_msg = (request.data.get("message") or "").strip()
+
+        if action == "accept":
+            req.status = "ACCEPTED"
+            req.mechanic_response = response_msg
+            req.responded_at = tz.now()
+
+            # Unda ChatRoom
+            try:
+                room = ChatRoom.objects.create(
+                    room_type="direct",
+                    name=req.user.get_full_name() or req.user.email,
+                )
+                room.participants.add(req.user, req.mechanic)
+                req.room = room
+            except Exception as e:
+                print(f"[Room create] {e}")
+
+            req.save()
+
+            # Notify user
+            try:
+                send_notification_to_user(
+                    user=req.user,
+                    title=f"✅ {req.mechanic.get_full_name()} amekubali!",
+                    message="Fungua chat kuanza mazungumzo.",
+                    notification_type="mechanic",
+                    data={
+                        "type": "offline_request_accepted",
+                        "request_id": str(req.id),
+                        "room_id": str(req.room.id) if req.room else "",
+                    },
+                )
+            except Exception as e:
+                print(f"[Notif] {e}")
+
+            return Response({
+                "success": True,
+                "message": "Umekubali. Unaweza kuanza mazungumzo.",
+                "data": {
+                    "request_id": req.id,
+                    "status": req.status,
+                    "room_id": req.room.id if req.room else None,
+                },
+            })
+
+        elif action == "reject":
+            req.status = "REJECTED"
+            req.mechanic_response = response_msg or "Mechanic hana muda kwa sasa"
+            req.responded_at = tz.now()
+            req.save()
+
+            # Notify user
+            try:
+                send_notification_to_user(
+                    user=req.user,
+                    title="Ombi limekataliwa",
+                    message=f"{req.mechanic.get_full_name()}: {req.mechanic_response}",
+                    notification_type="mechanic",
+                )
+            except Exception:
+                pass
+
+            return Response({
+                "success": True,
+                "message": "Umekataa ombi",
+                "data": {"request_id": req.id, "status": req.status},
+            })
+
+        return Response({
+            "success": False,
+            "message": "Action ni accept au reject",
+        }, status=400)
+
+
+class MechanicOnlineStatusView(APIView):
+    """Mechanic ana-toggle online/offline."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from apps.mechanics.models import MechanicProfile
+        from django.utils import timezone as tz
+
+        profile = MechanicProfile.objects.filter(user=request.user).first()
+        if not profile:
+            return Response({"success": False, "message": "Wewe sio mechanic"}, status=403)
+
+        online = request.data.get("is_online")
+        profile.is_online = bool(online) if online is not None else not profile.is_online
+        profile.last_seen_at = tz.now()
+        profile.save(update_fields=['is_online', 'last_seen_at'])
+
+        # Kama ameingia online — notify kwa pending requests
+        if profile.is_online:
+            pending = OfflineMechanicRequest.objects.filter(
+                mechanic=request.user,
+                status='PENDING',
+            )
+            for r in pending:
+                try:
+                    from apps.notifications.services import send_notification_to_user
+                    send_notification_to_user(
+                        user=request.user,
+                        title=f"🔔 Ombi — {r.user.get_full_name()}",
+                        message="Unayo pending request. Fungua kujibu.",
+                        notification_type='mechanic',
+                        data={
+                            "type": "offline_mechanic_request",
+                            "request_id": str(r.id),
+                        },
+                    )
+                    r.status = 'NOTIFIED'
+                    r.save(update_fields=['status'])
+                except Exception:
+                    pass
+
+        return Response({
+            "success": True,
+            "data": {
+                "is_online": profile.is_online,
+                "last_seen_at": profile.last_seen_at.isoformat() if profile.last_seen_at else None,
+            },
+        })
