@@ -1390,3 +1390,113 @@ class OBDAPI {
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
 }
+
+// ==================== SERVICE BOOKING API (GROUP 3) ====================
+class ServiceBookingAPI {
+  static Future<Map<String, dynamic>> createBooking({
+    required int serviceId,
+    required String vehicleMake,
+    required String vehicleModel,
+    String vehicleYear = '',
+    String vehicleRegistration = '',
+    String vehicleNotes = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post('service-bookings/create/', {
+      'service_id': serviceId,
+      'vehicle_make': vehicleMake,
+      'vehicle_model': vehicleModel,
+      'vehicle_year': vehicleYear,
+      'vehicle_registration': vehicleRegistration,
+      'vehicle_notes': vehicleNotes,
+    }, token: token);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<List<dynamic>> myBookings() async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get('service-bookings/my/', token: token);
+    if (data is Map && data['data'] is List) return data['data'] as List;
+    return [];
+  }
+
+  static Future<Map<String, dynamic>> payDeposit({
+    required int bookingId,
+    required String phoneNumber,
+    String paymentMethod = 'MOBILE_MONEY',
+    String bankName = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final body = <String, dynamic>{
+      'phone_number': phoneNumber,
+      'payment_method': paymentMethod,
+    };
+    if (bankName.isNotEmpty) body['bank_name'] = bankName;
+    final data = await ApiService.post(
+      'service-bookings/$bookingId/pay-deposit/',
+      body,
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> getStatus(int bookingId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'service-bookings/$bookingId/status/',
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> confirmReceipt({
+    required int bookingId,
+    required String answer,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'service-bookings/$bookingId/confirm-receipt/',
+      {'answer': answer},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> extendTime({
+    required int bookingId,
+    int minutes = 15,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'service-bookings/$bookingId/extend-time/',
+      {'minutes': minutes},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> sendFeedback({
+    required int bookingId,
+    required String feedback,
+    int rating = 0,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'service-bookings/$bookingId/feedback/',
+      {'feedback': feedback, 'rating': rating},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> cancel(int bookingId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'service-bookings/$bookingId/cancel/',
+      {},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+}
+

@@ -61,7 +61,15 @@ from .views import (
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from apps.services.views import ServiceViewSet as NewServiceViewSet, ServiceCategoryViewSet
+from apps.services.views import (
+    ServiceViewSet as NewServiceViewSet, ServiceCategoryViewSet,
+    ServiceBookingCreateView, ServiceBookingListView, ServiceBookingDetailView,
+    ServiceBookingPayDepositView, ServiceBookingStatusView,
+    ServiceBookingConfirmReceiptView, ServiceBookingExtendView,
+    ServiceBookingFeedbackView, ServiceBookingCancelView,
+    AdminServiceBookingListView, AdminServiceBookingVerifyPaymentView,
+    AdminServiceBookingSetAppointmentView,
+)
 
 # Chat views kutoka apps.chat (ina @action messages + mark_read)
 from apps.chat.views import (
@@ -108,6 +116,19 @@ urlpatterns += router.urls
 from .views import ServiceDiagnosisView
 urlpatterns += [
     path('diagnosis/service/', ServiceDiagnosisView.as_view(), name='service-diagnosis'),
+    # ===== SERVICE BOOKINGS (GROUP 3) =====
+    path('service-bookings/create/', ServiceBookingCreateView.as_view(), name='service-booking-create'),
+    path('service-bookings/my/', ServiceBookingListView.as_view(), name='service-booking-list'),
+    path('service-bookings/<int:pk>/', ServiceBookingDetailView.as_view(), name='service-booking-detail'),
+    path('service-bookings/<int:pk>/pay-deposit/', ServiceBookingPayDepositView.as_view(), name='service-booking-pay'),
+    path('service-bookings/<int:pk>/status/', ServiceBookingStatusView.as_view(), name='service-booking-status'),
+    path('service-bookings/<int:pk>/confirm-receipt/', ServiceBookingConfirmReceiptView.as_view(), name='service-booking-confirm'),
+    path('service-bookings/<int:pk>/extend-time/', ServiceBookingExtendView.as_view(), name='service-booking-extend'),
+    path('service-bookings/<int:pk>/feedback/', ServiceBookingFeedbackView.as_view(), name='service-booking-feedback'),
+    path('service-bookings/<int:pk>/cancel/', ServiceBookingCancelView.as_view(), name='service-booking-cancel'),
+    path('admin/service-bookings/', AdminServiceBookingListView.as_view(), name='admin-service-bookings'),
+    path('admin/service-bookings/<int:pk>/verify/', AdminServiceBookingVerifyPaymentView.as_view(), name='admin-service-booking-verify'),
+    path('admin/service-bookings/<int:pk>/set-appointment/', AdminServiceBookingSetAppointmentView.as_view(), name='admin-service-booking-set-appointment'),
     path('diagnosis/chat/', DiagnosisChatView.as_view(), name='diagnosis-chat'),
 ]
 

@@ -10,6 +10,7 @@ import '../../features/services/screens/services_screen.dart';
 import '../../features/bookings/screens/my_bookings_screen.dart';
 import '../../features/spare_parts/screens/spare_parts_screen.dart';
 import '../../features/spare_parts/screens/my_orders_screen.dart';
+import '../../features/services/screens/my_service_bookings_screen.dart';
 import '../../features/news/screens/news_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
@@ -135,6 +136,8 @@ class AppDrawer extends StatelessWidget {
                           () => _push(context, const SparePartsScreen())),
                       _item(Icons.receipt_long_outlined, 'Oda Zangu',
                           () => _push(context, const MyOrdersScreen())),
+                      _item(Icons.handyman_outlined, 'Service Zangu',
+                          () => _push(context, const MyServiceBookingsScreen())),
                       _item(Icons.engineering_outlined, t('mechanics'),
                           () => _push(context, const MechanicsScreen())),
                       if (loggedIn) ...[

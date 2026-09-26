@@ -118,3 +118,47 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
             'available_days', 'start_time', 'end_time',
             'fixed_price', 'is_active',
         ]
+
+# ==================== SERVICE BOOKING SERIALIZERS ====================
+from rest_framework import serializers as drf_serializers
+
+
+class ServiceBookingCreateSerializer(drf_serializers.Serializer):
+    service_id = drf_serializers.IntegerField()
+    vehicle_make = drf_serializers.CharField(max_length=100)
+    vehicle_model = drf_serializers.CharField(max_length=100)
+    vehicle_year = drf_serializers.CharField(max_length=20, required=False, allow_blank=True)
+    vehicle_registration = drf_serializers.CharField(max_length=50, required=False, allow_blank=True)
+    vehicle_notes = drf_serializers.CharField(required=False, allow_blank=True)
+
+
+class ServiceBookingSerializer(drf_serializers.ModelSerializer):
+    service_name = drf_serializers.CharField(source="service.name", read_only=True)
+    service_category = drf_serializers.CharField(source="service.category.name", read_only=True)
+    user_email = drf_serializers.CharField(source="user.email", read_only=True)
+    user_name = drf_serializers.CharField(source="user.get_full_name", read_only=True)
+
+    class Meta:
+        from .models import ServiceBooking
+        model = ServiceBooking
+        fields = [
+            "id", "booking_number",
+            "user_email", "user_name",
+            "service", "service_name", "service_category",
+            "vehicle_make", "vehicle_model", "vehicle_year",
+            "vehicle_registration", "vehicle_notes",
+            "total_price", "deposit_amount", "balance_amount",
+            "payment_status", "payment_reference", "payment_phone",
+            "payment_method", "detected_network",
+            "payment_countdown_ends_at",
+            "status",
+            "appointment_date", "appointment_time",
+            "service_location", "distance_km", "eta_minutes",
+            "eta_countdown_ends_at",
+            "receipt_confirmed_at", "extended_count", "completed_at",
+            "user_feedback", "user_rating",
+            "admin_notes",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = fields
+
