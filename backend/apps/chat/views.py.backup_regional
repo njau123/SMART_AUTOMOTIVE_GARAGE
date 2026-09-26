@@ -31,65 +31,12 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         return ChatRoomSerializer
 
     def create(self, request, *args, **kwargs):
-        """Override create — rudisha full ChatRoomSerializer + region validation."""
-        from apps.accounts.models import User
-        from apps.mechanics.models import MechanicProfile
-
-        # ============ REGION VALIDATION ============
-        other_id = request.data.get('other_user_id')
-        participant_ids = request.data.get('participant_ids', []) or []
-
-        other_user = None
-        if other_id:
-            try:
-                other_user = User.objects.get(id=int(other_id))
-            except (User.DoesNotExist, ValueError, TypeError):
-                pass
-        elif participant_ids:
-            try:
-                other_user = User.objects.get(id=int(participant_ids[0]))
-            except (User.DoesNotExist, ValueError, TypeError, IndexError):
-                pass
-
-        if other_user:
-            # Check kama other ni mechanic
-            other_mech = MechanicProfile.objects.filter(user=other_user).first()
-            # Check kama request.user ni mechanic
-            self_mech = MechanicProfile.objects.filter(user=request.user).first()
-
-            # Kama MMOJA ni mechanic — hakikisha region ina-match
-            if other_mech or self_mech:
-                mech_profile = other_mech or self_mech
-                user = other_user if other_mech else request.user
-                mech_region = (mech_profile.region or '').strip().lower()
-
-                # Pata region ya user (yule ambaye sio mechanic)
-                if other_mech:
-                    user_region = (request.user.region or '').strip().lower()
-                else:
-                    user_region = (other_user.region or '').strip().lower()
-
-                if mech_region and user_region and mech_region != user_region:
-                    return Response({
-                        'success': False,
-                        'message': (
-                            f'Huwezi kuwasiliana na mechanic wa region tofauti. '
-                            f'Wewe ni wa {user_region.title()}, '
-                            f'mechanic ni wa {mech_region.title()}.'
-                        ),
-                        'data': None,
-                        'errors': {
-                            'code': 'REGION_MISMATCH',
-                            'user_region': user_region.title(),
-                            'mechanic_region': mech_region.title(),
-                        },
-                    }, status=status.HTTP_403_FORBIDDEN)
-
+        """Override create — rudisha full ChatRoomSerializer."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
 
-        # Rudisha full serializer
+        # Rudisha full serializer (na id, participants, n.k.)
         room = serializer.instance
         full = ChatRoomSerializer(room, context={'request': request})
         return Response({

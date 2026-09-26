@@ -372,49 +372,13 @@ class _MechanicsScreenState extends State<MechanicsScreen> {
       );
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context);
-        final msg = e.toString().replaceAll('Exception: ', '');
-        // Kama ni region mismatch — onyesha dialog nzuri
-        if (msg.toLowerCase().contains('region')) {
-          showDialog(
-            context: context,
-            builder: (_) => AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Row(
-                children: [
-                  const Icon(Icons.location_off, color: Colors.orange),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Region Tofauti',
-                      style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ],
-              ),
-              content: Text(
-                msg,
-                style: GoogleFonts.poppins(fontSize: 13, height: 1.5),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Sawa', style: GoogleFonts.poppins()),
-                ),
-              ],
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(msg),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        Navigator.pop(context); // Funga loading kama ipo
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
