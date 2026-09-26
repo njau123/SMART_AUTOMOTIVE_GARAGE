@@ -112,9 +112,10 @@ urlpatterns += [
 ]
 
 # ============ OBD DIAGNOSIS PAYMENT URL ============
-from .views import OBDPaymentInitiateView
+from .views import OBDPaymentInitiateView, OBDPaymentStatusView
 urlpatterns += [
     path('diagnosis/obd-payment/initiate/', OBDPaymentInitiateView.as_view(), name='obd-payment-initiate'),
+    path('diagnosis/obd-payment/status/', OBDPaymentStatusView.as_view(), name='obd-payment-status'),
 ]
 
 # ============ OBD SCAN WITH PAYMENT URL ============

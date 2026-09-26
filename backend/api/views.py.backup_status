@@ -1861,62 +1861,6 @@ from .pagination import SparePartPagination, VehiclePagination, BookingPaginatio
 # pagination_class = NotificationPagination
 
 # ==================== CONVERSATIONAL DIAGNOSIS ====================
-
-class OBDPaymentStatusView(APIView):
-    """User anaangalia status ya payment yake ya OBD."""
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        from apps.payments.models import Payment
-        from django.utils import timezone
-        from apps.payments.payment_config import PAYMENT_TIMEOUT_MINUTES
-
-        # Pata payment ya mwisho ya user
-        payment = Payment.objects.filter(
-            user=request.user,
-            purpose='OBD_DIAGNOSIS',
-        ).order_by('-created_at').first()
-
-        if not payment:
-            return Response({
-                'success': True,
-                'data': {
-                    'has_payment': False,
-                    'is_paid': False,
-                },
-            })
-
-        # Auto-expire kama muda umepita NA haijalipwa
-        if payment.status in ('PENDING', 'CREATED') and payment.expires_at:
-            if timezone.now() > payment.expires_at:
-                payment.status = 'EXPIRED'
-                payment.save(update_fields=['status'])
-
-        # Calculate remaining
-        remaining = 0
-        if payment.expires_at and payment.status in ('PENDING', 'CREATED'):
-            diff = payment.expires_at - timezone.now()
-            remaining = max(0, int(diff.total_seconds()))
-
-        is_paid = payment.status == 'COMPLETED'
-
-        return Response({
-            'success': True,
-            'data': {
-                'has_payment': True,
-                'payment_id': payment.id,
-                'reference': payment.reference,
-                'status': payment.status,
-                'amount': float(payment.amount),
-                'is_paid': is_paid,
-                'is_expired': payment.status == 'EXPIRED',
-                'countdown_seconds': remaining,
-                'expires_at': payment.expires_at.isoformat() if payment.expires_at else None,
-                'timeout_minutes': PAYMENT_TIMEOUT_MINUTES,
-            },
-        })
-
-
 class DiagnosisChatView(APIView):
     """Chat-style AI diagnosis — multi-turn with persistence."""
     permission_classes = [AllowAny]

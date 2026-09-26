@@ -1342,4 +1342,13 @@ class OBDAPI {
       return false;
     }
   }
+
+  static Future<Map<String, dynamic>> getOBDPaymentStatus() async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'diagnosis/obd-payment/status/',
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
 }
