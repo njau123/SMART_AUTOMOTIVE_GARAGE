@@ -686,43 +686,42 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ============ REVERSE GEOCODE (Mapbox — EXACT) ============
+        # ============ REVERSE GEOCODE (Nominatim — bure) ============
         address = request.data.get('address', '').strip()
-        place_name = ''
         if not address:
             try:
-                import os as _os
                 import requests as _rq
-                token = _os.environ.get('MAPBOX_ACCESS_TOKEN', '').strip()
-                if token:
-                    url = (
-                        'https://api.mapbox.com/geocoding/v5/mapbox.places/'
-                        + str(lng) + ',' + str(lat) + '.json'
-                    )
-                    params = {
-                        'access_token': token,
-                        'types': 'address,place,locality,neighborhood,poi',
-                        'language': 'sw,en',
-                        'limit': 1,
-                    }
-                    resp = _rq.get(url, params=params, timeout=8)
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        features = data.get('features', [])
-                        if features:
-                            place_name = features[0].get('place_name', '')
-                            address = place_name
-                    else:
-                        print('[Mapbox] HTTP ' + str(resp.status_code))
-                else:
-                    print('[Mapbox] Token haipo')
+                url = 'https://nominatim.openstreetmap.org/reverse'
+                params = {
+                    'lat': lat,
+                    'lon': lng,
+                    'format': 'json',
+                    'zoom': 16,
+                    'addressdetails': 1,
+                    'accept-language': 'sw,en',
+                }
+                headers = {'User-Agent': 'SmartGarage/1.0'}
+                resp = _rq.get(url, params=params, headers=headers, timeout=8)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    addr = data.get('address', {})
+                    # Tengeneza address nzuri
+                    parts = []
+                    for key in ['road', 'suburb', 'neighbourhood', 'village',
+                                'town', 'city_district', 'city', 'county',
+                                'state_district', 'state']:
+                        v = addr.get(key)
+                        if v and v not in parts:
+                            parts.append(v)
+                    address = ', '.join(parts[:4])
+                    if not address:
+                        address = data.get('display_name', '')
             except Exception as e:
-                print('[Geocode] error: ' + str(e))
+                print(f'[Geocode] error: {e}')
                 address = ''
 
         if not address:
-            address = str(round(lat, 5)) + ', ' + str(round(lng, 5))
-            place_name = address
+            address = f'{lat:.5f}, {lng:.5f}'
 
         # ============ Pata / Unda ReadyRequest ============
         rr = ReadyRequest.objects.filter(room=room).order_by('-id').first()
