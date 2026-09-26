@@ -297,6 +297,21 @@ class MechanicListView(generics.ListAPIView):
             qs = qs.filter(is_available=True)
         return qs
 
+    def list(self, request, *args, **kwargs):
+        """Cache mechanics list kwa sekunde 60."""
+        from django.core.cache import cache
+        region = request.query_params.get('region', '')
+        available = request.query_params.get('available', '')
+        cache_key = f'sg:mechanics:list:{region}:{available}'
+
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, 60)
+        return response
+
     def get_serializer_context(self):
         return {'request': self.request}
 
