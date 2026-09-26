@@ -18,32 +18,6 @@ class AuthState extends ChangeNotifier {
     _isLoggedIn = await TokenStorage.isLoggedIn();
     _user = await TokenStorage.getUser();
     notifyListeners();
-
-    // Background refresh — sio kuzuia startup
-    if (_isLoggedIn) {
-      _refreshInBackground();
-    }
-  }
-
-  /// Refresh profile kutoka backend bila kuzuia app.
-  /// Inasahihisha: profile_image, region, jina, n.k.
-  Future<void> _refreshInBackground() async {
-    try {
-      final fresh = await AuthAPI.getProfile();
-      if (fresh.isNotEmpty) {
-        _user = {...?_user, ...fresh};
-        await TokenStorage.saveUser(_user!);
-        notifyListeners();
-        debugPrint('[Auth] Profile refreshed');
-      }
-    } catch (e) {
-      debugPrint('[Auth] Refresh failed: $e');
-    }
-  }
-
-  /// Force refresh (public).
-  Future<void> refreshProfile() async {
-    await _refreshInBackground();
   }
 
   Future<void> login(Map<String, dynamic> user) async {
