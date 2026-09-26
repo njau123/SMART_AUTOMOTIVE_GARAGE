@@ -1254,25 +1254,18 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           child: IconButton(
             icon: const Icon(Icons.attach_file, color: AppColors.primary),
+                IconButton(
+                  onPressed: _sharingLocation ? null : _shareLocation,
+                  icon: _sharingLocation
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.location_on, color: Colors.green),
+                  tooltip: 'Tuma location',
+                ),
             onPressed: _sending ? null : _showAttachmentPicker,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.green.shade50,
-            shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            onPressed: _sharingLocation ? null : _shareLocation,
-            icon: _sharingLocation
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.location_on, color: Colors.green),
-            tooltip: 'Tuma location',
           ),
         ),
         const SizedBox(width: 6),

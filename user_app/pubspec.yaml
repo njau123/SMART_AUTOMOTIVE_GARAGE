@@ -48,6 +48,7 @@ dependencies:
   record: ^5.1.2
   just_audio: ^0.9.40
   file_picker: ^8.1.2
+  image_cropper: ^12.2.1
 
 dev_dependencies:
   flutter_test:

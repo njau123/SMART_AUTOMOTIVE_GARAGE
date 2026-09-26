@@ -35,36 +35,10 @@ class _MechanicsScreenState extends State<MechanicsScreen> {
     });
     try {
       // Pata region ya user kutoka AuthState
-      final user = AuthState.instance.user;
-      final userRegion = user?['region']?.toString();
-      debugPrint('[Mechanics] user=$user');
-      debugPrint('[Mechanics] userRegion="$userRegion"');
-
-      // Kama user hana region — REFRESH profile kutoka backend kwanza
-      String? regionFilter = (userRegion != null && userRegion.trim().isNotEmpty)
-          ? userRegion.trim()
-          : null;
-
-      if (regionFilter == null) {
-        try {
-          final profile = await AuthAPI.getProfile();
-          final freshRegion = profile['region']?.toString();
-          debugPrint('[Mechanics] fresh profile region="$freshRegion"');
-          if (freshRegion != null && freshRegion.trim().isNotEmpty) {
-            regionFilter = freshRegion.trim();
-            // Update stored user
-            await AuthState.instance.updateUser(profile);
-          }
-        } catch (e) {
-          debugPrint('[Mechanics] profile refresh failed: $e');
-        }
-      }
-
-      debugPrint('[Mechanics] Filtering by region: "$regionFilter"');
-
+      final userRegion = AuthState.instance.user?['region']?.toString();
       final data = await MethodsAPI.getMechanics(
         onlyAvailable: _onlyAvailable,
-        region: regionFilter,
+        region: (userRegion != null && userRegion.isNotEmpty) ? userRegion : null,
       );
       if (!mounted) return;
       setState(() {
@@ -452,60 +426,41 @@ class _MechanicsScreenState extends State<MechanicsScreen> {
           _detailRow(Icons.work_outline, 'Experience',
               m['experience']?.toString() ?? '-'),
           const SizedBox(height: 24),
-
-          // INFO MESSAGE — eleza kwa nini ni chat kwanza
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.25),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.info_outline,
-                    color: AppColors.primary, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'We want you firstly to start a short conversation with our mechanic for more explanation. '
-                    'After reaching an agreement, the mechanic will allow you to book.',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      height: 1.5,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // CHAT BUTTON — pekee
           SizedBox(
             width: double.infinity,
-            height: 54,
-            child: ElevatedButton.icon(
+            height: 52,
+            child: OutlinedButton.icon(
               onPressed: () => _startChat(m),
-              icon: const Icon(Icons.chat_bubble_outline, size: 20),
-              label: Text(
-                'Start Conversation',
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('Start a Conversation'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary, width: 2),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                if (!AuthGuard.requireLogin(context)) return;
+                final mechanicId = int.tryParse(m['id'].toString()) ?? 0;
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BookingCreateScreen(
+                      mechanicId: mechanicId,
+                      mechanicName: m['full_name']?.toString() ?? 'Mechanic',
+                      mechanicExpertise: m['expertise']?.toString() ?? 'General Mechanic',
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.book_online, size: 20),
+              label: const Text('Book Sasa'),
             ),
           ),
         ],

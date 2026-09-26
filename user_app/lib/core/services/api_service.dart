@@ -1161,10 +1161,33 @@ class ChatAPI {
     }, token: token);
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
+
+
+  /// Tuma location ya user/mechanic kwenye chat room.
+  static Future<Map<String, dynamic>> shareLocation({
+    required int roomId,
+    required double latitude,
+    required double longitude,
+    String address = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/share-location/',
+      {
+        'latitude': latitude,
+        'longitude': longitude,
+        'address': address,
+      },
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 
 // =================== SPARE PART ORDER API ===================
+
+
 class SparePartOrderAPI {
   /// Unda oda mpya (PENDING_PAYMENT).
   static Future<Map<String, dynamic>> create({

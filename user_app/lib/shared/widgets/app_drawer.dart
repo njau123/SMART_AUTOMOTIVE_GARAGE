@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/localization/language_provider.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/state/auth_state.dart';
@@ -53,7 +54,8 @@ class AppDrawer extends StatelessWidget {
         final user = AuthState.instance.user;
         final firstName = user?['first_name']?.toString() ?? 'User';
 
-        return Drawer(
+        final t = AppLocalizations.of(context).t;
+    return Drawer(
           backgroundColor: Theme.of(context).cardColor,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.only(
@@ -124,37 +126,37 @@ class AppDrawer extends StatelessWidget {
                   child: ListView(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     children: [
-                      _item(Icons.home_outlined, 'Home',
+                      _item(Icons.home_outlined, t('home'),
                           () => Navigator.pop(context)),
-                      _item(Icons.build_outlined, 'Services',
+                      _item(Icons.build_outlined, t('services'),
                           () => _push(context, const ServicesScreen())),
-                      _item(Icons.settings_outlined, 'Spare Parts',
+                      _item(Icons.settings_outlined, t('spare_parts'),
                           () => _push(context, const SparePartsScreen())),
-                      _item(Icons.engineering_outlined, 'Find Mechanics',
+                      _item(Icons.engineering_outlined, t('mechanics'),
                           () => _push(context, const MechanicsScreen())),
                       if (loggedIn) ...[
-                        _item(Icons.event_note_outlined, 'My Bookings',
+                        _item(Icons.event_note_outlined, t('bookings'),
                             () => _push(context, const MyBookingsScreen())),
-                        _item(Icons.chat_bubble_outline, 'Messages',
+                        _item(Icons.chat_bubble_outline, t('chat'),
                             () => _push(context, const ChatListScreen())),
                         _item(Icons.bluetooth_searching, 'AI Car Scanner (OBD)',
                             () => _push(context, const ObdScannerScreen())),
                       ],
-                      _item(Icons.psychology_outlined, 'AI Diagnosis',
+                      _item(Icons.psychology_outlined, t('ai_diagnosis'),
                           () => _push(context, const DiagnosisScreen())),
                       _item(Icons.newspaper_outlined, 'News',
                           () => _push(context, const NewsScreen())),
                       const Divider(height: 24, indent: 16, endIndent: 16),
                       if (loggedIn) ...[
                         const Divider(height: 24, indent: 16, endIndent: 16),
-                        _item(Icons.account_balance_wallet_outlined, 'Wallet',
+                        _item(Icons.account_balance_wallet_outlined, t('wallet'),
                             () => _push(context, const WalletScreen())),
                         _item(Icons.receipt_long, 'Historia ya Malipo',
                             () => _push(context, const PaymentHistoryScreen())),
-                        _item(Icons.person_outline, 'Profile',
+                        _item(Icons.person_outline, t('profile'),
                             () => _push(context, const ProfileScreen())),
                       ],
-                      _item(Icons.language, 'Lugha / Language',
+                      _item(Icons.language, t('language'),
                           () => _showLanguagePicker(context)),
                       _item(Icons.info_outline, 'About Us',
                           () => _push(context, const AboutScreen())),
@@ -185,7 +187,7 @@ class AppDrawer extends StatelessWidget {
                             }
                           },
                           icon: const Icon(Icons.logout, size: 18),
-                          label: Text('Logout',
+                          label: Text(t('logout'),
                               style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w600)),
                           style: OutlinedButton.styleFrom(
@@ -202,7 +204,7 @@ class AppDrawer extends StatelessWidget {
                             );
                           },
                           icon: const Icon(Icons.login, size: 18),
-                          label: Text('Login / Sign up',
+                          label: Text(t('login'),
                               style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w600)),
                           style: ElevatedButton.styleFrom(

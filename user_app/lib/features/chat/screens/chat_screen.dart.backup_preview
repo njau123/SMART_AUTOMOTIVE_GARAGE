@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
-import 'image_preview_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -49,7 +48,6 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _readyTimer;
   // BOOKING APPROVAL (user)
   String _approvalStatus = 'none';
-  bool _sharingLocation = false;
   // ignore: unused_field
   String? _approvalId;
   Timer? _approvalPoller;
@@ -201,28 +199,10 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final picker = ImagePicker();
       final file = await picker.pickImage(source: source, imageQuality: 75);
-      if (file == null) return;
-
-      final bytes = await file.readAsBytes();
-
-      if (!mounted) return;
-      final editedBytes = await Navigator.push<Uint8List?>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ImagePreviewScreen(
-            bytes: Uint8List.fromList(bytes),
-            fileName: file.name,
-          ),
-        ),
-      );
-
-      if (editedBytes == null) return;
-
-      await _uploadAndSend(
-        editedBytes,
-        file.name,
-        'image/jpeg',
-      );
+      if (file != null) {
+        final bytes = await file.readAsBytes();
+        await _uploadAndSend(bytes, file.name, file.mimeType ?? 'image/jpeg');
+      }
     } catch (e) {
       _snackError('Imeshindikana kuchagua picha: $e');
     }
@@ -1120,62 +1100,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-
-  Future<void> _shareLocation() async {
-    if (_sharingLocation) return;
-
-    setState(() => _sharingLocation = true);
-    try {
-      // 1. Check permission
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
-        throw Exception('Ruhusa ya location haijatolewa');
-      }
-
-      // 2. Pata position
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 15),
-      );
-
-      // 3. Tuma kwa backend
-      final res = await ChatAPI.shareLocation(
-        roomId: widget.roomId,
-        latitude: pos.latitude,
-        longitude: pos.longitude,
-        address: 'Lat: ${pos.latitude.toStringAsFixed(5)}, Lng: ${pos.longitude.toStringAsFixed(5)}',
-      );
-
-      if (!mounted) return;
-      final data = res['data'] as Map? ?? {};
-      final km = data['distance_km'];
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(km != null
-              ? 'Location imetumwa ✅ (Umbali: ${km}km)'
-              : 'Location imetumwa ✅'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      _loadMessages(silent: true);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Imeshindwa: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _sharingLocation = false);
-    }
-  }
-
   Widget _normalInputBar() {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1255,24 +1179,6 @@ class _ChatScreenState extends State<ChatScreen> {
           child: IconButton(
             icon: const Icon(Icons.attach_file, color: AppColors.primary),
             onPressed: _sending ? null : _showAttachmentPicker,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.green.shade50,
-            shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            onPressed: _sharingLocation ? null : _shareLocation,
-            icon: _sharingLocation
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.location_on, color: Colors.green),
-            tooltip: 'Tuma location',
           ),
         ),
         const SizedBox(width: 6),

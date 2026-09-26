@@ -39,4 +39,12 @@ class AuthState extends ChangeNotifier {
     _showLogoutMessage = false;
     notifyListeners();
   }
+
+  /// Update user data (mfano baada ya profile refresh).
+  Future<void> updateUser(Map<String, dynamic> newData) async {
+    _user = {...?_user, ...newData};
+    await TokenStorage.saveUser(_user!);
+    notifyListeners();
+  }
+
 }
