@@ -940,6 +940,7 @@ class AdminMechanicAPI {
     required String phone,
     required String specialist,
     required String region,
+    int experience = 0,
     String district = '',
   }) async {
     final token = await AdminTokenStorage.getAccessToken();

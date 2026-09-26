@@ -41,10 +41,6 @@ class AdminMechanicCreateView(APIView):
         phone = (data.get('phone') or '').strip()
         specialist = (data.get('specialist') or '').strip()
         region = (data.get('region') or '').strip()
-        try:
-            experience = int(data.get('experience') or 0)
-        except (ValueError, TypeError):
-            experience = 0
 
         # Validation
         if not full_name or not phone or not specialist or not region:
@@ -104,7 +100,6 @@ class AdminMechanicCreateView(APIView):
                 specialties=[specialist],
                 region=region,
                 district=data.get('district', ''),
-                experience=experience,
                 is_verified=True,
                 verification_documents={
                     'registration_number': reg_number,
@@ -124,7 +119,6 @@ class AdminMechanicCreateView(APIView):
                 'phone': phone,
                 'specialist': specialist,
                 'region': region,
-                'experience': experience,
             },
         }, status=status.HTTP_201_CREATED)
 

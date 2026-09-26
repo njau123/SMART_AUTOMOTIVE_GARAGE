@@ -329,7 +329,6 @@ class _MechanicFormScreenState extends State<MechanicFormScreen> {
   final _fullNameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _specialistCtrl = TextEditingController();
-  final _experienceCtrl = TextEditingController();
   String? _selectedRegion;
   final _districtCtrl = TextEditingController();
   bool _saving = false;
@@ -339,7 +338,6 @@ class _MechanicFormScreenState extends State<MechanicFormScreen> {
     _fullNameCtrl.dispose();
     _phoneCtrl.dispose();
     _specialistCtrl.dispose();
-    _experienceCtrl.dispose();
     _districtCtrl.dispose();
     super.dispose();
   }
@@ -352,7 +350,6 @@ class _MechanicFormScreenState extends State<MechanicFormScreen> {
         fullName: _fullNameCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
         specialist: _specialistCtrl.text.trim(),
-        experience: int.tryParse(_experienceCtrl.text.trim()) ?? 0,
         region: (_selectedRegion ?? '').trim(),
         district: _districtCtrl.text.trim(),
       );
@@ -482,17 +479,6 @@ class _MechanicFormScreenState extends State<MechanicFormScreen> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) => v == null || v.isEmpty ? 'Ni lazima' : null,
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _experienceCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Uzoefu (miaka)',
-                    hintText: 'mfano: 5',
-                    prefixIcon: Icon(Icons.work_history_outlined),
-                    border: OutlineInputBorder(),
-                  ),
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
