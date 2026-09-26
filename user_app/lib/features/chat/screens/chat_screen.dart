@@ -1147,7 +1147,7 @@ class _ChatScreenState extends State<ChatScreen> {
         roomId: widget.roomId,
         latitude: pos.latitude,
         longitude: pos.longitude,
-        address: 'Lat: ${pos.latitude.toStringAsFixed(5)}, Lng: ${pos.longitude.toStringAsFixed(5)}',
+        address: '',  // Backend ita-reverse-geocode
       );
 
       if (!mounted) return;

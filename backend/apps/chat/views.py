@@ -686,13 +686,47 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        address = request.data.get('address', '')
+        # ============ REVERSE GEOCODE (Nominatim — bure) ============
+        address = request.data.get('address', '').strip()
+        if not address:
+            try:
+                import requests as _rq
+                url = 'https://nominatim.openstreetmap.org/reverse'
+                params = {
+                    'lat': lat,
+                    'lon': lng,
+                    'format': 'json',
+                    'zoom': 16,
+                    'addressdetails': 1,
+                    'accept-language': 'sw,en',
+                }
+                headers = {'User-Agent': 'SmartGarage/1.0'}
+                resp = _rq.get(url, params=params, headers=headers, timeout=8)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    addr = data.get('address', {})
+                    # Tengeneza address nzuri
+                    parts = []
+                    for key in ['road', 'suburb', 'neighbourhood', 'village',
+                                'town', 'city_district', 'city', 'county',
+                                'state_district', 'state']:
+                        v = addr.get(key)
+                        if v and v not in parts:
+                            parts.append(v)
+                    address = ', '.join(parts[:4])
+                    if not address:
+                        address = data.get('display_name', '')
+            except Exception as e:
+                print(f'[Geocode] error: {e}')
+                address = ''
 
-        # Pata ReadyRequest ya room hii (kama ipo)
+        if not address:
+            address = f'{lat:.5f}, {lng:.5f}'
+
+        # ============ Pata / Unda ReadyRequest ============
         rr = ReadyRequest.objects.filter(room=room).order_by('-id').first()
 
         if not rr:
-            # Unda mpya
             other_user = room.participants.exclude(id=user.id).first()
             if not other_user:
                 return Response(
@@ -700,26 +734,18 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Tambua ni user au mechanic
             from apps.mechanics.models import MechanicProfile
-            is_mechanic = MechanicProfile.objects.filter(user=user).exists()
+            is_mech = MechanicProfile.objects.filter(user=user).exists()
 
-            if is_mechanic:
+            if is_mech:
                 rr = ReadyRequest.objects.create(
-                    room=room,
-                    user=other_user,
-                    mechanic=user,
-                    status='pending',
+                    room=room, user=other_user, mechanic=user, status='pending',
                 )
             else:
                 rr = ReadyRequest.objects.create(
-                    room=room,
-                    user=user,
-                    mechanic=other_user,
-                    status='pending',
+                    room=room, user=user, mechanic=other_user, status='pending',
                 )
 
-        # Update location
         from apps.mechanics.models import MechanicProfile
         is_mechanic = MechanicProfile.objects.filter(user=user).exists()
 
@@ -730,38 +756,25 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             rr.user_latitude = lat
             rr.user_longitude = lng
 
-        # Compute distance kama zote zipo
-        if rr.user_latitude and rr.user_longitude and rr.mechanic_latitude and rr.mechanic_longitude:
+        # ============ Distance (Haversine) ============
+        if (rr.user_latitude and rr.user_longitude
+                and rr.mechanic_latitude and rr.mechanic_longitude):
             import math
-            R = 6371  # km
+            R = 6371
             lat1 = math.radians(float(rr.user_latitude))
             lat2 = math.radians(float(rr.mechanic_latitude))
             dlat = lat2 - lat1
             dlng = math.radians(float(rr.mechanic_longitude) - float(rr.user_longitude))
-            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlng/2)**2
-            c = 2 * math.asin(math.sqrt(a))
-            rr.distance_km = round(R * c, 2)
-
-        # Save metadata ya address
-        if address:
-            meta = rr.metadata if hasattr(rr, 'metadata') else {}
-            if not isinstance(meta, dict):
-                meta = {}
-            meta['address'] = address
-            meta['last_shared_by'] = user.id
-            # Save (kama metadata field ipo)
-            try:
-                rr.metadata = meta
-            except Exception:
-                pass
+            a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlng/2)**2
+            rr.distance_km = round(R * 2 * math.asin(math.sqrt(a)), 2)
 
         rr.save()
 
-        # Unda message maalum kwenye chat
+        # ============ Tuma message yenye address ============
         Message.objects.create(
             room=room,
             sender=user,
-            content=f"📍 Location: {address or f'{lat},{lng}'}",
+            content=f'📍 {address}',
             message_type='location',
             metadata={
                 'latitude': lat,
@@ -769,6 +782,21 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                 'address': address,
             },
         )
+
+        # ============ Notification kwa mwenzake ============
+        try:
+            other = room.participants.exclude(id=user.id).first()
+            if other:
+                from apps.notifications.services import send_notification_to_user
+                send_notification_to_user(
+                    user=other,
+                    title='📍 Location imetumwa',
+                    message=f'{user.get_full_name()}: {address}',
+                    notification_type='chat',
+                    data={'type': 'location', 'room_id': str(room.id)},
+                )
+        except Exception as e:
+            print(f'[Notif] {e}')
 
         return Response({
             'success': True,
