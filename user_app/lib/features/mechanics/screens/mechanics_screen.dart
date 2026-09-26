@@ -347,7 +347,10 @@ class _MechanicsScreenState extends State<MechanicsScreen> {
       if (!mounted) return;
       Navigator.pop(context); // Funga loading
 
-      final roomId = int.tryParse(res['id']?.toString() ?? '0') ?? 0;
+      // Backend inarudisha: {success, message, data: {id, ...}}
+      final data = (res['data'] ?? res) as Map;
+      final roomId = int.tryParse(data['id']?.toString() ?? '0') ?? 0;
+
       if (roomId == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

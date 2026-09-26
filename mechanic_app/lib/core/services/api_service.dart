@@ -445,6 +445,8 @@ class ChatAPI {
   // ============ "I'M READY" FLOW ============
   static Future<Map<String, dynamic>> acceptReady({
     required int roomId,
+    int travelHours = 0,
+    int travelMinutes = 0,
     double? mechLat,
     double? mechLng,
   }) async {
@@ -452,6 +454,8 @@ class ChatAPI {
     final data = await ApiService.post(
       'chat/rooms/$roomId/accept-ready/',
       {
+        'travel_hours': travelHours,
+        'travel_minutes': travelMinutes,
         if (mechLat != null) 'mechanic_latitude': mechLat,
         if (mechLng != null) 'mechanic_longitude': mechLng,
       },

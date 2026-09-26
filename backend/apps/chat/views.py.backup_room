@@ -77,24 +77,16 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         from apps.accounts.models import User
+        # Save room
         room = serializer.save()
+        # Ongeza creator kama participant
         room.participants.add(self.request.user)
-
-        # Support BOTH: other_user_id (single) au participant_ids (list)
-        other_id = self.request.data.get('other_user_id')
-        if other_id:
-            try:
-                other = User.objects.get(id=int(other_id))
-                room.participants.add(other)
-            except (User.DoesNotExist, ValueError, TypeError):
-                pass
-
+        # Ongeza participant_ids wengine
         participant_ids = self.request.data.get('participant_ids', [])
         if participant_ids:
             users = User.objects.filter(id__in=participant_ids).exclude(id=self.request.user.id)
             room.participants.add(*users)
-
-        # Sasisha name kama haipo
+        # Sasisha name kama haipo — tumia jina la participant mwingine
         if not room.name and room.participants.count() >= 2:
             other = room.participants.exclude(id=self.request.user.id).first()
             if other:
