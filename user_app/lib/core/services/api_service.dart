@@ -1302,6 +1302,44 @@ class SparePartOrderAPI {
       token: token,
     );
   }
+
+  /// Angalia status + countdown ya oda.
+  static Future<Map<String, dynamic>> getOrderStatus(int orderId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'spare-parts/orders/$orderId/status/',
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  /// Thibitisha receipt (YES = amepokea, NO = extend).
+  static Future<Map<String, dynamic>> confirmReceipt({
+    required int orderId,
+    required String answer,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'spare-parts/orders/$orderId/confirm-receipt/',
+      {'answer': answer},
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  /// Ongeza +15 min extension.
+  static Future<Map<String, dynamic>> extendOrderTime({
+    required int orderId,
+    int minutes = 15,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'spare-parts/orders/$orderId/extend-time/',
+      {'minutes': minutes},
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
 }
 
 

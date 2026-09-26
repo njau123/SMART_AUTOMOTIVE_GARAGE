@@ -230,21 +230,6 @@ class SparePartOrder(models.Model):
     admin_notes = models.TextField(blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
 
-    # ============ COUNTDOWN & ETA (GROUP 2) ============
-    # Payment 45-min countdown
-    payment_countdown_ends_at = models.DateTimeField(null=True, blank=True)
-    # Delivery ETA (baada ya admin approve)
-    delivery_eta_minutes = models.PositiveIntegerField(default=0)
-    delivery_countdown_ends_at = models.DateTimeField(null=True, blank=True)
-    delivery_started_at = models.DateTimeField(null=True, blank=True)
-    # Receipt confirmation
-    receipt_confirmed_at = models.DateTimeField(null=True, blank=True)
-    receipt_extended_count = models.PositiveIntegerField(default=0)
-    # Distance kutoka Mbezi Mwisho Gerson Garage
-    distance_km = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
-    delivery_latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
-    delivery_longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
