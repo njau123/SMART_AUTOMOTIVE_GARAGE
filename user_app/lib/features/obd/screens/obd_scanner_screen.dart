@@ -1,3 +1,4 @@
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -69,7 +70,12 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
   Future<bool?> _showPaymentDialog() async {
     final phoneCtrl = TextEditingController();
     bool loading = false;
+    bool paidConfirmed = false;
+    String paymentMethod = 'MOBILE_MONEY'; // MOBILE_MONEY | BANK
+    String? selectedBank = 'NMB';
     Map<String, dynamic>? paymentResult;
+    int countdown = 45 * 60;
+    Timer? countdownTimer;
 
     // Load user phone
     try {
@@ -77,183 +83,486 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
       phoneCtrl.text = profile['phone_number']?.toString() ?? '';
     } catch (_) {}
 
+    // Banks za Tanzania
+    const banks = [
+      'NMB', 'CRDB', 'NBC', 'Azania', 'Equity', 'Stanbic',
+      'Exim (TIB)', 'TPB', 'AccessBank', 'Absa', 'Diamond Trust',
+    ];
+
     return await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              const Icon(Icons.lock_outline, color: AppColors.primary, size: 28),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text('Malipo ya OBD Scan',
-                    style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0D47A1), Color(0xFF1976D2)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Text('Kiasi cha Malipo',
-                          style: GoogleFonts.poppins(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Text('TSh 30,000',
-                          style: GoogleFonts.poppins(
-                              color: Colors.white,
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      Text('OBD-II Vehicle Diagnosis',
-                          style: GoogleFonts.poppins(
-                              color: Colors.white, fontSize: 11)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
+        builder: (context, setDialogState) {
+          // Start countdown baada ya paymentResult kupatikana
+          if (paymentResult != null && countdownTimer == null) {
+            countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+              if (countdown <= 0) {
+                t.cancel();
+                setDialogState(() {
+                  paymentResult = null;
+                  countdownTimer = null;
+                });
+                return;
+              }
+              setDialogState(() => countdown--);
+            });
+          }
 
-                if (paymentResult == null) ...[
-                  Text('Namba yako ya simu:',
+          final mins = (countdown ~/ 60).toString().padLeft(2, '0');
+          final secs = (countdown % 60).toString().padLeft(2, '0');
+          final expired = countdown <= 0;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.lock_outline, color: AppColors.primary, size: 26),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text('Malipo ya OBD Scan',
                       style: GoogleFonts.poppins(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: phoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    maxLength: 10,
-                    decoration: const InputDecoration(
-                      hintText: '06XXXXXXXX au 07XXXXXXXX',
-                      prefixIcon: Icon(Icons.phone_outlined),
-                      border: OutlineInputBorder(),
-                      counterText: '',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Utapata maelekezo ya kulipia kwa M-Pesa, Tigo, Airtel, n.k.',
-                    style: GoogleFonts.poppins(
-                        fontSize: 11, color: AppColors.textSecondary),
-                  ),
-                ] else ...[
-                  Text('Maelekezo ya Malipo:',
-                      style: GoogleFonts.poppins(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
+                          fontWeight: FontWeight.bold, fontSize: 15)),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ============ PRICE BOX ============
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFF3E0),
-                      borderRadius: BorderRadius.circular(10),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0D47A1), Color(0xFF1976D2)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      paymentResult!['instructions']?.toString() ?? '',
-                      style: GoogleFonts.poppins(fontSize: 12, height: 1.6),
+                    child: Column(
+                      children: [
+                        Text('Kiasi cha Malipo',
+                            style: GoogleFonts.poppins(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 11)),
+                        Text('TSh 25,000',
+                            style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold)),
+                        Text('OBD-II Vehicle Diagnosis',
+                            style: GoogleFonts.poppins(
+                                color: Colors.white, fontSize: 10)),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Baada ya kulipa, bonyeza "Nimelipa" — admin atathibitisha.',
-                    style: GoogleFonts.poppins(
-                        fontSize: 11, color: AppColors.textSecondary),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: loading ? null : () => Navigator.pop(context, false),
-              child: const Text('Ghairi'),
-            ),
-            if (paymentResult == null)
-              ElevatedButton(
-                onPressed: loading
-                    ? null
-                    : () async {
-                        final phone = phoneCtrl.text.trim();
-                        if (phone.isEmpty) return;
-                        if (!RegExp(r'^0[67]\d{8}$').hasMatch(phone)) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Namba si sahihi (06/07 + digits 8)'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                          return;
-                        }
+                  const SizedBox(height: 14),
 
-                        setDialogState(() => loading = true);
-                        try {
-                          final res = await OBDAPI.initiatePayment(
-                            phoneNumber: phone,
+                  // ============ COUNTDOWN (kama malipo yameanzishwa) ============
+                  if (paymentResult != null && !expired) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: expired
+                            ? Colors.red.withValues(alpha: 0.1)
+                            : Colors.orange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(expired ? Icons.timer_off : Icons.timer,
+                              color: expired ? Colors.red : Colors.orange,
+                              size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            expired ? 'Muda umeisha' : 'Muda uliobaki:',
+                            style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          const Spacer(),
+                          Text('$mins:$secs',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: expired
+                                      ? Colors.red
+                                      : Colors.orange.shade900)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // ============ PAYMENT METHOD TOGGLE ============
+                  if (paymentResult == null) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setDialogState(() =>
+                                paymentMethod = 'MOBILE_MONEY'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: paymentMethod == 'MOBILE_MONEY'
+                                    ? AppColors.primary
+                                    : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.phone_android,
+                                      size: 16,
+                                      color: paymentMethod == 'MOBILE_MONEY'
+                                          ? Colors.white
+                                          : Colors.grey.shade700),
+                                  const SizedBox(width: 6),
+                                  Text('Mobile Money',
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: paymentMethod == 'MOBILE_MONEY'
+                                              ? Colors.white
+                                              : Colors.grey.shade700)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setDialogState(() =>
+                                paymentMethod = 'BANK'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: paymentMethod == 'BANK'
+                                    ? AppColors.primary
+                                    : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.account_balance,
+                                      size: 16,
+                                      color: paymentMethod == 'BANK'
+                                          ? Colors.white
+                                          : Colors.grey.shade700),
+                                  const SizedBox(width: 6),
+                                  Text('Bank',
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: paymentMethod == 'BANK'
+                                              ? Colors.white
+                                              : Colors.grey.shade700)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // ============ INPUT (before initiate) ============
+                  if (paymentResult == null) ...[
+                    if (paymentMethod == 'MOBILE_MONEY') ...[
+                      Text('Namba yako ya simu:',
+                          style: GoogleFonts.poppins(
+                              fontSize: 12, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: phoneCtrl,
+                        keyboardType: TextInputType.phone,
+                        maxLength: 10,
+                        decoration: InputDecoration(
+                          hintText: '06XXXXXXXX au 07XXXXXXXX',
+                          prefixIcon: const Icon(Icons.phone_outlined, size: 18),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          counterText: '',
+                        ),
+                        onChanged: (_) => setDialogState(() {}),
+                      ),
+                      const SizedBox(height: 6),
+                      // Network detection preview
+                      if (phoneCtrl.text.length == 10) ...[
+                        Builder(builder: (_) {
+                          final net = _detectNetwork(phoneCtrl.text);
+                          if (net == null) {
+                            return Text('⚠️ Mtandao haujulikani',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 10, color: Colors.red));
+                          }
+                          return Row(
+                            children: [
+                              Icon(Icons.check_circle,
+                                  size: 14, color: Colors.green.shade700),
+                              const SizedBox(width: 4),
+                              Text('Mtandao: $net',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.green.shade800)),
+                            ],
                           );
-                          if (res['success'] == true) {
-                            setDialogState(() {
-                              paymentResult = res;
-                              loading = false;
-                            });
-                          } else {
+                        }),
+                      ],
+                    ] else ...[
+                      Text('Chagua benki:',
+                          style: GoogleFonts.poppins(
+                              fontSize: 12, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedBank,
+                            isExpanded: true,
+                            items: banks.map((b) => DropdownMenuItem(
+                              value: b,
+                              child: Text(b,
+                                  style: GoogleFonts.poppins(fontSize: 12)),
+                            )).toList(),
+                            onChanged: (v) =>
+                                setDialogState(() => selectedBank = v),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+
+                  // ============ INSTRUCTIONS (after initiate) ============
+                  if (paymentResult != null && !expired) ...[
+                    Text('Maelekezo ya Malipo:',
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3E0),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        paymentMethod == 'MOBILE_MONEY'
+                            ? (paymentResult!['data']?['instructions_mobile']
+                                ?.toString() ?? '')
+                            : (paymentResult!['data']?['instructions_bank']
+                                ?.toString() ?? ''),
+                        style: GoogleFonts.poppins(fontSize: 11.5, height: 1.6),
+                      ),
+                    ),
+
+                    // USSD button kwa mobile money
+                    if (paymentMethod == 'MOBILE_MONEY') ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final ussd = paymentResult!['data']?['ussd_code']
+                                ?.toString() ?? '';
+                            if (ussd.isEmpty) return;
+                            final uri = Uri.parse(
+                                'tel:${Uri.encodeComponent(ussd)}');
+                            try {
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri);
+                              }
+                            } catch (_) {}
+                          },
+                          icon: const Icon(Icons.dialpad, size: 18),
+                          label: Text(
+                            'Fungua Dialer (${paymentResult!['data']?['ussd_code'] ?? ''})',
+                            style: GoogleFonts.poppins(fontSize: 12),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+
+                  // ============ WAITING (after Nimelipa) ============
+                  if (paidConfirmed) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        children: [
+                          const CircularProgressIndicator(strokeWidth: 2),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Inasubiri uthibitisho wa admin...',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                                fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Admin atathibitisha malipo yako mara moja. '
+                            'Utaarifiwa ukisha-idhinishwa.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                color: AppColors.textSecondary,
+                                height: 1.4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  countdownTimer?.cancel();
+                  Navigator.pop(context, false);
+                },
+                child: const Text('Ghairi'),
+              ),
+              if (!paidConfirmed && paymentResult == null)
+                ElevatedButton(
+                  onPressed: loading
+                      ? null
+                      : () async {
+                          // Validation
+                          if (paymentMethod == 'MOBILE_MONEY') {
+                            final phone = phoneCtrl.text.trim();
+                            if (!RegExp(r'^0[67]\d{8}$').hasMatch(phone)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Namba si sahihi (06/07 + digits 8)'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+                          }
+
+                          setDialogState(() => loading = true);
+                          try {
+                            final res = await OBDAPI.initiatePayment(
+                              phoneNumber: phoneCtrl.text.trim(),
+                              paymentMethod: paymentMethod,
+                              bankName: paymentMethod == 'BANK'
+                                  ? (selectedBank ?? 'NMB')
+                                  : '',
+                            );
+                            if (res['success'] == true) {
+                              setDialogState(() {
+                                paymentResult = res;
+                                countdown = 45 * 60;
+                                loading = false;
+                              });
+                            } else {
+                              setDialogState(() => loading = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(res['message']?.toString() ??
+                                      'Imeshindikana'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } catch (e) {
                             setDialogState(() => loading = false);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(res['message']?.toString() ?? 'Imeshindikana'),
+                                content: Text(e
+                                    .toString()
+                                    .replaceAll('Exception: ', '')),
                                 backgroundColor: Colors.red,
                               ),
                             );
                           }
-                        } catch (e) {
-                          setDialogState(() => loading = false);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(e.toString().replaceAll('Exception: ', '')),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Anzisha Malipo'),
+                )
+              else if (!paidConfirmed && paymentResult != null && !expired)
+                ElevatedButton(
+                  onPressed: () => setDialogState(() => paidConfirmed = true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Nimelipa'),
+                )
+              else if (expired)
+                ElevatedButton(
+                  onPressed: () {
+                    countdownTimer?.cancel();
+                    setDialogState(() {
+                      paymentResult = null;
+                      countdownTimer = null;
+                      countdown = 45 * 60;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                  ),
+                  child: const Text('Anzisha Tena'),
                 ),
-                child: loading
-                    ? const SizedBox(
-                        width: 18, height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Lipa Sasa'),
-              )
-            else
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context, true);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
+              if (paidConfirmed)
+                TextButton(
+                  onPressed: () {
+                    countdownTimer?.cancel();
+                    Navigator.pop(context, false);
+                  },
+                  child: const Text('Funga'),
                 ),
-                child: const Text('Nimelipa'),
-              ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
     );
+  }
+
+  String? _detectNetwork(String phone) {
+    if (phone.length != 10) return null;
+    final p = phone.substring(0, 3);
+    if (['075', '076', '074'].contains(p)) return 'Vodacom';
+    if (['071', '065', '067'].contains(p)) return 'Tigo/Yas';
+    if (['078', '068', '069'].contains(p)) return 'Airtel';
+    if (['062', '061'].contains(p)) return 'Halotel';
+    return null;
   }
 
   Future<void> _requestPermissions() async {

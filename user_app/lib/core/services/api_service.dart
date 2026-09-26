@@ -1310,11 +1310,18 @@ class OBDAPI {
   /// Anzisha malipo ya OBD (30,000 TZS).
   static Future<Map<String, dynamic>> initiatePayment({
     required String phoneNumber,
+    String paymentMethod = 'MOBILE_MONEY',
+    String bankName = '',
   }) async {
     final token = await TokenStorage.getAccessToken();
+    final body = <String, dynamic>{
+      'phone_number': phoneNumber,
+      'payment_method': paymentMethod,
+    };
+    if (bankName.isNotEmpty) body['bank_name'] = bankName;
     final data = await ApiService.post(
       'diagnosis/obd-payment/initiate/',
-      {'phone_number': phoneNumber},
+      body,
       token: token,
     );
     return data is Map ? Map<String, dynamic>.from(data) : {};
