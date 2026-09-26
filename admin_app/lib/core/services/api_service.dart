@@ -767,6 +767,47 @@ class AdminAPI {
     );
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
+
+  /// ===== SERVICE BOOKINGS (GROUP 3) =====
+  static Future<List<dynamic>> getServiceBookings() async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.get('admin/service-bookings/', token: token);
+    if (data is Map && data['data'] is List) return data['data'] as List;
+    return [];
+  }
+
+  static Future<Map<String, dynamic>> verifyServiceBooking(int id) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'admin/service-bookings/$id/verify/',
+      {},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> setServiceAppointment({
+    required int bookingId,
+    required String appointmentDate,
+    required String appointmentTime,
+    int etaHours = 0,
+    int etaMinutes = 0,
+    String adminNotes = '',
+  }) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'admin/service-bookings/$bookingId/set-appointment/',
+      {
+        'appointment_date': appointmentDate,
+        'appointment_time': appointmentTime,
+        'eta_hours': etaHours,
+        'eta_minutes': etaMinutes,
+        'admin_notes': adminNotes,
+      },
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 class AdminBookingAPI {
