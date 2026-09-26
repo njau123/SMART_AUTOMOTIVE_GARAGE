@@ -322,6 +322,38 @@ class MechanicAPI {
     );
     return res is Map ? Map<String, dynamic>.from(res) : {};
   }
+
+  /// ===== GROUP 4 — OFFLINE REQUESTS =====
+  static Future<Map<String, dynamic>> toggleOnlineStatus(bool isOnline) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'mechanic/online-status/',
+      {'is_online': isOnline},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<List<dynamic>> getOfflineRequests() async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get('mechanic/offline-requests/', token: token);
+    if (data is Map && data['data'] is List) return data['data'] as List;
+    return [];
+  }
+
+  static Future<Map<String, dynamic>> respondOfflineRequest({
+    required int requestId,
+    required String action,
+    String message = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'mechanic/offline-requests/$requestId/respond/',
+      {'action': action, 'message': message},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 

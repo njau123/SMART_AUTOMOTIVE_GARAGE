@@ -569,6 +569,28 @@ class MethodsAPI {
     );
     return ApiService.asList(data);
   }
+
+  /// Tuma request kwa mechanic ambaye yupo offline.
+  static Future<Map<String, dynamic>> sendOfflineMechanicRequest({
+    required int mechanicUserId,
+    String message = '',
+    double? userLat,
+    double? userLng,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final body = <String, dynamic>{
+      'mechanic_user_id': mechanicUserId,
+      'message': message,
+    };
+    if (userLat != null) body['user_latitude'] = userLat;
+    if (userLng != null) body['user_longitude'] = userLng;
+    final data = await ApiService.post(
+      'chat/offline-request/',
+      body,
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 
