@@ -1677,57 +1677,22 @@ class OBDPaymentInitiateView(APIView):
         from apps.payments.detection import get_instructions, detect_network
         from apps.payments.payment_config import PAYMENT_TIMEOUT_MINUTES
 
-        amount = Decimal("25000")
-        phone_number = (request.data.get("phone_number") or "").strip()
-        payment_method = (request.data.get("payment_method") or "MOBILE_MONEY").upper()
-        bank_name = (request.data.get("bank_name") or "").strip()
+        amount = Decimal("30000")
+        phone_number = request.data.get("phone_number")
 
         if not phone_number:
-            return Response({
-                "success": False,
-                "message": "Namba ya simu inahitajika",
-                "data": None,
-                "errors": {"phone_number": ["This field is required."]},
-            }, status=400)
+            return Response(
+                {
+                    "success": False,
+                    "message": "Phone number required",
+                    "data": None,
+                    "errors": {"phone_number": ["This field is required."]},
+                },
+                status=400,
+            )
 
-        # ============ PHONE VALIDATION ============
-        import re as _re
-        clean_phone = _re.sub(r"[^0-9]", "", phone_number)
-        # Normalize: 2557... → 07...
-        if clean_phone.startswith("255"):
-            clean_phone = "0" + clean_phone[3:]
-        elif not clean_phone.startswith("0"):
-            clean_phone = "0" + clean_phone
-
-        # Lazima ianze na 07 au 06, na iwe digits 10
-        if len(clean_phone) != 10:
-            return Response({
-                "success": False,
-                "message": f"Namba si sahihi. Tumia digits 10 (mfano: 0759212300). Ulitumia: {len(clean_phone)}",
-                "data": None,
-                "errors": {"phone_number": ["Invalid length"]},
-            }, status=400)
-
-        if not (clean_phone.startswith("07") or clean_phone.startswith("06")):
-            return Response({
-                "success": False,
-                "message": "Namba lazima ianze na 07 au 06",
-                "data": None,
-                "errors": {"phone_number": ["Must start with 07 or 06"]},
-            }, status=400)
-
-        phone_number = clean_phone
-
-        # ============ NETWORK DETECTION ============
+        # Detect network
         detected_network = detect_network(phone_number)
-
-        if payment_method == "MOBILE_MONEY" and detected_network == "Unknown":
-            return Response({
-                "success": False,
-                "message": f"Hatukuweza kutambua mtandao wa {phone_number}. Chagua mtandao mwenyewe au tumia bank.",
-                "data": None,
-                "errors": {"network": ["Unknown network"]},
-            }, status=400)
 
         # Unda reference
         reference = f"OBD-{uuid.uuid4().hex[:8].upper()}"
@@ -1793,53 +1758,23 @@ class OBDPaymentInitiateView(APIView):
         except Exception:
             pass
 
-        # Bank instructions kama payment ni BANK
-        bank_instructions = None
-        if payment_method == "BANK":
-            bank_instructions = (
-                f"BENKI: {bank_name or 'NMB'}\n"
-                f"Account Number: 23210042232\n"
-                f"Account Name: Automotive Smart Garage\n"
-                f"Kiasi: TSh {amount:,.0f}\n"
-                f"Reference: {reference}\n\n"
-                f"1. Nenda kwenye app/simu yako ya benki\n"
-                f"2. Chagua 'Send Money' au 'Transfer'\n"
-                f"3. Weka account: 23210042232 (NMB)\n"
-                f"4. Weka kiasi: TSh {amount:,.0f}\n"
-                f"5. Weka reference: {reference}\n"
-                f"6. Thibitisha muamala"
-            )
-
         return Response(
             {
                 "success": True,
-                "message": "Malipo yameanzishwa. Fuata maelekezo.",
+                "message": "Malipo ya OBD yameanzishwa. Fuata maelekezo ya kulipia.",
                 "data": {
                     "payment_id": payment.id,
                     "reference": payment.reference,
-                    "amount": float(payment.amount),
+                    "amount": str(payment.amount),
                     "currency": payment.currency,
                     "status": payment.status,
                     "purpose": payment.purpose,
-                    "payment_method": payment_method,
                     "detected_network": detected_network,
                     "is_detected": detected_network != "Unknown",
-                    "admin_number": "0759212300",
-                    "admin_name": "Automotive Smart Garage",
-                    "bank_name": bank_name or "NMB",
-                    "bank_account": "23210042232",
                     "expires_at": payment.expires_at.isoformat() if payment.expires_at else None,
                     "timeout_minutes": PAYMENT_TIMEOUT_MINUTES,
-                    "countdown_seconds": PAYMENT_TIMEOUT_MINUTES * 60,
-                    "ussd_code": {
-                        "Vodacom": "*150*00#",
-                        "Tigo/Yas": "*150*01#",
-                        "Airtel": "*150*60#",
-                        "Halotel": "*150*88#",
-                    }.get(detected_network, ""),
-                    "instructions_mobile": inst["instructions"] if payment_method == "MOBILE_MONEY" else None,
-                    "instructions_bank": bank_instructions,
                 },
+                "instructions": inst["instructions"],
             },
             status=201,
         )
