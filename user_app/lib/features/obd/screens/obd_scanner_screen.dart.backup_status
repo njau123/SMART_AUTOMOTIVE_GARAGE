@@ -542,22 +542,11 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
                 ),
               if (paidConfirmed)
                 TextButton(
-                  onPressed: () async {
+                  onPressed: () {
                     countdownTimer?.cancel();
-                    // Poll kwa 60s
-                    final approved = await _pollForApproval();
-                    if (!mounted) return;
-                    Navigator.pop(context, approved);
-                    if (approved) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('✅ Malipo yamethibitishwa! Unaweza kutumia scanner.'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
+                    Navigator.pop(context, false);
                   },
-                  child: const Text('Angalia Hali'),
+                  child: const Text('Funga'),
                 ),
             ],
           );
@@ -574,23 +563,6 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
     if (['078', '068', '069'].contains(p)) return 'Airtel';
     if (['062', '061'].contains(p)) return 'Halotel';
     return null;
-  }
-
-
-  Future<bool> _pollForApproval() async {
-    // Poll kila sekunde 5 kwa dakika 1
-    for (int i = 0; i < 12; i++) {
-      await Future.delayed(const Duration(seconds: 5));
-      try {
-        final res = await OBDAPI.getOBDPaymentStatus();
-        final data = res['data'] as Map? ?? {};
-        if (data['is_paid'] == true) {
-          if (mounted) setState(() => _hasPaid = true);
-          return true;
-        }
-      } catch (_) {}
-    }
-    return false;
   }
 
   Future<void> _requestPermissions() async {
