@@ -298,7 +298,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               Expanded(
                 child: QuickAction(
                   icon: Icons.build_outlined,
-                  label: 'Services',
+                  label: 'Huduma Zetu',
                   color: AppColors.primary,
                   onTap: () => _open(const ServicesScreen()),
                 ),
@@ -307,7 +307,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               Expanded(
                 child: QuickAction(
                   icon: Icons.settings_outlined,
-                  label: 'Spare Parts',
+                  label: 'Nunua Vipuri',
                   color: AppColors.accent,
                   onTap: () => _open(const SparePartsScreen()),
                 ),
@@ -316,7 +316,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               Expanded(
                 child: QuickAction(
                   icon: Icons.newspaper_outlined,
-                  label: 'News',
+                  label: 'Habari Mpya',
                   color: AppColors.success,
                   onTap: () => _open(const NewsScreen()),
                 ),

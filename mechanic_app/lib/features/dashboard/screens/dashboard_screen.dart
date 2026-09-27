@@ -97,11 +97,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text('Mechanic Panel', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                 ]),
               ),
-              ListTile(leading: const Icon(Icons.home, color: Colors.white70), title: const Text('Dashboard', style: TextStyle(color: Colors.white)), onTap: () => Navigator.pop(context)),
+              ListTile(leading: const Icon(Icons.home, color: Colors.white70), title: const Text('Dashibodi', style: TextStyle(color: Colors.white)), onTap: () => Navigator.pop(context)),
               ListTile(leading: const Icon(Icons.notifications_active, color: Colors.white70), title: const Text('Bookings Mpya', style: TextStyle(color: Colors.white)), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestsScreen())); }),
-              ListTile(leading: const Icon(Icons.work, color: Colors.white70), title: const Text('Available Jobs', style: TextStyle(color: Colors.white)), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobListScreen()))),
-              ListTile(leading: const Icon(Icons.chat, color: Colors.white70), title: const Text('Messages', style: TextStyle(color: Colors.white)), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListScreen())); }),
-              ListTile(leading: const Icon(Icons.logout, color: Colors.white70), title: const Text('Logout', style: TextStyle(color: Colors.white)), onTap: () => Navigator.pushReplacementNamed(context, '/login')),
+              ListTile(leading: const Icon(Icons.work, color: Colors.white70), title: const Text('Kazi Zinazopatikana', style: TextStyle(color: Colors.white)), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobListScreen()))),
+              ListTile(leading: const Icon(Icons.chat, color: Colors.white70), title: const Text('Mazungumzo', style: TextStyle(color: Colors.white)), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListScreen())); }),
+              ListTile(leading: const Icon(Icons.logout, color: Colors.white70), title: const Text('Toka', style: TextStyle(color: Colors.white)), onTap: () => Navigator.pushReplacementNamed(context, '/login')),
             ],
           ),
         ),
@@ -140,19 +140,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
             children: [
-              _buildActionCard(Icons.payments, 'Earnings', 'Your income', () {
+              _buildActionCard(Icons.payments, 'Mapato', 'Mapato yako', () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const EarningsScreen()));
               }),
-              _buildActionCard(Icons.rate_review, 'Reviews', 'Client feedback', () {
+              _buildActionCard(Icons.rate_review, 'Maoni', 'Maoni ya Wateja', () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const ReviewsScreen()));
               }),
-              _buildActionCard(Icons.handyman_outlined, 'Service Jobs', 'Zilizo CONFIRMED', () {
+              _buildActionCard(Icons.handyman_outlined, 'Kazi za Huduma', 'Zilizothibitishwa', () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const ServiceJobsScreen()));
               }),
-              _buildActionCard(Icons.inbox_outlined, 'Maombi ya Wateja', 'Offline', () {
+              _buildActionCard(Icons.inbox_outlined, 'Maombi ya Wateja', 'Nje ya Mtandao', () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const OfflineRequestsScreen()));
               }),
-              _buildActionCard(Icons.settings, 'Settings', 'App settings', () {
+              _buildActionCard(Icons.settings, 'Mipangilio', 'Mipangilio ya App', () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
               }),
             ],
