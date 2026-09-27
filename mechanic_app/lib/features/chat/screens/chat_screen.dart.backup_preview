@@ -1443,22 +1443,10 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final picker = ImagePicker();
       final file = await picker.pickImage(source: source, imageQuality: 75);
-      if (file == null) return;
-      final bytes = await file.readAsBytes();
-
-      if (!mounted) return;
-      final editedBytes = await Navigator.push<Uint8List?>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ImagePreviewScreen(
-            bytes: Uint8List.fromList(bytes),
-            fileName: file.name,
-          ),
-        ),
-      );
-      if (editedBytes == null) return;
-
-      await _uploadAndSend(editedBytes, file.name, 'image/jpeg');
+      if (file != null) {
+        final bytes = await file.readAsBytes();
+        await _uploadAndSend(bytes, file.name, file.mimeType ?? 'image/jpeg');
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
