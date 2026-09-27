@@ -157,7 +157,7 @@ class ServiceBooking(models.Model):
         related_name="service_bookings",
     )
     service = models.ForeignKey(
-        Service, on_delete=models.SET_NULL,
+        Service, on_delete=models.PROTECT,
         related_name="service_bookings",
         null=True, blank=True,
     )
