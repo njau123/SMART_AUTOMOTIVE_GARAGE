@@ -1200,6 +1200,100 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+
+  Future<void> _requestGps() async {
+    try {
+      await ChatAPI.requestGpsLocation(widget.roomId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ombi la GPS limetumwa ✅'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadMessages(silent: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imeshindwa: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _setSchedule() async {
+    int days = 0, hours = 1, minutes = 0;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Weka Muda wa Kufika',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 15)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _counter('Siku', days, (v) => setD(() => days = v), 0, 30),
+              _counter('Masaa', hours, (v) => setD(() => hours = v), 0, 23),
+              _counter('Dakika', minutes, (v) => setD(() => minutes = v), 0, 55),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Ghairi')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: Text('Anza Countdown', style: GoogleFonts.poppins(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok != true) return;
+
+    try {
+      await ChatAPI.setChatSchedule(
+        roomId: widget.roomId,
+        days: days, hours: hours, minutes: minutes,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Countdown imeanza ✅'), backgroundColor: Colors.green),
+        );
+        _loadMessages(silent: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imeshindwa: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Widget _counter(String label, int val, Function(int) onCh, int min, int max) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(width: 60, child: Text(label, style: GoogleFonts.poppins(fontSize: 13))),
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline),
+            onPressed: val > min ? () => onCh(val - 1) : null,
+          ),
+          Text('$val', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            onPressed: val < max ? () => onCh(val + 1) : null,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _inputBar() {
     return Container(
       padding: const EdgeInsets.all(8),

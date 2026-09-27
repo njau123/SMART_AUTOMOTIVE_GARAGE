@@ -134,7 +134,7 @@ class AppDrawer extends StatelessWidget {
                           () => _push(context, const ServicesScreen())),
                       _item(Icons.settings_outlined, t('spare_parts'),
                           () => _push(context, const SparePartsScreen())),
-                      _item(Icons.receipt_long_outlined, 'Oda Zangu',
+                      _item(Icons.receipt_long_outlined, 'Vipuri Zangu',
                           () => _push(context, const MyOrdersScreen())),
                       _item(Icons.handyman_outlined, 'Service Zangu',
                           () => _push(context, const MyServiceBookingsScreen())),

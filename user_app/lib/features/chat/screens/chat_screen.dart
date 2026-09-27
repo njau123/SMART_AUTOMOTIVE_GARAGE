@@ -1450,6 +1450,45 @@ class _ChatScreenState extends State<ChatScreen> {
     _locationStream = null;
   }
 
+
+  Future<void> _shareGpsResponse() async {
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        throw Exception('Ruhusa ya location haijatolewa');
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 15),
+      );
+      await ChatAPI.shareGpsLocation(
+        roomId: widget.roomId,
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        address: '',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location imetumwa ✅'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadMessages(silent: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imeshindwa: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Widget _normalInputBar() {
     return Column(
       mainAxisSize: MainAxisSize.min,

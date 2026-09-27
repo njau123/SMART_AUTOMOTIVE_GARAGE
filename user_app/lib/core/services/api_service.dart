@@ -1246,6 +1246,47 @@ class ChatAPI {
     );
     return Map<String, dynamic>.from(data as Map);
   }
+
+  // ===== GROUP 4B — GPS + Schedule =====
+  static Future<Map<String, dynamic>> requestGpsLocation(int roomId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/request-gps/',
+      {},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> shareGpsLocation({
+    required int roomId,
+    required double latitude,
+    required double longitude,
+    String address = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/share-gps/',
+      {'latitude': latitude, 'longitude': longitude, 'address': address},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> setChatSchedule({
+    required int roomId,
+    required int days,
+    required int hours,
+    required int minutes,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/set-schedule/',
+      {'days': days, 'hours': hours, 'minutes': minutes},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 

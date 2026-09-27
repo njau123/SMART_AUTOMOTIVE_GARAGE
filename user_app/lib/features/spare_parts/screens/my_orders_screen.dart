@@ -132,7 +132,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Oda Zangu',
+        title: Text('Vipuri Zangu',
             style: GoogleFonts.poppins(
                 fontSize: 16, fontWeight: FontWeight.bold)),
       ),
