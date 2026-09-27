@@ -2,11 +2,20 @@ import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'core/state/auth_state.dart';
+import 'core/services/notification_service.dart';
 import 'features/auth/screens/admin_login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AdminAuthState.instance.init();
+
+  // FCM
+  try {
+    await NotificationService.instance.init();
+    debugPrint('[FCM] admin NotificationService initialized');
+  } catch (e) {
+    debugPrint('[FCM] admin init error: $e');
+  }
   runApp(const AdminApp());
 }
 

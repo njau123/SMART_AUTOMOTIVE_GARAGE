@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../shared/widgets/smart_video_player.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
@@ -176,55 +175,14 @@ class _ServicesScreenState extends State<ServicesScreen> {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              // Thumbnail: video > image > icon
-              Builder(builder: (_) {
-                final videoUrl = (s['video'] ?? '').toString();
-                final imageUrl = (s['image'] ?? '').toString();
-                if (videoUrl.isNotEmpty) {
-                  return Container(
-                    width: 60, height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.play_circle_fill,
-                          color: Colors.white, size: 30),
-                    ),
-                  );
-                }
-                if (imageUrl.isNotEmpty) {
-                  final fullUrl = imageUrl.startsWith('http')
-                      ? imageUrl
-                      : 'https://smart-garage-backend.onrender.com$imageUrl';
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      fullUrl,
-                      width: 60, height: 60,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.build_circle,
-                            color: AppColors.primary, size: 24),
-                      ),
-                    ),
-                  );
-                }
-                return Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.build_circle,
-                      color: AppColors.primary, size: 24),
-                );
-              }),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.build_circle, color: AppColors.primary, size: 24),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

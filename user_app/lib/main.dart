@@ -31,6 +31,14 @@ void main() async {
     AuthState.instance.init(),
   ], eagerError: false);
 
+  // FCM notifications — baada ya Firebase
+  try {
+    await NotificationService.instance.init();
+    debugPrint('[FCM] NotificationService initialized');
+  } catch (e) {
+    debugPrint('[FCM] NotificationService init error: $e');
+  }
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => LanguageProvider(),

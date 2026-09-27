@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../shared/widgets/smart_video_player.dart';
 import '../../../core/services/api_service.dart';
 import 'service_tracking_screen.dart';
 
@@ -410,34 +409,6 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
               ],
             ),
           ),
-          // VIDEO (kama service ina video)
-          if (!_customMode && widget.service?['video'] != null &&
-              widget.service!['video'].toString().isNotEmpty) ...[
-            const SizedBox(height: 16),
-            SmartVideoPlayer(
-              url: _videoUrl(),
-              height: 220,
-              autoPlay: false,
-            ),
-          ],
-          // IMAGE (kama service ina image na haina video)
-          if (!_customMode &&
-              (widget.service?['video'] == null ||
-                  widget.service!['video'].toString().isEmpty) &&
-              widget.service?['image'] != null &&
-              widget.service!['image'].toString().isNotEmpty) ...[
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Image.network(
-                _imageUrl(),
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            ),
-          ],
           const SizedBox(height: 20),
           if (_customMode) ...[
             Text('Service Unayotaka',
@@ -855,19 +826,5 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
         ],
       ),
     );
-  }
-
-  String _videoUrl() {
-    final v = widget.service?['video']?.toString() ?? '';
-    if (v.isEmpty) return '';
-    if (v.startsWith('http')) return v;
-    return 'https://smart-garage-backend.onrender.com$v';
-  }
-
-  String _imageUrl() {
-    final i = widget.service?['image']?.toString() ?? '';
-    if (i.isEmpty) return '';
-    if (i.startsWith('http')) return i;
-    return 'https://smart-garage-backend.onrender.com$i';
   }
 }
