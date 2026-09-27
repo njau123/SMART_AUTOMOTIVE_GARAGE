@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -65,6 +66,9 @@ class NotificationService {
     debugPrint('FCM foreground: ${msg.notification?.title}');
     final context = _navigatorKey.currentContext;
     if (context == null) return;
+
+    // RING + VIBRATE — kila notification inasikika
+    _playNotificationAlert();
 
     final title = msg.notification?.title ?? 'Notification';
     final body = msg.notification?.body ?? '';
@@ -146,6 +150,19 @@ class NotificationService {
       // Kama room_id haipo — fungua chat list
       NotificationRouter.instance.openChatList();
     }
+  }
+
+
+  void _playNotificationAlert() {
+    try {
+      SystemSound.play(SystemSoundType.alert);
+    } catch (_) {}
+    try {
+      HapticFeedback.heavyImpact();
+      Future.delayed(const Duration(milliseconds: 200), () {
+        try { HapticFeedback.mediumImpact(); } catch (_) {}
+      });
+    } catch (_) {}
   }
 
   /// Unregister token (kwenye logout).
