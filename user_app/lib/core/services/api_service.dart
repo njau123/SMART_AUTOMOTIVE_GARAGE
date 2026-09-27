@@ -1457,6 +1457,27 @@ class SparePartOrderAPI {
     );
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
+
+  /// ===== SPARE PARTS PAYMENT =====
+  static Future<Map<String, dynamic>> payOrderDeposit({
+    required int orderId,
+    required String phoneNumber,
+    String paymentMethod = 'MOBILE_MONEY',
+    String bankName = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final body = <String, dynamic>{
+      'phone_number': phoneNumber,
+      'payment_method': paymentMethod,
+    };
+    if (bankName.isNotEmpty) body['bank_name'] = bankName;
+    final data = await ApiService.post(
+      'spare-parts/orders/$orderId/pay-deposit/',
+      body,
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 

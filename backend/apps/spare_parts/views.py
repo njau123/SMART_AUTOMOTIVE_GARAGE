@@ -119,6 +119,149 @@ class OrderCreateView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+
+
+# ==================== SPARE PARTS PAYMENT (kama AI Scanner) ====================
+class OrderPayDepositView(APIView):
+    """User analipa spare part order — network detect + bank account + countdown."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        import re as _re
+        from decimal import Decimal
+        from django.utils import timezone
+        from apps.payments.models import Payment
+        from apps.payments.detection import get_instructions, detect_network
+        from apps.payments.payment_config import PAYMENT_TIMEOUT_MINUTES
+        import uuid as _uuid
+
+        try:
+            order = SparePartOrder.objects.get(pk=pk, user=request.user)
+        except SparePartOrder.DoesNotExist:
+            return Response({"success": False, "message": "Oda haipo"}, status=404)
+
+        if order.status != "PENDING_PAYMENT":
+            return Response({
+                "success": False,
+                "message": "Oda hii imeshalipiwa au imefutwa",
+            }, status=400)
+
+        phone = (request.data.get("phone_number") or "").strip()
+        method = (request.data.get("payment_method") or "MOBILE_MONEY").upper()
+        bank = (request.data.get("bank_name") or "").strip()
+
+        bank_account = ""
+        detected = "Unknown"
+
+        if method == "MOBILE_MONEY":
+            clean = _re.sub(r"[^0-9]", "", phone)
+            if clean.startswith("255"):
+                clean = "0" + clean[3:]
+            elif not clean.startswith("0"):
+                clean = "0" + clean
+            if len(clean) != 10 or not (clean.startswith("07") or clean.startswith("06")):
+                return Response({
+                    "success": False,
+                    "message": "Namba si sahihi. Tumia 07XXXXXXXX au 06XXXXXXXX",
+                }, status=400)
+            phone = clean
+            detected = detect_network(phone)
+            if detected == "Unknown":
+                return Response({
+                    "success": False,
+                    "message": "Mtandao haujulikani. Chagua mtandao au tumia bank.",
+                }, status=400)
+        else:
+            bank_account = _re.sub(r"[^0-9]", "", phone)
+            if len(bank_account) < 8:
+                return Response({
+                    "success": False,
+                    "message": "Account number si sahihi",
+                }, status=400)
+
+        # Unda payment
+        reference = f"SP-{_uuid.uuid4().hex[:8].upper()}"
+        payment = Payment.objects.create(
+            user=request.user,
+            amount=order.total_price,
+            currency="TZS",
+            provider=method,
+            method=method,
+            purpose="SPARE_PART",
+            reference=reference,
+            phone_number=phone,
+            status="PENDING",
+            description=f"Spare Part: {order.spare_part.name}",
+            expires_at=timezone.now() + timezone.timedelta(minutes=PAYMENT_TIMEOUT_MINUTES),
+            metadata={
+                "order_id": order.id,
+                "order_number": order.order_number,
+                "type": "SPARE_PART_ORDER",
+                "bank_name": bank,
+                "bank_account": bank_account,
+            },
+        )
+
+        # Update order
+        order.payment_reference = reference
+        order.payment_method = method
+        order.detected_network = detected
+        order.bank_account = bank_account
+        order.bank_name = bank
+        order.payment_countdown_ends_at = payment.expires_at
+        order.save()
+
+        inst = get_instructions(method, phone, order.total_price, reference) if method == "MOBILE_MONEY" else None
+
+        # USSD code
+        ussd_map = {
+            "Vodacom": "*150*00#",
+            "Tigo/Yas": "*150*01#",
+            "Airtel": "*150*60#",
+            "Halotel": "*150*88#",
+        }
+
+        bank_instructions = None
+        if method == "BANK":
+            bank_instructions = (
+                f"BENKI: {bank or 'NMB'}\n"
+                f"Account Number: 23210042232\n"
+                f"Account Name: Automotive Smart Garage\n"
+                f"Kiasi: TSh {float(order.total_price):,.0f}\n"
+                f"Reference: {reference}\n\n"
+                f"1. Nenda kwenye app ya benki yako\n"
+                f"2. Chagua 'Transfer' au 'Send Money'\n"
+                f"3. Weka account: 23210042232 (NMB)\n"
+                f"4. Weka kiasi: TSh {float(order.total_price):,.0f}\n"
+                f"5. Weka reference: {reference}\n"
+                f"6. Thibitisha muamala"
+            )
+
+        return Response({
+            "success": True,
+            "message": "Malipo yameanzishwa",
+            "data": {
+                "payment_id": payment.id,
+                "reference": reference,
+                "amount": float(order.total_price),
+                "order_id": order.id,
+                "order_number": order.order_number,
+                "payment_method": method,
+                "detected_network": detected,
+                "admin_number": "0759212300",
+                "admin_name": "Automotive Smart Garage",
+                "bank_name": bank or "NMB",
+                "bank_account": "23210042232",
+                "ussd_code": ussd_map.get(detected, ""),
+                "countdown_seconds": PAYMENT_TIMEOUT_MINUTES * 60,
+                "timeout_minutes": PAYMENT_TIMEOUT_MINUTES,
+                "expires_at": payment.expires_at.isoformat(),
+                "instructions_mobile": inst["instructions"] if inst else None,
+                "instructions_bank": bank_instructions,
+            },
+        }, status=201)
+
+
 class OrderListView(APIView):
     """User — oda zake."""
     permission_classes = [IsAuthenticated]

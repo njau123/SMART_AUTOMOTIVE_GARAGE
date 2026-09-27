@@ -236,6 +236,21 @@ class SparePartOrder(models.Model):
     # Delivery ETA (baada ya admin approve)
     delivery_eta_minutes = models.PositiveIntegerField(default=0)
     delivery_countdown_ends_at = models.DateTimeField(null=True, blank=True)
+
+    # ===== PAYMENT (kama AI Scanner) =====
+    payment_method = models.CharField(max_length=20, default="MOBILE_MONEY")
+    detected_network = models.CharField(max_length=30, blank=True)
+    bank_account = models.CharField(max_length=50, blank=True)
+    bank_name = models.CharField(max_length=50, blank=True)
+
+    # ===== GPS / DISTANCE =====
+    delivery_latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    delivery_longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    distance_km = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+
+    # ===== COMPLETION =====
+    receipt_confirmed_at = models.DateTimeField(null=True, blank=True)
+    receipt_extended_count = models.PositiveIntegerField(default=0)
     delivery_started_at = models.DateTimeField(null=True, blank=True)
     # Receipt confirmation
     receipt_confirmed_at = models.DateTimeField(null=True, blank=True)
