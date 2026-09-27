@@ -304,13 +304,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _resetChat,
-            tooltip: 'Anza upya',
-          ),
-        ],
+        actions: [],
       ),
       body: Stack(
         children: [
@@ -328,7 +322,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
           // Dark overlay kwa maandishi kusomeka
           Positioned.fill(
             child: Container(
-              color: Colors.black.withValues(alpha: 0.45),
+              color: Colors.black.withValues(alpha: 0.15),
             ),
           ),
           // Content
