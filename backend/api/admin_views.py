@@ -531,13 +531,8 @@ class AdminUserDeleteView(APIView):
                 except Exception as e:
                     cleanup_log.append(f'vehicles_err:{e}')
 
-                # Payments — PROTECT, weka user=None
-                try:
-                    from apps.payments.models import Payment
-                    Payment.objects.filter(user=user).update(user=None)
-                    cleanup_log.append('payments')
-                except Exception as e:
-                    cleanup_log.append(f'payments_err:{e}')
+                # Payments — SET_NULL automatic (hakuna kitu cha kufanya)
+                cleanup_log.append('payments_skipped_setnull')
 
                 # MechanicProfile (OneToOne CASCADE inatosha, lakini kwa usalama)
                 try:

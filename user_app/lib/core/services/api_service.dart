@@ -1478,6 +1478,30 @@ class SparePartOrderAPI {
     );
     return Map<String, dynamic>.from(data as Map);
   }
+
+  /// Weka delivery GPS + pickup date baada ya admin verify.
+  static Future<Map<String, dynamic>> setOrderDeliveryGps({
+    required int orderId,
+    required double latitude,
+    required double longitude,
+    required String address,
+    required String pickupDate,
+    String pickupTime = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'spare-parts/orders/$orderId/set-delivery-gps/',
+      {
+        'latitude': latitude,
+        'longitude': longitude,
+        'address': address,
+        'pickup_date': pickupDate,
+        'pickup_time': pickupTime,
+      },
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 

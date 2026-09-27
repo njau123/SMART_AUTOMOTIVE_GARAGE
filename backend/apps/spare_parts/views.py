@@ -378,6 +378,124 @@ class OrderDeleteView(APIView):
 
 
 # ==================== ADMIN ORDER VIEWS ====================
+
+
+# ==================== USER SET DELIVERY GPS + PICKUP (kama maelekezo) ====================
+WAREHOUSE_LAT = -6.7712
+WAREHOUSE_LNG = 39.2345
+
+
+def _haversine_km(lat1, lng1, lat2, lng2):
+    """Umbali kati ya pointi mbili kwa km."""
+    import math
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = (math.sin(dlat/2)**2 +
+         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+         math.sin(dlng/2)**2)
+    return round(R * 2 * math.asin(math.sqrt(a)), 2)
+
+
+class OrderSetDeliveryGpsView(APIView):
+    """User anaweka delivery GPS + pickup date baada ya admin verify."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        from datetime import datetime as _dt
+        from django.utils import timezone as tz
+
+        try:
+            order = SparePartOrder.objects.get(pk=pk, user=request.user)
+        except SparePartOrder.DoesNotExist:
+            return Response({"success": False, "message": "Oda haipo"}, status=404)
+
+        if order.status not in ("PAID", "PROCESSING"):
+            return Response({
+                "success": False,
+                "message": "Malipo hayajathibitishwa bado",
+            }, status=400)
+
+        # GPS
+        try:
+            lat = float(request.data.get("latitude", 0))
+            lng = float(request.data.get("longitude", 0))
+        except (ValueError, TypeError):
+            return Response({"success": False, "message": "Location si sahihi"}, status=400)
+
+        if lat == 0 and lng == 0:
+            return Response({"success": False, "message": "GPS ni lazima"}, status=400)
+
+        # Address
+        address = (request.data.get("address") or "").strip()
+        if not address:
+            return Response({"success": False, "message": "Address ni lazima"}, status=400)
+
+        # Pickup date (siku ya mbele, sio leo)
+        date_str = (request.data.get("pickup_date") or "").strip()
+        try:
+            pickup_date = _dt.strptime(date_str, "%Y-%m-%d").date()
+        except Exception:
+            return Response({"success": False, "message": "Tarehe si sahihi"}, status=400)
+
+        if pickup_date <= tz.now().date():
+            return Response({
+                "success": False,
+                "message": "Chagua siku ya mbele (sio leo)",
+            }, status=400)
+
+        # Time
+        pickup_time = (request.data.get("pickup_time") or "").strip()
+
+        # Distance kutoka Mbezi Mwisho
+        distance = _haversine_km(WAREHOUSE_LAT, WAREHOUSE_LNG, lat, lng)
+
+        # ETA — chukulia 20 km/h kwa Dar traffic
+        eta_minutes = max(15, int((distance / 20) * 60))
+
+        # Update order
+        order.delivery_latitude = lat
+        order.delivery_longitude = lng
+        order.delivery_location = address
+        order.delivery_date = pickup_date
+        order.delivery_time = pickup_time
+        order.distance_km = distance
+        order.delivery_eta_minutes = eta_minutes
+        order.delivery_countdown_ends_at = tz.now() + tz.timedelta(minutes=eta_minutes)
+        order.status = "OUT_FOR_DELIVERY"
+        order.save()
+
+        # Notify admin
+        try:
+            from apps.notifications.models import Notification
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            for admin in User.objects.filter(is_staff=True, is_active=True):
+                Notification.objects.create(
+                    recipient=admin,
+                    notification_type="ORDER",
+                    title=f"🚚 Delivery — {order.order_number}",
+                    message=(
+                        f"Mteja: {order.user.get_full_name()}\n"
+                        f"Bidhaa: {order.spare_part.name}\n"
+                        f"Location: {address}\n"
+                        f"Umbali: {distance} km\n"
+                        f"ETA: dakika {eta_minutes}\n"
+                        f"Tarehe: {pickup_date} saa {pickup_time}"
+                    ),
+                    is_sent=True,
+                    metadata={"order_id": order.id, "type": "delivery_gps_set"},
+                )
+        except Exception as e:
+            print(f'[Notif delivery] {e}')
+
+        return Response({
+            "success": True,
+            "message": f"Delivery imewekwa. Umbali: {distance} km, ETA: dakika {eta_minutes}",
+            "data": SparePartOrderSerializer(order, context={"request": request}).data,
+        })
+
+
 class AdminOrderListView(APIView):
     """Admin — oda zote."""
     permission_classes = [IsAdminUser]
