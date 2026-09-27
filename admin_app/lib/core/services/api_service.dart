@@ -808,6 +808,19 @@ class AdminAPI {
     );
     return Map<String, dynamic>.from(data as Map);
   }
+
+  static Future<Map<String, dynamic>> approveCustomService({
+    required int bookingId,
+    required double price,
+  }) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'admin/service-bookings/$bookingId/approve-custom/',
+      {'price': price},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 class AdminBookingAPI {

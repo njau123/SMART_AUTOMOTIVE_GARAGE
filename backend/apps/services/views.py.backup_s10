@@ -130,55 +130,23 @@ class ServiceBookingCreateView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         data = serializer.validated_data
-        service = None
-        custom_name = (data.get("custom_service_name") or "").strip()
-        service_id = data.get("service_id")
-
-        if service_id:
-            try:
-                service = Service.objects.get(pk=service_id, is_active=True)
-            except Service.DoesNotExist:
-                return Response({
-                    "success": False,
-                    "message": "Service haipo",
-                }, status=status.HTTP_404_NOT_FOUND)
-        elif not custom_name:
+        try:
+            service = Service.objects.get(pk=data["service_id"], is_active=True)
+        except Service.DoesNotExist:
             return Response({
                 "success": False,
-                "message": "Chagua service au weka jina la service",
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        # GPS mandatory
-        lat = data.get("service_latitude")
-        lng = data.get("service_longitude")
-        address = (data.get("service_address") or "").strip()
-
-        if not address:
-            return Response({
-                "success": False,
-                "message": "Address ni lazima",
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        if lat is None or lng is None:
-            return Response({
-                "success": False,
-                "message": "GPS location ni lazima. Tafadhali allow location.",
-            }, status=status.HTTP_400_BAD_REQUEST)
+                "message": "Service haipo",
+            }, status=status.HTTP_404_NOT_FOUND)
 
         booking = ServiceBooking.objects.create(
             user=request.user,
             service=service,
-            custom_service_name=custom_name if not service else "",
             vehicle_make=data["vehicle_make"],
             vehicle_model=data["vehicle_model"],
             vehicle_year=data.get("vehicle_year", ""),
             vehicle_registration=data.get("vehicle_registration", ""),
             vehicle_notes=data.get("vehicle_notes", ""),
-            service_address=address,
-            service_latitude=lat,
-            service_longitude=lng,
-            location_verified=True,
-            total_price=service.base_price if service else 0,
+            total_price=service.base_price,
         )
 
         return Response({
@@ -644,220 +612,5 @@ class AdminServiceBookingSetAppointmentView(APIView):
         return Response({
             "success": True,
             "message": "Appointment imewekwa",
-            "data": ServiceBookingSerializer(b, context={"request": request}).data,
-        })
-
-# ==================== S6-S7 — USER ANA-SET MUDA ====================
-class ServiceBookingSetScheduleView(APIView):
-    """User ana-set tarehe + muda wa service (countdown inaanza)."""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, pk):
-        from .models import ServiceBooking
-        from datetime import datetime as _dt
-        try:
-            b = ServiceBooking.objects.get(pk=pk, user=request.user)
-        except ServiceBooking.DoesNotExist:
-            return Response({"success": False, "message": "Booking haipo"}, status=404)
-
-        if b.status not in ("DEPOSIT_PAID", "CONFIRMED"):
-            return Response({
-                "success": False,
-                "message": "Deposit lazima ilipiwe kwanza",
-            }, status=400)
-
-        date_str = request.data.get("scheduled_date")
-        time_str = (request.data.get("scheduled_time") or "").strip()
-
-        if not date_str or not time_str:
-            return Response({
-                "success": False,
-                "message": "Tarehe na muda ni lazima",
-            }, status=400)
-
-        try:
-            b.scheduled_date = _dt.strptime(date_str, "%Y-%m-%d").date()
-        except Exception:
-            return Response({"success": False, "message": "Tarehe si sahihi"}, status=400)
-
-        try:
-            parts = time_str.split(":")
-            hh = int(parts[0])
-            mm = int(parts[1]) if len(parts) > 1 else 0
-        except Exception:
-            return Response({"success": False, "message": "Muda si sahihi"}, status=400)
-
-        # Tengeneza datetime ya countdown
-        scheduled_dt = timezone.make_aware(
-            _dt.combine(b.scheduled_date, _dt.min.time().replace(hour=hh, minute=mm))
-        )
-        b.scheduled_time = time_str
-        b.schedule_started_at = timezone.now()
-        b.schedule_countdown_ends_at = scheduled_dt
-        b.status = "CONFIRMED"
-        b.save()
-
-        # Notify admin wote
-        try:
-            from apps.notifications.models import Notification
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            user_name = b.user.get_full_name() or b.user.email
-            service_name = b.service.name if b.service else b.custom_service_name
-            for admin in User.objects.filter(is_staff=True, is_active=True):
-                Notification.objects.create(
-                    recipient=admin,
-                    notification_type="service",
-                    title=f"📅 Service Booking — {b.booking_number}",
-                    message=(
-                        f"Mteja: {user_name}\n"
-                        f"Service: {service_name}\n"
-                        f"Tarehe: {date_str} saa {time_str}\n"
-                        f"Location: {b.service_address}"
-                    ),
-                    is_sent=True,
-                    metadata={"booking_id": b.id, "type": "service_scheduled"},
-                )
-        except Exception as e:
-            print(f"[Notif schedule] {e}")
-
-        return Response({
-            "success": True,
-            "message": "Muda umewekwa. Countdown imeanza.",
-            "data": ServiceBookingSerializer(b, context={"request": request}).data,
-        })
-
-
-# ==================== S2 — ADMIN APPROVE CUSTOM SERVICE ====================
-class AdminApproveCustomServiceView(APIView):
-    """Admin ana-approve service ya user + anaweka bei."""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, pk):
-        from .models import ServiceBooking
-        from decimal import Decimal
-
-        if not (request.user.is_staff or request.user.role in ("ADMIN", "SUPER_ADMIN")):
-            return Response({"success": False, "message": "Hauna ruhusa"}, status=403)
-
-        try:
-            b = ServiceBooking.objects.get(pk=pk)
-        except ServiceBooking.DoesNotExist:
-            return Response({"success": False, "message": "Booking haipo"}, status=404)
-
-        if b.service:
-            return Response({
-                "success": False,
-                "message": "Hii ni service iliyopo tayari",
-            }, status=400)
-
-        try:
-            price = Decimal(str(request.data.get("price", "0")))
-            if price <= 0:
-                raise ValueError()
-        except (ValueError, TypeError):
-            return Response({"success": False, "message": "Bei si sahihi"}, status=400)
-
-        b.custom_service_price = price
-        b.custom_service_approved = True
-        b.admin_approved_at = timezone.now()
-        b.total_price = price
-        from decimal import Decimal as _D
-        b.deposit_amount = (price * _D("0.5")).quantize(_D("0.01"))
-        b.balance_amount = price - b.deposit_amount
-        b.save()
-
-        # Notify user
-        try:
-            from apps.notifications.services import send_notification_to_user
-            send_notification_to_user(
-                user=b.user,
-                title="✅ Service yako imethibitishwa",
-                message=f"Bei: TSh {price:,.0f}. Lipa deposit 50% kuendelea.",
-                notification_type="service",
-                data={"booking_id": b.id, "type": "custom_service_approved"},
-            )
-        except Exception:
-            pass
-
-        return Response({
-            "success": True,
-            "message": "Service imethibitishwa",
-            "data": ServiceBookingSerializer(b, context={"request": request}).data,
-        })
-
-
-# ==================== S9 — MECHANIC VIEWS ====================
-class AvailableServiceJobsView(APIView):
-    """Mechanic anaona service bookings zilizo CONFIRMED + zisizo na mechanic."""
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        from .models import ServiceBooking
-        qs = ServiceBooking.objects.filter(
-            status__in=("CONFIRMED", "IN_PROGRESS"),
-            assigned_mechanic__isnull=True,
-        ).select_related("service", "user").order_by("-created_at")[:50]
-
-        data = []
-        for b in qs:
-            data.append({
-                "id": b.id,
-                "booking_number": b.booking_number,
-                "service_name": b.service.name if b.service else b.custom_service_name,
-                "user_name": b.user.get_full_name(),
-                "user_phone": b.user.phone_number or "",
-                "vehicle": f"{b.vehicle_make} {b.vehicle_model}",
-                "service_address": b.service_address,
-                "service_latitude": float(b.service_latitude) if b.service_latitude else None,
-                "service_longitude": float(b.service_longitude) if b.service_longitude else None,
-                "scheduled_date": b.scheduled_date.isoformat() if b.scheduled_date else None,
-                "scheduled_time": b.scheduled_time,
-                "schedule_countdown_ends_at": b.schedule_countdown_ends_at.isoformat() if b.schedule_countdown_ends_at else None,
-                "total_price": float(b.total_price),
-                "status": b.status,
-                "created_at": b.created_at.isoformat(),
-            })
-
-        return Response({"success": True, "count": len(data), "data": data})
-
-
-class MechanicAcceptServiceJobView(APIView):
-    """Mechanic anakubali service job."""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, pk):
-        from .models import ServiceBooking
-        from apps.mechanics.models import MechanicProfile
-
-        profile = MechanicProfile.objects.filter(user=request.user).first()
-        if not profile:
-            return Response({"success": False, "message": "Wewe sio mechanic"}, status=403)
-
-        try:
-            b = ServiceBooking.objects.get(pk=pk, assigned_mechanic__isnull=True)
-        except ServiceBooking.DoesNotExist:
-            return Response({"success": False, "message": "Booking haipo au imechukuliwa"}, status=404)
-
-        b.assigned_mechanic = profile
-        b.status = "IN_PROGRESS"
-        b.save()
-
-        # Notify user
-        try:
-            from apps.notifications.services import send_notification_to_user
-            send_notification_to_user(
-                user=b.user,
-                title="🔧 Mechanic amechukua kazi yako",
-                message=f"{request.user.get_full_name()} anakuja kukuhudumia.",
-                notification_type="service",
-                data={"booking_id": b.id, "type": "mechanic_assigned"},
-            )
-        except Exception:
-            pass
-
-        return Response({
-            "success": True,
-            "message": "Umekubali kazi",
             "data": ServiceBookingSerializer(b, context={"request": request}).data,
         })

@@ -1411,22 +1411,31 @@ class OBDAPI {
 // ==================== SERVICE BOOKING API (GROUP 3) ====================
 class ServiceBookingAPI {
   static Future<Map<String, dynamic>> createBooking({
-    required int serviceId,
+    int? serviceId,
+    String customServiceName = '',
     required String vehicleMake,
     required String vehicleModel,
     String vehicleYear = '',
     String vehicleRegistration = '',
     String vehicleNotes = '',
+    String serviceAddress = '',
+    double? serviceLatitude,
+    double? serviceLongitude,
   }) async {
     final token = await TokenStorage.getAccessToken();
-    final data = await ApiService.post('service-bookings/create/', {
-      'service_id': serviceId,
+    final body = <String, dynamic>{
       'vehicle_make': vehicleMake,
       'vehicle_model': vehicleModel,
       'vehicle_year': vehicleYear,
       'vehicle_registration': vehicleRegistration,
       'vehicle_notes': vehicleNotes,
-    }, token: token);
+      'service_address': serviceAddress,
+    };
+    if (serviceId != null) body['service_id'] = serviceId;
+    if (customServiceName.isNotEmpty) body['custom_service_name'] = customServiceName;
+    if (serviceLatitude != null) body['service_latitude'] = serviceLatitude;
+    if (serviceLongitude != null) body['service_longitude'] = serviceLongitude;
+    final data = await ApiService.post('service-bookings/create/', body, token: token);
     return Map<String, dynamic>.from(data as Map);
   }
 
@@ -1511,6 +1520,21 @@ class ServiceBookingAPI {
     final data = await ApiService.post(
       'service-bookings/$bookingId/cancel/',
       {},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// User ana-set tarehe + muda wa service.
+  static Future<Map<String, dynamic>> setServiceSchedule({
+    required int bookingId,
+    required String scheduledDate,
+    required String scheduledTime,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'service-bookings/$bookingId/set-schedule/',
+      {'scheduled_date': scheduledDate, 'scheduled_time': scheduledTime},
       token: token,
     );
     return Map<String, dynamic>.from(data as Map);

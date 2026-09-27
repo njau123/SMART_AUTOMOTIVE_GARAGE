@@ -124,16 +124,12 @@ from rest_framework import serializers as drf_serializers
 
 
 class ServiceBookingCreateSerializer(drf_serializers.Serializer):
-    service_id = drf_serializers.IntegerField(required=False, allow_null=True)
-    custom_service_name = drf_serializers.CharField(max_length=200, required=False, allow_blank=True)
+    service_id = drf_serializers.IntegerField()
     vehicle_make = drf_serializers.CharField(max_length=100)
     vehicle_model = drf_serializers.CharField(max_length=100)
     vehicle_year = drf_serializers.CharField(max_length=20, required=False, allow_blank=True)
     vehicle_registration = drf_serializers.CharField(max_length=50, required=False, allow_blank=True)
     vehicle_notes = drf_serializers.CharField(required=False, allow_blank=True)
-    service_address = drf_serializers.CharField(max_length=500, required=False, allow_blank=True)
-    service_latitude = drf_serializers.FloatField(required=False, allow_null=True)
-    service_longitude = drf_serializers.FloatField(required=False, allow_null=True)
 
 
 class ServiceBookingSerializer(drf_serializers.ModelSerializer):
@@ -151,9 +147,6 @@ class ServiceBookingSerializer(drf_serializers.ModelSerializer):
             "service", "service_name", "service_category",
             "vehicle_make", "vehicle_model", "vehicle_year",
             "vehicle_registration", "vehicle_notes",
-            "custom_service_name", "custom_service_price", "custom_service_approved",
-            "service_address", "service_latitude", "service_longitude", "location_verified",
-            "scheduled_date", "scheduled_time", "schedule_countdown_ends_at",
             "total_price", "deposit_amount", "balance_amount",
             "payment_status", "payment_reference", "payment_phone",
             "payment_method", "detected_network",

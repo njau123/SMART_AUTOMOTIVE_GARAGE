@@ -64,6 +64,65 @@ class _AdminServiceBookingsScreenState
     }
   }
 
+
+  Future<void> _approveCustom(dynamic b) async {
+    final priceCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Thibitisha Service + Weka Bei',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 15)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Service: ${b['custom_service_name'] ?? '-'}',
+                style: GoogleFonts.poppins(fontSize: 13)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: priceCtrl,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Bei (TSh)',
+                prefixIcon: const Icon(Icons.attach_money),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Ghairi')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Thibitisha', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+    final price = double.tryParse(priceCtrl.text.trim()) ?? 0;
+    if (price <= 0) return;
+
+    try {
+      await AdminAPI.approveCustomService(bookingId: b['id'] as int, price: price);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Imeidhinishwa ✅'), backgroundColor: Colors.green),
+        );
+        _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imeshindwa: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _verifyPayment(dynamic b) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -416,6 +475,22 @@ class _AdminServiceBookingsScreenState
                                       _row('Appointment',
                                           '${b['appointment_date']} ${b['appointment_time'] ?? ''}'),
                                     const SizedBox(height: 8),
+                                    if (b['service'] == null &&
+                                        b['custom_service_approved'] != true)
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton.icon(
+                                          onPressed: () => _approveCustom(b),
+                                          icon: const Icon(Icons.verified, size: 18),
+                                          label: Text('Thibitisha Service + Bei',
+                                              style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.orange,
+                                            foregroundColor: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+
                                     if (canVerify)
                                       SizedBox(
                                         width: double.infinity,

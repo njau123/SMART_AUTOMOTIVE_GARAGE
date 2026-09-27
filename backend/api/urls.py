@@ -69,6 +69,8 @@ from apps.services.views import (
     ServiceBookingFeedbackView, ServiceBookingCancelView,
     AdminServiceBookingListView, AdminServiceBookingVerifyPaymentView,
     AdminServiceBookingSetAppointmentView,
+    ServiceBookingSetScheduleView, AdminApproveCustomServiceView,
+    AvailableServiceJobsView, MechanicAcceptServiceJobView,
 )
 
 # Chat views kutoka apps.chat (ina @action messages + mark_read)
@@ -129,6 +131,10 @@ urlpatterns += [
     path('admin/service-bookings/', AdminServiceBookingListView.as_view(), name='admin-service-bookings'),
     path('admin/service-bookings/<int:pk>/verify/', AdminServiceBookingVerifyPaymentView.as_view(), name='admin-service-booking-verify'),
     path('admin/service-bookings/<int:pk>/set-appointment/', AdminServiceBookingSetAppointmentView.as_view(), name='admin-service-booking-set-appointment'),
+    path('service-bookings/<int:pk>/set-schedule/', ServiceBookingSetScheduleView.as_view(), name='service-booking-set-schedule'),
+    path('admin/service-bookings/<int:pk>/approve-custom/', AdminApproveCustomServiceView.as_view(), name='admin-service-approve-custom'),
+    path('service-jobs/available/', AvailableServiceJobsView.as_view(), name='service-jobs-available'),
+    path('service-jobs/<int:pk>/accept/', MechanicAcceptServiceJobView.as_view(), name='service-job-accept'),
     path('diagnosis/chat/', DiagnosisChatView.as_view(), name='diagnosis-chat'),
 ]
 

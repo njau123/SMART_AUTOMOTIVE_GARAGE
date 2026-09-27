@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
@@ -27,12 +26,6 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
   final _phoneCtrl = TextEditingController();
 
   bool _creating = false;
-  late bool _customMode;
-  final _customServiceCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
-  bool _gpsFetching = false;
-  double? _lat;
-  double? _lng;
   int? _bookingId;
   String _bookingNumber = '';
   Map<String, dynamic>? _paymentResult;
@@ -45,7 +38,6 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
   @override
   void initState() {
     super.initState();
-    _customMode = widget.service == null;
     _loadProfile();
   }
 
@@ -58,8 +50,6 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
     _regCtrl.dispose();
     _notesCtrl.dispose();
     _phoneCtrl.dispose();
-    _customServiceCtrl.dispose();
-    _addressCtrl.dispose();
     super.dispose();
   }
 
@@ -81,66 +71,8 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
       double.tryParse(widget.service['base_price']?.toString() ?? '0') ?? 0;
   double get _deposit => _totalPrice * 0.5;
 
-
-  Future<void> _fetchGps() async {
-    if (_gpsFetching) return;
-    setState(() => _gpsFetching = true);
-    try {
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
-        throw Exception('Ruhusa ya location haijatolewa');
-      }
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 15),
-      );
-      setState(() {
-        _lat = pos.latitude;
-        _lng = pos.longitude;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Location imepatikana'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('GPS: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _gpsFetching = false);
-    }
-  }
-
   Future<void> _createAndPay() async {
     if (!_formKey.currentState!.validate()) return;
-
-    // GPS mandatory
-    if (_lat == null || _lng == null) {
-      _snack('Tafadhali washa GPS kupata location yako', error: true);
-      return;
-    }
-
-    if (_addressCtrl.text.trim().isEmpty) {
-      _snack('Weka address yako', error: true);
-      return;
-    }
-
-    if (_customMode && _customServiceCtrl.text.trim().isEmpty) {
-      _snack('Weka jina la service unayotaka', error: true);
-      return;
-    }
-
     if (_phoneCtrl.text.trim().isEmpty && _paymentMethod == 'MOBILE_MONEY') {
       _snack('Weka namba yako ya simu', error: true);
       return;
@@ -149,16 +81,12 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
     setState(() => _creating = true);
     try {
       final res = await ServiceBookingAPI.createBooking(
-        serviceId: _customMode ? null : widget.service?['id'] as int?,
-        customServiceName: _customMode ? _customServiceCtrl.text.trim() : '',
+        serviceId: widget.service['id'] as int,
         vehicleMake: _makeCtrl.text.trim(),
         vehicleModel: _modelCtrl.text.trim(),
         vehicleYear: _yearCtrl.text.trim(),
         vehicleRegistration: _regCtrl.text.trim(),
         vehicleNotes: _notesCtrl.text.trim(),
-        serviceAddress: _addressCtrl.text.trim(),
-        serviceLatitude: _lat,
-        serviceLongitude: _lng,
       );
 
       if (res['success'] != true) {
@@ -174,22 +102,6 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
         _bookingNumber = bookingNumber;
       });
 
-      // Kama custom — subiri admin approve (haendi kwenye payment bado)
-      if (_customMode) {
-        if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Ombi limetumwa. Admin atathibitisha bei.'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
-        return;
-      }
-
-      // Standard service — nenda payment
       final payRes = await ServiceBookingAPI.payDeposit(
         bookingId: bookingId,
         phoneNumber: _phoneCtrl.text.trim(),
@@ -305,27 +217,6 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          if (_customMode) ...[
-            Text('Service Unayotaka',
-                style: GoogleFonts.poppins(
-                    fontSize: 14, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _customServiceCtrl,
-              style: GoogleFonts.poppins(fontSize: 13),
-              decoration: InputDecoration(
-                labelText: 'Mfano: Wheel Alignment, Engine Tune-up',
-                prefixIcon: const Icon(Icons.build_circle_outlined, size: 18),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-              validator: (v) => v == null || v.trim().isEmpty
-                  ? 'Inahitajika'
-                  : null,
-            ),
-            const SizedBox(height: 20),
-          ],
-
           Text('Taarifa za Gari',
               style: GoogleFonts.poppins(
                   fontSize: 14, fontWeight: FontWeight.w700)),
@@ -342,76 +233,6 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
           const SizedBox(height: 10),
           _field('Maelezo ya ziada', _notesCtrl, Icons.notes, maxLines: 3),
           const SizedBox(height: 20),
-          Text('Location (Lazima)',
-              style: GoogleFonts.poppins(
-                  fontSize: 14, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text('Weka address + washa GPS',
-              style: GoogleFonts.poppins(
-                  fontSize: 11, color: AppColors.textMuted)),
-          const SizedBox(height: 10),
-          TextFormField(
-            controller: _addressCtrl,
-            style: GoogleFonts.poppins(fontSize: 13),
-            decoration: InputDecoration(
-              labelText: 'Address (mfano: Mbezi Mwisho, Dar)',
-              prefixIcon: const Icon(Icons.home_outlined, size: 18),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            validator: (v) => v == null || v.trim().isEmpty
-                ? 'Inahitajika'
-                : null,
-          ),
-          const SizedBox(height: 10),
-          InkWell(
-            onTap: _fetchGps,
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: _lat != null
-                    ? Colors.green.withValues(alpha: 0.1)
-                    : Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _lat != null ? Colors.green : Colors.orange,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    _lat != null ? Icons.check_circle : Icons.my_location,
-                    color: _lat != null ? Colors.green : Colors.orange,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _gpsFetching
-                          ? 'Inatafuta location...'
-                          : _lat != null
-                              ? 'GPS: ${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}'
-                              : 'Washa GPS — Lazima kuendelea',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _lat != null
-                            ? Colors.green.shade900
-                            : Colors.orange.shade900,
-                      ),
-                    ),
-                  ),
-                  if (_gpsFetching)
-                    const SizedBox(
-                      width: 18, height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
           Text('Malipo — Deposit 50%',
               style: GoogleFonts.poppins(
                   fontSize: 14, fontWeight: FontWeight.w700)),

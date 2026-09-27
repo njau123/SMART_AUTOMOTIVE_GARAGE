@@ -69,6 +69,109 @@ class _ServiceTrackingScreenState extends State<ServiceTrackingScreen> {
     }
   }
 
+
+  Future<void> _showScheduleDialog() async {
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
+    TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Weka Muda wa Service',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 15)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                onTap: () async {
+                  final p = await showDatePicker(
+                    context: context,
+                    initialDate: selectedDate,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 30)),
+                  );
+                  if (p != null) setDialogState(() => selectedDate = p);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.calendar_today, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
+                      style: GoogleFonts.poppins(fontSize: 13),
+                    ),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: () async {
+                  final t = await showTimePicker(
+                    context: context, initialTime: selectedTime);
+                  if (t != null) setDialogState(() => selectedTime = t);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.access_time, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}',
+                      style: GoogleFonts.poppins(fontSize: 13),
+                    ),
+                  ]),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Ghairi')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              child: Text('Anza Countdown', style: GoogleFonts.poppins(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final dateStr = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+      final timeStr = '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
+      await ServiceBookingAPI.setServiceSchedule(
+        bookingId: widget.bookingId,
+        scheduledDate: dateStr,
+        scheduledTime: timeStr,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Countdown imeanza ✅'), backgroundColor: Colors.green),
+      );
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imeshindwa: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _showReceiptDialog() async {
     final ans = await showDialog<String>(
       context: context,
@@ -298,6 +401,26 @@ class _ServiceTrackingScreenState extends State<ServiceTrackingScreen> {
                       style: GoogleFonts.poppins(
                           fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white)),
                 ],
+              ),
+            ),
+
+          if ((status == 'DEPOSIT_PAID' || status == 'CONFIRMED') &&
+              d['schedule_countdown_ends_at'] == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _showScheduleDialog,
+                  icon: const Icon(Icons.schedule),
+                  label: Text('Weka Muda wa Service',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 50),
+                  ),
+                ),
               ),
             ),
 

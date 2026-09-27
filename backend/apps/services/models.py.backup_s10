@@ -159,10 +159,7 @@ class ServiceBooking(models.Model):
     service = models.ForeignKey(
         Service, on_delete=models.PROTECT,
         related_name="service_bookings",
-        null=True, blank=True,
     )
-    # Kama user ana-add service mpya (bila admin pre-create)
-    custom_service_name = models.CharField(max_length=200, blank=True)
 
     # ===== Vehicle details (user anaweka) =====
     vehicle_make = models.CharField(max_length=100)
@@ -221,39 +218,6 @@ class ServiceBooking(models.Model):
     user_feedback = models.TextField(blank=True)
     user_rating = models.PositiveSmallIntegerField(default=0)
 
-    # ===== SERVICE LOCATION (S4-S5) =====
-    service_address = models.CharField(max_length=500, blank=True)
-    service_latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
-    service_longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
-    location_verified = models.BooleanField(default=False)
-
-    # ===== SCHEDULE (S6-S7) =====
-    scheduled_date = models.DateField(null=True, blank=True)
-    scheduled_time = models.CharField(max_length=10, blank=True)
-    schedule_countdown_ends_at = models.DateTimeField(null=True, blank=True)
-    schedule_started_at = models.DateTimeField(null=True, blank=True)
-
-    # ===== ADMIN APPROVAL FOR CUSTOM SERVICE (S2) =====
-    custom_service_approved = models.BooleanField(default=False)
-    custom_service_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    admin_approved_at = models.DateTimeField(null=True, blank=True)
-
-    # ===== MECHANIC ASSIGNMENT (S9) =====
-    assigned_mechanic = models.ForeignKey(
-        "mechanics.MechanicProfile", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="assigned_service_bookings",
-    )
-    distance_km = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
-
-    # ===== COMPLETION =====
-    receipt_confirmed_at = models.DateTimeField(null=True, blank=True)
-    extended_count = models.PositiveIntegerField(default=0)
-    completed_at = models.DateTimeField(null=True, blank=True)
-
-    # ===== FEEDBACK =====
-    user_feedback = models.TextField(blank=True)
-    user_rating = models.PositiveSmallIntegerField(default=0)
-
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -265,12 +229,8 @@ class ServiceBooking(models.Model):
         import uuid as _u
         if not self.booking_number:
             self.booking_number = f"SB-{_u.uuid4().hex[:10].upper()}"
-        # Total price: custom price ikiwa imeidhinishwa, au service.base_price
-        if not self.total_price:
-            if self.custom_service_price:
-                self.total_price = self.custom_service_price
-            elif self.service:
-                self.total_price = self.service.base_price
+        if self.service and not self.total_price:
+            self.total_price = self.service.base_price
         if self.total_price:
             from decimal import Decimal
             self.deposit_amount = (self.total_price * Decimal("0.5")).quantize(Decimal("0.01"))
@@ -278,6 +238,5 @@ class ServiceBooking(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        name = self.service.name if self.service else (self.custom_service_name or "Custom Service")
-        return f"{self.booking_number} - {name}"
+        return f"{self.booking_number} - {self.service.name}"
 
