@@ -87,42 +87,121 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
 
   Future<void> _fetchGps() async {
     if (_gpsFetching) return;
+
+    // Kwanza funga keyboard kama ipo wazi
+    FocusScope.of(context).unfocus();
+    // Subiri kidogo (keyboard ifunge)
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
     setState(() => _gpsFetching = true);
+
     try {
+      // 1. Check location services zimеwashwa
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (!mounted) return;
+        setState(() => _gpsFetching = false);
+        _showGpsHelpDialog(
+          'GPS Haijawashwa',
+          'Tafadhali washa GPS/Location kwenye simu yako, kisha jaribu tena.',
+          showSettings: true,
+        );
+        return;
+      }
+
+      // 2. Check permission
       LocationPermission perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
       }
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
-        throw Exception('Ruhusa ya location haijatolewa');
+
+      if (perm == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        setState(() => _gpsFetching = false);
+        _showGpsHelpDialog(
+          'Ruhusa Imekataliwa',
+          'Location permission imekataliwa. Tafadhali ruhusu kwenye settings.',
+          showSettings: true,
+        );
+        return;
       }
+
+      if (perm == LocationPermission.denied) {
+        if (!mounted) return;
+        setState(() => _gpsFetching = false);
+        _showGpsHelpDialog(
+          'Ruhusa Haijatolewa',
+          'Chrome ilikataa ruhusa. Fungua Chrome → Site settings → Location → Allow, kisha jaribu tena.\n\n'
+          'AU — Fungua app kwenye Chrome (sio PWA/installed app).',
+          showSettings: false,
+        );
+        return;
+      }
+
+      // 3. Pata location
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 15),
+        timeLimit: const Duration(seconds: 20),
       );
+
+      if (!mounted) return;
       setState(() {
         _lat = pos.latitude;
         _lng = pos.longitude;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Location imepatikana'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Location imepatikana'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('GPS: $e'), backgroundColor: Colors.red),
-        );
-      }
+      if (!mounted) return;
+      _showGpsHelpDialog(
+        'GPS Imeshindwa',
+        'Hitilafu: ${e.toString().replaceAll("Exception: ", "")}\n\n'
+        '1. Hakikisha umeifungua kwenye Chrome (sio PWA)\n'
+        '2. Hakikisha GPS imewashwa kwenye simu\n'
+        '3. Ruhusu Location kwenye Chrome settings',
+        showSettings: false,
+      );
     } finally {
       if (mounted) setState(() => _gpsFetching = false);
     }
+  }
+
+  void _showGpsHelpDialog(String title, String message, {bool showSettings = false}) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(children: [
+          const Icon(Icons.location_off, color: Colors.orange),
+          const SizedBox(width: 8),
+          Expanded(child: Text(title,
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 15))),
+        ]),
+        content: Text(message, style: GoogleFonts.poppins(fontSize: 13, height: 1.5)),
+        actions: [
+          if (showSettings)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Geolocator.openAppSettings();
+              },
+              child: Text('Fungua Settings', style: GoogleFonts.poppins()),
+            ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            child: Text('Sawa', style: GoogleFonts.poppins(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
 

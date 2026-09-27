@@ -216,6 +216,38 @@ class _ServiceTrackingScreenState extends State<ServiceTrackingScreen> {
     }
   }
 
+
+  void _showGpsHelpDialog(String title, String message, {bool showSettings = false}) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(children: [
+          const Icon(Icons.location_off, color: Colors.orange),
+          const SizedBox(width: 8),
+          Expanded(child: Text(title,
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 15))),
+        ]),
+        content: Text(message, style: GoogleFonts.poppins(fontSize: 13, height: 1.5)),
+        actions: [
+          if (showSettings)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Geolocator.openAppSettings();
+              },
+              child: Text('Fungua Settings', style: GoogleFonts.poppins()),
+            ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: Text('Sawa', style: GoogleFonts.poppins(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showScheduleDialog() async {
     DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
     TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
