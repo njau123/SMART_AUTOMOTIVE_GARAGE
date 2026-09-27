@@ -1390,14 +1390,9 @@ class OBDAPI {
   /// Angalia kama user ameshalipia OBD.
   static Future<bool> hasPaid() async {
     try {
-      final token = await TokenStorage.getAccessToken();
-      final data = await ApiService.get(
-        'diagnosis/history/',
-        token: token,
-      );
-      // Kama tuna data — inamaanisha alishalipia
-      if (data is Map && data['data'] != null) return true;
-      return false;
+      final res = await getOBDPaymentStatus();
+      final data = res['data'] as Map? ?? {};
+      return data['is_paid'] == true;
     } catch (_) {
       return false;
     }

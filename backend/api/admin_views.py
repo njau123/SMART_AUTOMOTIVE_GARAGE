@@ -312,25 +312,82 @@ class AdminPaymentVerifyView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        action = (request.data.get('action') or 'verify').lower()
+
+        if action == 'reject':
+            p.status = 'FAILED'
+            p.save(update_fields=['status'])
+            try:
+                from apps.notifications.services import send_notification_to_user
+                send_notification_to_user(
+                    user=p.user,
+                    title='❌ Malipo hayakuthibitishwa',
+                    message=f'Malipo yako ya TSh {p.amount} hayakuthibitishwa. Wasiliana na msaada.',
+                    notification_type='payment',
+                )
+            except Exception:
+                pass
+            return Response({
+                'success': True,
+                'message': f'Payment {p.reference} rejected',
+                'data': {'id': p.id, 'status': p.status},
+            })
+
+        # Verify
         p.status = 'COMPLETED'
         p.completed_at = timezone.now()
         p.save()
 
+        # ====== LINK KWA SERVICE/ORDER KAMA IPO ======
+        purpose = p.purpose or ''
+
+        # Kama ni SERVICE_BOOKING deposit → update booking
+        try:
+            booking_id = p.metadata.get('service_booking_id') if isinstance(p.metadata, dict) else None
+            if booking_id:
+                from apps.services.models import ServiceBooking
+                b = ServiceBooking.objects.filter(id=booking_id).first()
+                if b:
+                    b.payment_status = 'DEPOSIT_PAID'
+                    b.status = 'DEPOSIT_PAID'
+                    b.save(update_fields=['payment_status', 'status'])
+        except Exception as e:
+            print(f'[Verify booking] {e}')
+
+        # Kama ni SPARE_PART order → update order
+        try:
+            order_id = p.metadata.get('order_id') if isinstance(p.metadata, dict) else None
+            if order_id:
+                from apps.spare_parts.models import SparePartOrder
+                o = SparePartOrder.objects.filter(id=order_id).first()
+                if o:
+                    o.status = 'PAID'
+                    o.payment_status = 'PAID'
+                    o.save(update_fields=['status', 'payment_status'])
+        except Exception as e:
+            print(f'[Verify order] {e}')
+
+        # Notify user
         try:
             from apps.notifications.services import send_notification_to_user
             send_notification_to_user(
                 user=p.user,
-                title='Payment Confirmed',
-                body=f'Malipo yako ya TSh {p.amount} yamethibitishwa. Asante!',
+                title='✅ Malipo yamethibitishwa',
+                message=f'Malipo yako ya TSh {p.amount} yamethibitishwa. Unaweza kuendelea.',
                 notification_type='payment',
+                data={
+                    'type': 'payment_verified',
+                    'payment_id': str(p.id),
+                    'purpose': purpose,
+                },
             )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f'[Notif verify] {e}')
 
         return Response({
             'success': True,
             'message': f'Payment {p.reference} marked as completed',
-            'data': {'id': p.id, 'status': p.status},
+            'data': {'id': p.id, 'status': p.status, 'purpose': purpose},
         })
 
 
