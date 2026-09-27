@@ -1,7 +1,9 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/state/auth_state.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -18,7 +20,24 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   void initState() {
     super.initState();
+    // Futa notifications za user wa awali kama user amebadilika
+    _clearIfUserChanged();
     _load();
+  }
+
+  Future<void> _clearIfUserChanged() async {
+    try {
+      final currentUser = AuthState.instance.user?['id']?.toString();
+      final prefs = await SharedPreferences.getInstance();
+      final lastUser = prefs.getString('notif_last_user_id');
+      if (lastUser != null && lastUser != currentUser) {
+        // User amebadilika — futa cache
+        await prefs.remove('notif_last_user_id');
+      }
+      if (currentUser != null) {
+        await prefs.setString('notif_last_user_id', currentUser);
+      }
+    } catch (_) {}
   }
 
   Future<void> _load() async {

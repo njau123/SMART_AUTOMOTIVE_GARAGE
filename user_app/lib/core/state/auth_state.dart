@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 
@@ -54,7 +55,24 @@ class AuthState extends ChangeNotifier {
   }
 
   Future<void> logout({bool showMessage = true}) async {
+    // 1. Futa FCM token kwa device hii (backend + device)
+    try {
+      final token = await TokenStorage.getAccessToken();
+      if (token != null && token.isNotEmpty) {
+        await NotificationAPI.unregisterDeviceToken(token);
+      }
+    } catch (_) {}
+
+    // 2. Futa FCM token kwenye device yenyewe
+    try {
+      final fcm = FirebaseMessaging.instance;
+      await fcm.deleteToken();
+    } catch (_) {}
+
+    // 3. Futa tokens + cached user
     await TokenStorage.clear();
+
+    // 4. Futa state
     _isLoggedIn = false;
     _user = null;
     _showLogoutMessage = showMessage;

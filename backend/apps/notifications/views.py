@@ -70,6 +70,27 @@ def register_device(request):
     return Response({'success': True, 'message': 'Device registered'})
 
 
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def unregister_device(request):
+    """Futa FCM token ya device hii (logout)."""
+    token = request.data.get('device_token')
+    user = request.user
+
+    if token:
+        # Futa token maalum
+        NotificationDevice.objects.filter(
+            user=user, device_token=token,
+        ).delete()
+    else:
+        # Futa devices zote za user huyu
+        NotificationDevice.objects.filter(user=user).delete()
+
+    return Response({'success': True, 'message': 'Devices zimeondolewa'})
+
+
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def send_admin_notification(request):

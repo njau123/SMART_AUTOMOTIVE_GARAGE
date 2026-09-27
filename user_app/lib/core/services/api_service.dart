@@ -887,6 +887,16 @@ class BookingAPI {
 
 // =================== NOTIFICATION API ===================
 class NotificationAPI {
+
+  static Future<void> unregisterDeviceToken(String token) async {
+    try {
+      await ApiService.post(
+        'notifications/devices/unregister/',
+        {},
+        token: token,
+      );
+    } catch (_) {}
+  }
   static Future<void> registerDeviceToken(String fcmToken) async {
     final token = await TokenStorage.getAccessToken();
     await ApiService.post(
