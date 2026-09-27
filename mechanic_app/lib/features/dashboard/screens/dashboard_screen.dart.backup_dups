@@ -140,6 +140,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
             children: [
+              _buildActionCard(Icons.work_outline, 'View Jobs', 'Browse available jobs', () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const JobListScreen()));
+              }),
               _buildActionCard(Icons.payments, 'Earnings', 'Your income', () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const EarningsScreen()));
               }),

@@ -55,7 +55,7 @@ class AppLocalizations {
       'spare_parts': 'Vipuri',
       'profile': 'Wasifu',
       'wallet': 'Pochi',
-      'bookings': 'Oda Zangu',
+      'bookings': 'Bookings Zangu',
       'chat': 'Mazungumzo',
       'notifications': 'Taarifa',
       'settings': 'Mipangilio',
