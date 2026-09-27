@@ -1477,30 +1477,6 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
         const SizedBox(width: 4),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.gps_fixed, color: Colors.blue, size: 20),
-            tooltip: 'Omba GPS ya mteja',
-            onPressed: _sending ? null : _requestGps,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.orange.shade50,
-            shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.timer, color: Colors.orange, size: 20),
-            tooltip: 'Weka muda wa kufika',
-            onPressed: _sending ? null : _setSchedule,
-          ),
-        ),
-        const SizedBox(width: 4),
         Expanded(
           child: TextField(
             controller: _msgCtrl,

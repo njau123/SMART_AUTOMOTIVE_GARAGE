@@ -1084,51 +1084,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     // ===== AUDIO / VOICE NOTE =====
-    if (msgType == 'gps_request') {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.blue.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.blue),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              const Icon(Icons.location_on, color: Colors.blue, size: 20),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text('Ombi la Location',
-                    style: GoogleFonts.poppins(
-                        fontSize: 12, fontWeight: FontWeight.w700)),
-              ),
-            ]),
-            const SizedBox(height: 6),
-            Text('Mechanic anaomba uwasilishe location yako ili akufikie.',
-                style: GoogleFonts.poppins(fontSize: 11)),
-            if (!isMine) ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _shareGpsResponse,
-                  icon: const Icon(Icons.my_location, size: 16),
-                  label: Text('Shiriki Location Yangu',
-                      style: GoogleFonts.poppins(
-                          fontSize: 12, fontWeight: FontWeight.w600)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
     if (msgType == 'audio' && mediaUrls.isNotEmpty) {
       return _VoiceNotePlayer(url: mediaUrls.first.toString(), isMine: isMine);
     }
