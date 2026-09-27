@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -74,6 +76,177 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+
+  Future<void> _showDeliveryGpsDialog() async {
+    final addrCtrl = TextEditingController();
+    DateTime? pickupDate;
+    TimeOfDay? pickupTime;
+    double? lat, lng;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Delivery Yako',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 15)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Chagua siku + weka location yako',
+                    style: GoogleFonts.poppins(fontSize: 12)),
+                const SizedBox(height: 12),
+                // Pickup date
+                InkWell(
+                  onTap: () async {
+                    final now = DateTime.now();
+                    final p = await showDatePicker(
+                      context: context,
+                      initialDate: now.add(const Duration(days: 1)),
+                      firstDate: now.add(const Duration(days: 1)),
+                      lastDate: now.add(const Duration(days: 30)),
+                    );
+                    if (p != null) setD(() => pickupDate = p);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.calendar_today, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        pickupDate != null
+                            ? DateFormat('yyyy-MM-dd').format(pickupDate!)
+                            : 'Chagua siku ya kupokea',
+                        style: GoogleFonts.poppins(fontSize: 13),
+                      ),
+                    ]),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Pickup time
+                InkWell(
+                  onTap: () async {
+                    final t = await showTimePicker(
+                      context: context,
+                      initialTime: const TimeOfDay(hour: 10, minute: 0),
+                    );
+                    if (t != null) setD(() => pickupTime = t);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.access_time, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        pickupTime != null
+                            ? '${pickupTime!.hour.toString().padLeft(2, '0')}:${pickupTime!.minute.toString().padLeft(2, '0')}'
+                            : 'Chagua saa',
+                        style: GoogleFonts.poppins(fontSize: 13),
+                      ),
+                    ]),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Address
+                TextField(
+                  controller: addrCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Address (mfano: Mbezi Mwisho)',
+                    prefixIcon: const Icon(Icons.home_outlined, size: 18),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // GPS
+                InkWell(
+                  onTap: () async {
+                    try {
+                      LocationPermission perm = await Geolocator.checkPermission();
+                      if (perm == LocationPermission.denied) {
+                        perm = await Geolocator.requestPermission();
+                      }
+                      final pos = await Geolocator.getCurrentPosition(
+                        desiredAccuracy: LocationAccuracy.high,
+                        timeLimit: const Duration(seconds: 15),
+                      );
+                      setD(() { lat = pos.latitude; lng = pos.longitude; });
+                    } catch (_) {}
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: lat != null
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: lat != null ? Colors.green : Colors.orange),
+                    ),
+                    child: Row(children: [
+                      Icon(lat != null ? Icons.check_circle : Icons.my_location,
+                          color: lat != null ? Colors.green : Colors.orange),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(
+                        lat != null ? 'GPS: ${lat!.toStringAsFixed(5)}' : 'Washa GPS',
+                        style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600),
+                      )),
+                    ]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Ghairi')),
+            ElevatedButton(
+              onPressed: (lat == null || addrCtrl.text.trim().isEmpty || pickupDate == null)
+                  ? null
+                  : () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: Text('Hifadhi', style: GoogleFonts.poppins(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok != true) return;
+    try {
+      final dateStr = DateFormat('yyyy-MM-dd').format(pickupDate!);
+      final timeStr = pickupTime != null
+          ? '${pickupTime!.hour.toString().padLeft(2, '0')}:${pickupTime!.minute.toString().padLeft(2, '0')}'
+          : '';
+      await SparePartOrderAPI.setOrderDeliveryGps(
+        orderId: widget.orderId,
+        latitude: lat!,
+        longitude: lng!,
+        address: addrCtrl.text.trim(),
+        pickupDate: dateStr,
+        pickupTime: timeStr,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Delivery imewekwa ✅'), backgroundColor: Colors.green),
+      );
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imeshindwa: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -373,6 +546,27 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 ),
               ),
             ],
+
+            // GPS + Pickup date button (kama haijawekwa)
+            if ((status == 'PAID' || status == 'PROCESSING') &&
+                data['delivery_location'] == null)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _showDeliveryGpsDialog,
+                    icon: const Icon(Icons.location_on),
+                    label: Text('Weka Location + Siku ya Kupokea',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(0, 50),
+                    ),
+                  ),
+                ),
+              ),
 
             // Confirm button (kama countdown imeisha)
             if (isDelivery && data['is_delivery_due'] == true && !_actioning)
