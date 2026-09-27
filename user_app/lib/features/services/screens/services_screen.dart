@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
-import 'service_booking_screen.dart';
-import '../../../core/constants/app_images.dart';
 import '../../../core/services/api_service.dart';
-import '../../../shared/widgets/service_card.dart';
+import 'service_booking_screen.dart';
 
 class ServicesScreen extends StatefulWidget {
   const ServicesScreen({super.key});
@@ -17,6 +15,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
   bool _loading = true;
   String? _error;
   List<dynamic> _services = [];
+  List<dynamic> _filtered = [];
+  final _searchCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -24,16 +24,24 @@ class _ServicesScreenState extends State<ServicesScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() { _loading = true; _error = null; });
     try {
-      final data = await PublicAPI.getServices();
+      final res = await ApiService.get('services/');
+      final data = res is Map ? (res['data'] ?? res) : res;
+      final list = data is Map && data['items'] is List
+          ? data['items'] as List
+          : (data is List ? data : []);
       if (!mounted) return;
       setState(() {
-        _services = data;
+        _services = list;
+        _filtered = list;
         _loading = false;
       });
     } catch (e) {
@@ -45,224 +53,186 @@ class _ServicesScreenState extends State<ServicesScreen> {
     }
   }
 
+  void _filter(String q) {
+    final query = q.toLowerCase().trim();
+    setState(() {
+      if (query.isEmpty) {
+        _filtered = _services;
+      } else {
+        _filtered = _services.where((s) {
+          final name = s['name']?.toString().toLowerCase() ?? '';
+          final cat = s['category_name']?.toString().toLowerCase() ?? '';
+          final desc = s['description']?.toString().toLowerCase() ?? '';
+          return name.contains(query) || cat.contains(query) || desc.contains(query);
+        }).toList();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Our Services',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
+        title: Text('Services',
+            style: GoogleFonts.poppins(
+                fontSize: 16, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+        ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(AppImages.servicesBg),
-            fit: BoxFit.cover,
-            opacity: 0.45,
-          ),
-        ),
-        child: RefreshIndicator(
-        onRefresh: _load,
-        color: AppColors.primary,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? _buildError()
-                : _buildList(),
-      )),
-    );
-  }
-
-  Widget _buildError() {
-    return ListView(
-      children: [
-        const SizedBox(height: 80),
-        Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                const Icon(Icons.cloud_off_outlined,
-                    size: 64, color: AppColors.textMuted),
-                const SizedBox(height: 16),
-                Text(_error ?? 'Error',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(color: AppColors.textSecondary)),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: _load,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Try again'),
+      body: Column(
+        children: [
+          // SEARCH BAR
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            color: Colors.white,
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: _filter,
+              style: GoogleFonts.poppins(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Tafuta service (mfano: Engine, Brake)...',
+                hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey),
+                prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                suffixIcon: _searchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          _filter('');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
                 ),
-              ],
+                filled: true,
+                fillColor: Colors.grey.shade50,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildList() {
-    if (_services.isEmpty) {
-      return ListView(
-        children: [
-          const SizedBox(height: 80),
-          Center(
-            child: Text('No services yet',
-                style: GoogleFonts.poppins(color: AppColors.textSecondary)),
+          const Divider(height: 1),
+          // LIST
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline, size: 50, color: Colors.red),
+                              const SizedBox(height: 12),
+                              Text(_error!, textAlign: TextAlign.center,
+                                  style: GoogleFonts.poppins()),
+                              const SizedBox(height: 12),
+                              ElevatedButton(onPressed: _load, child: const Text('Jaribu Tena')),
+                            ],
+                          ),
+                        ),
+                      )
+                    : _filtered.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.search_off, size: 60, color: Colors.grey.shade400),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _searchCtrl.text.isEmpty ? 'Hakuna service bado' : 'Hakuna service inayolingana',
+                                  style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textMuted),
+                                ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _load,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: _filtered.length,
+                              itemBuilder: (_, i) => _serviceCard(_filtered[i]),
+                            ),
+                          ),
           ),
         ],
-      );
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: _services.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, i) {
-        final s = _services[i] as Map<String, dynamic>;
-        return ServiceCard(
-          service: s,
-          onTap: () => _showDetails(s),
-        );
-      },
+      ),
     );
   }
 
-  void _showDetails(Map<String, dynamic> service) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
+  Widget _serviceCard(Map<String, dynamic> s) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _openBooking(s),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.build_circle, color: AppColors.primary, size: 24),
               ),
-            ),
-            Text(
-              (service['name'] ?? '').toString(),
-              style: GoogleFonts.poppins(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              (service['description'] ?? 'No description').toString(),
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 20),
-            if (service['base_price'] != null)
-              _row('Price', 'TSh ${_fmt(service['base_price'])}'),
-            if (service['category_name'] != null && (service['category_name'] as String).isNotEmpty)
-              _row('Category', service['category_name'].toString()),
-            if (service['available_days'] is List && (service['available_days'] as List).isNotEmpty)
-              _row('Siku', _fmtDays(service['available_days'])),
-            if (service['start_time'] != null && service['end_time'] != null)
-              _row('Muda', '${_fmtTime(service['start_time'])} - ${_fmtTime(service['end_time'])}'),
-            if (service['estimated_duration_minutes'] != null)
-              _row('Inachukua', 'Dakika ${service['estimated_duration_minutes']}'),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ServiceBookingScreen(
-                        service: Map<String, dynamic>.from(service),
-                      ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(s['name']?.toString() ?? 'Service',
+                        style: GoogleFonts.poppins(
+                            fontSize: 14, fontWeight: FontWeight.w700)),
+                    if ((s['description'] ?? '').toString().isNotEmpty)
+                      Text(s['description'].toString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                              fontSize: 11, color: AppColors.textMuted)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text('TSh ${(double.tryParse(s['base_price']?.toString() ?? '0') ?? 0).toStringAsFixed(0)}',
+                            style: GoogleFonts.poppins(
+                                fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text('50% deposit',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 9, fontWeight: FontWeight.w600, color: Colors.orange.shade900)),
+                        ),
+                      ],
                     ),
-                  );
-                },
-                icon: const Icon(Icons.check_circle_outline, size: 20),
-                label: const Text('Weka Booking (Lipa 50%)'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  ],
                 ),
               ),
-            ),
-          ],
+              const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _row(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: GoogleFonts.poppins(
-                color: AppColors.textSecondary,
-                fontSize: 14,
-              )),
-          Text(value,
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-                color: AppColors.textPrimary,
-              )),
-        ],
+  void _openBooking(Map<String, dynamic> s) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ServiceBookingScreen(service: s),
       ),
     );
-  }
-
-  String _fmtDays(dynamic days) {
-    if (days is! List || days.isEmpty) return '';
-    const map = {
-      'MON': 'Jumatatu', 'TUE': 'Jumanne', 'WED': 'Jumatano',
-      'THU': 'Alhamisi', 'FRI': 'Ijumaa', 'SAT': 'Jumamosi', 'SUN': 'Jumapili',
-    };
-    return days.map((d) => map[d.toString()] ?? d.toString()).join(', ');
-  }
-
-  String _fmtTime(dynamic t) {
-    if (t == null) return '';
-    final s = t.toString();
-    if (s.length >= 5) return s.substring(0, 5);
-    return s;
-  }
-
-  String _fmt(dynamic v) {
-    try {
-      return double.parse(v.toString())
-          .toStringAsFixed(0)
-          .replaceAllMapped(
-            RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]},',
-          );
-    } catch (_) {
-      return v.toString();
-    }
   }
 }
