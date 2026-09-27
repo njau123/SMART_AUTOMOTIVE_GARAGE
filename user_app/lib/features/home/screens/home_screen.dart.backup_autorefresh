@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -57,29 +56,14 @@ class _HomeScreenState extends State<HomeScreen> {
   final _contactMessage = TextEditingController();
   bool _sendingMsg = false;
 
-  Timer? _autoRefreshTimer;
-
   @override
   void initState() {
     super.initState();
-    // Auto-refresh kila dakika 3
-    _autoRefreshTimer = Timer.periodic(
-      const Duration(minutes: 3),
-      (_) => _silentRefresh(),
-    );
     _loadAll();
   }
 
   @override
-
-  Future<void> _silentRefresh() async {
-    try {
-      if (mounted) setState(() {});
-    } catch (_) {}
-  }
-
   void dispose() {
-    _autoRefreshTimer?.cancel();
     _scrollCtrl.dispose();
     _contactName.dispose();
     _contactPhone.dispose();

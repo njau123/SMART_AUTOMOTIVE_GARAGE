@@ -119,8 +119,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         vehicle: vehicleData.isEmpty ? null : vehicleData,
       );
 
-      await _load();
-      await AuthState.instance.init();
+      // Force refresh kutoka backend (sio cache)
+      try {
+        final fresh = await AuthAPI.getProfile();
+        if (mounted) setState(() => _profile = fresh);
+        await AuthState.instance.login(fresh);
+        await TokenStorage.saveUser(fresh);
+      } catch (_) {
+        await _load();
+      }
 
       if (mounted) {
         _snack('Profile updated successfully');

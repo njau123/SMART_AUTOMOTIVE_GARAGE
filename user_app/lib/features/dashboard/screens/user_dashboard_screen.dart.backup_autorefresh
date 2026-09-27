@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -28,15 +27,9 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   List<dynamic> _ads = [];
   bool _loading = true;
 
-  Timer? _autoRefreshTimer;
-
   @override
   void initState() {
     super.initState();
-    _autoRefreshTimer = Timer.periodic(
-      const Duration(minutes: 3),
-      (_) { if (mounted) _silentRefresh(); },
-    );
     _load();
   }
 
@@ -400,17 +393,5 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
         ),
       ],
     );
-  }
-
-  Future<void> _silentRefresh() async {
-    try {
-      if (mounted) setState(() {});
-    } catch (_) {}
-  }
-
-  @override
-  void dispose() {
-    _autoRefreshTimer?.cancel();
-    super.dispose();
   }
 }
