@@ -49,6 +49,7 @@ dependencies:
   just_audio: ^0.9.40
   file_picker: ^8.1.2
   image_cropper: ^12.2.1
+  video_player: ^2.14.0
 
 dev_dependencies:
   flutter_test:
