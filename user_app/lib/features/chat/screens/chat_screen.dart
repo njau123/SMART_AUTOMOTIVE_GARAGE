@@ -121,8 +121,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() => _sending = true);
     try {
-      await ChatAPI.sendMessage(roomId: widget.roomId, content: text);
+      await ChatAPI.sendMessage(
+        roomId: widget.roomId,
+        content: text,
+        replyTo: _replyTo?['id'] as int?,
+      );
       _msgCtrl.clear();
+      setState(() => _replyTo = null);
       await _loadMessages();
     } catch (e) {
       if (mounted) {

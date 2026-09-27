@@ -132,6 +132,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _emailCtrl,
+      autofillHints: const [AutofillHints.email, AutofillHints.username],
                       keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(
                         hintText: 'admin@example.com',
@@ -148,6 +149,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _passCtrl,
+      autofillHints: const [AutofillHints.password],
                       obscureText: _obscure,
                       decoration: InputDecoration(
                         hintText: '••••••••',

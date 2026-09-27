@@ -75,6 +75,9 @@ class MessageSerializer(serializers.ModelSerializer):
     reply_to_content = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
     formatted_time = serializers.SerializerMethodField()
+    can_edit = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+    is_deleted = serializers.SerializerMethodField()
     
     class Meta:
         model = Message
@@ -85,6 +88,7 @@ class MessageSerializer(serializers.ModelSerializer):
             'reply_to', 'reply_to_content', 'is_read',
             'read_by', 'read_at', 'delivery_status',
             'is_mine', 'formatted_time', 'metadata',
+            'can_edit', 'can_delete', 'is_deleted',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'sender', 'created_at', 'updated_at']
@@ -107,6 +111,32 @@ class MessageSerializer(serializers.ModelSerializer):
 
     def get_formatted_time(self, obj):
         return obj.created_at.strftime('%H:%M')
+
+    def get_can_edit(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        # User anaweza kuedit message YAKO (sender) na haijafutwa na ni text
+        return (
+            obj.sender_id == request.user.id
+            and not getattr(obj, 'is_deleted', False)
+            and obj.message_type == 'text'
+        )
+
+    def get_can_delete(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        # User anaweza kufuta message YAKO au Admin
+        is_mine = obj.sender_id == request.user.id
+        is_admin = (
+            request.user.is_staff
+            or request.user.role in ('ADMIN', 'SUPER_ADMIN')
+        )
+        return (is_mine or is_admin) and not getattr(obj, 'is_deleted', False)
+
+    def get_is_deleted(self, obj):
+        return getattr(obj, 'is_deleted', False)
 
 
 class MessageCreateSerializer(serializers.ModelSerializer):
@@ -176,6 +206,32 @@ class ChatNotificationSerializer(serializers.ModelSerializer):
 
     def get_formatted_time(self, obj):
         return obj.created_at.strftime('%H:%M')
+
+    def get_can_edit(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        # User anaweza kuedit message YAKO (sender) na haijafutwa na ni text
+        return (
+            obj.sender_id == request.user.id
+            and not getattr(obj, 'is_deleted', False)
+            and obj.message_type == 'text'
+        )
+
+    def get_can_delete(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        # User anaweza kufuta message YAKO au Admin
+        is_mine = obj.sender_id == request.user.id
+        is_admin = (
+            request.user.is_staff
+            or request.user.role in ('ADMIN', 'SUPER_ADMIN')
+        )
+        return (is_mine or is_admin) and not getattr(obj, 'is_deleted', False)
+
+    def get_is_deleted(self, obj):
+        return getattr(obj, 'is_deleted', False)
 
 
 class ChatBlockSerializer(serializers.ModelSerializer):

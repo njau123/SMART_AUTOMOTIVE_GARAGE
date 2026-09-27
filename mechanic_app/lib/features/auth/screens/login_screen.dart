@@ -141,6 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _emailCtrl,
+      autofillHints: const [AutofillHints.email, AutofillHints.username],
                             keyboardType: TextInputType.emailAddress,
                             style: GoogleFonts.poppins(fontSize: 14),
                             decoration: _inputDecoration(
@@ -163,6 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _passCtrl,
+      autofillHints: const [AutofillHints.password],
                             obscureText: _obscure,
                             style: GoogleFonts.poppins(fontSize: 14),
                             decoration: _inputDecoration(
