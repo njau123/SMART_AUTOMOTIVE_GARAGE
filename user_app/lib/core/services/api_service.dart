@@ -1590,5 +1590,25 @@ class ServiceBookingAPI {
     );
     return Map<String, dynamic>.from(data as Map);
   }
+
+  /// Update location ya booking (baada ya deposit paid).
+  static Future<Map<String, dynamic>> updateLocation({
+    required int bookingId,
+    required String address,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'service-bookings/\$bookingId/update-location/',
+      {
+        'service_address': address,
+        'service_latitude': latitude,
+        'service_longitude': longitude,
+      },
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 

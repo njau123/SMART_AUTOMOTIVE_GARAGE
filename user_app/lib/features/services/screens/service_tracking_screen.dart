@@ -1,3 +1,4 @@
+import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -69,6 +70,52 @@ class _ServiceTrackingScreenState extends State<ServiceTrackingScreen> {
     }
   }
 
+
+
+  Future<void> _showThankYouDialog() async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.celebration, color: Colors.green, size: 28),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Asante!',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Thank you for choosing ${widget.serviceName}!',
+              style: GoogleFonts.poppins(fontSize: 14, height: 1.5),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Kulingana na muda ulioset, huduma yako itaanza kuhesabiwa. Utapata notification kila hatua.',
+              style: GoogleFonts.poppins(fontSize: 12, height: 1.5, color: Colors.grey.shade700),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: Text('Sawa', style: GoogleFonts.poppins(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _showScheduleDialog() async {
     DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
@@ -159,9 +206,7 @@ class _ServiceTrackingScreenState extends State<ServiceTrackingScreen> {
         scheduledTime: timeStr,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Countdown imeanza ✅'), backgroundColor: Colors.green),
-      );
+      await _showThankYouDialog();
       await _load();
     } catch (e) {
       if (mounted) {
@@ -404,7 +449,27 @@ class _ServiceTrackingScreenState extends State<ServiceTrackingScreen> {
               ),
             ),
 
+          if (status == 'DEPOSIT_PAID' &&
+              (d['service_address'] == null || (d['service_address']?.toString() ?? '').isEmpty))
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _showLocationDialog,
+                  icon: const Icon(Icons.location_on),
+                  label: Text('Weka Location Yako',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 50),
+                  ),
+                ),
+              ),
+            ),
           if ((status == 'DEPOSIT_PAID' || status == 'CONFIRMED') &&
+              (d['service_address'] != null && (d['service_address']?.toString() ?? '').isNotEmpty) &&
               d['schedule_countdown_ends_at'] == null)
             Padding(
               padding: const EdgeInsets.only(top: 16),

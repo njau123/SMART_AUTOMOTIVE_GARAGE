@@ -544,6 +544,45 @@ class ServiceBookingCancelView(APIView):
 
 
 # ==================== ADMIN ====================
+
+
+class ServiceBookingUpdateLocationView(APIView):
+    """User ana-update location baada ya deposit paid."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        from .models import ServiceBooking
+        try:
+            b = ServiceBooking.objects.get(pk=pk, user=request.user)
+        except ServiceBooking.DoesNotExist:
+            return Response({"success": False, "message": "Booking haipo"}, status=404)
+
+        if b.status not in ("DEPOSIT_PAID", "CONFIRMED", "PENDING_PAYMENT"):
+            return Response({"success": False, "message": "Huwezi kubadilisha location sasa"}, status=400)
+
+        addr = (request.data.get("service_address") or "").strip()
+        try:
+            lat = float(request.data.get("service_latitude", 0))
+            lng = float(request.data.get("service_longitude", 0))
+        except (ValueError, TypeError):
+            return Response({"success": False, "message": "Location si sahihi"}, status=400)
+
+        if not addr or (lat == 0 and lng == 0):
+            return Response({"success": False, "message": "Address + GPS ni lazima"}, status=400)
+
+        b.service_address = addr
+        b.service_latitude = lat
+        b.service_longitude = lng
+        b.location_verified = True
+        b.save(update_fields=['service_address', 'service_latitude', 'service_longitude', 'location_verified'])
+
+        return Response({
+            "success": True,
+            "message": "Location imehifadhiwa",
+            "data": ServiceBookingSerializer(b, context={"request": request}).data,
+        })
+
+
 class AdminServiceBookingListView(APIView):
     """Admin — bookings zote."""
     permission_classes = [IsAuthenticated]

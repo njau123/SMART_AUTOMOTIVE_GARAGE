@@ -70,6 +70,7 @@ from apps.services.views import (
     AdminServiceBookingListView, AdminServiceBookingVerifyPaymentView,
     AdminServiceBookingSetAppointmentView,
     ServiceBookingSetScheduleView, AdminApproveCustomServiceView,
+    ServiceBookingUpdateLocationView,
     AvailableServiceJobsView, MechanicAcceptServiceJobView,
 )
 
@@ -132,6 +133,7 @@ urlpatterns += [
     path('admin/service-bookings/<int:pk>/verify/', AdminServiceBookingVerifyPaymentView.as_view(), name='admin-service-booking-verify'),
     path('admin/service-bookings/<int:pk>/set-appointment/', AdminServiceBookingSetAppointmentView.as_view(), name='admin-service-booking-set-appointment'),
     path('service-bookings/<int:pk>/set-schedule/', ServiceBookingSetScheduleView.as_view(), name='service-booking-set-schedule'),
+    path('service-bookings/<int:pk>/update-location/', ServiceBookingUpdateLocationView.as_view(), name='service-booking-update-location'),
     path('admin/service-bookings/<int:pk>/approve-custom/', AdminApproveCustomServiceView.as_view(), name='admin-service-approve-custom'),
     path('service-jobs/available/', AvailableServiceJobsView.as_view(), name='service-jobs-available'),
     path('service-jobs/<int:pk>/accept/', MechanicAcceptServiceJobView.as_view(), name='service-job-accept'),
