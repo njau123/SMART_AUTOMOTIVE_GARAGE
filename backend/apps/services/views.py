@@ -244,6 +244,7 @@ class ServiceBookingPayDepositView(APIView):
         method = (request.data.get("payment_method") or "MOBILE_MONEY").upper()
         bank = (request.data.get("bank_name") or "").strip()
 
+        bank_account = ""
         if method == "MOBILE_MONEY":
             clean = _re.sub(r"[^0-9]", "", phone)
             if clean.startswith("255"):
@@ -256,6 +257,14 @@ class ServiceBookingPayDepositView(APIView):
                     "message": "Namba si sahihi. Tumia 07XXXXXXXX au 06XXXXXXXX",
                 }, status=400)
             phone = clean
+        else:
+            # BANK — namba ni account number
+            bank_account = _re.sub(r"[^0-9]", "", phone)
+            if len(bank_account) < 8:
+                return Response({
+                    "success": False,
+                    "message": "Account number si sahihi",
+                }, status=400)
 
         # Unda payment kwa kutumia unified
         from apps.payments.models import Payment
@@ -284,6 +293,8 @@ class ServiceBookingPayDepositView(APIView):
                 "booking_number": booking.booking_number,
                 "type": "SERVICE_DEPOSIT",
                 "bank_name": bank,
+                "bank_account": bank_account,
+                "payment_phone": phone if method == "MOBILE_MONEY" else "",
             },
         )
 

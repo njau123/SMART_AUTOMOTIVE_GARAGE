@@ -41,6 +41,8 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
   bool _paidConfirmed = false;
   String _paymentMethod = 'MOBILE_MONEY';
   String _selectedBank = 'NMB';
+  final _bankAccountCtrl = TextEditingController();
+  String? _detectedBank;
 
   @override
   void initState() {
@@ -60,6 +62,7 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
     _phoneCtrl.dispose();
     _customServiceCtrl.dispose();
     _addressCtrl.dispose();
+    _bankAccountCtrl.dispose();
     super.dispose();
   }
 
@@ -120,6 +123,27 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
     } finally {
       if (mounted) setState(() => _gpsFetching = false);
     }
+  }
+
+
+  String? _detectNetwork(String phone) {
+    if (phone.length != 10) return null;
+    final p = phone.substring(0, 3);
+    if (['075', '076', '074'].contains(p)) return 'Vodacom';
+    if (['071', '065', '067'].contains(p)) return 'Tigo/Yas';
+    if (['078', '068', '069'].contains(p)) return 'Airtel';
+    if (['062', '061'].contains(p)) return 'Halotel';
+    return null;
+  }
+
+  String? _detectBankFromAccount(String acc) {
+    if (acc.length < 8) return null;
+    // NMB patterns
+    if (acc.startsWith('2321') || acc.startsWith('2010')) return 'NMB';
+    if (acc.startsWith('0150') || acc.startsWith('0152')) return 'CRDB';
+    if (acc.startsWith('0110') || acc.startsWith('0111')) return 'NBC';
+    if (acc.startsWith('0700')) return 'Equity';
+    return null;
   }
 
   Future<void> _createAndPay() async {
@@ -192,7 +216,9 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
       // Standard service — nenda payment
       final payRes = await ServiceBookingAPI.payDeposit(
         bookingId: bookingId,
-        phoneNumber: _phoneCtrl.text.trim(),
+        phoneNumber: _paymentMethod == 'BANK'
+            ? _bankAccountCtrl.text.trim()
+            : _phoneCtrl.text.trim(),
         paymentMethod: _paymentMethod,
         bankName: _paymentMethod == 'BANK' ? _selectedBank : '',
       );
@@ -424,10 +450,53 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          if (_paymentMethod == 'MOBILE_MONEY')
+          if (_paymentMethod == 'MOBILE_MONEY') ...[
             _field('Namba ya simu', _phoneCtrl, Icons.phone,
                 keyboard: TextInputType.phone, required: true),
-          if (_paymentMethod == 'BANK') _bankDropdown(),
+            const SizedBox(height: 6),
+            if (_phoneCtrl.text.length == 10) ...[
+              Builder(builder: (_) {
+                final net = _detectNetwork(_phoneCtrl.text);
+                if (net == null) {
+                  return Text('⚠️ Mtandao haujulikani',
+                      style: GoogleFonts.poppins(
+                          fontSize: 10, color: Colors.red));
+                }
+                return Row(children: [
+                  Icon(Icons.check_circle, size: 14, color: Colors.green.shade700),
+                  const SizedBox(width: 4),
+                  Text('Mtandao: $net',
+                      style: GoogleFonts.poppins(
+                          fontSize: 10, fontWeight: FontWeight.w600,
+                          color: Colors.green.shade800)),
+                ]);
+              }),
+            ],
+          ],
+          if (_paymentMethod == 'BANK') ...[
+            _bankDropdown(),
+            const SizedBox(height: 10),
+            _field('Account Number yako', _bankAccountCtrl, Icons.account_balance,
+                keyboard: TextInputType.number, required: true),
+            const SizedBox(height: 6),
+            if (_bankAccountCtrl.text.length >= 8) ...[
+              Builder(builder: (_) {
+                final bank = _detectBankFromAccount(_bankAccountCtrl.text);
+                if (bank == null) {
+                  return Text('⚠️ Account pattern haijulikani',
+                      style: GoogleFonts.poppins(fontSize: 10, color: Colors.orange));
+                }
+                return Row(children: [
+                  Icon(Icons.check_circle, size: 14, color: Colors.green.shade700),
+                  const SizedBox(width: 4),
+                  Text('Bank: $bank',
+                      style: GoogleFonts.poppins(
+                          fontSize: 10, fontWeight: FontWeight.w600,
+                          color: Colors.green.shade800)),
+                ]);
+              }),
+            ],
+          ],
           const SizedBox(height: 24),
           SizedBox(
             height: 52,
@@ -515,6 +584,7 @@ class _ServiceBookingScreenState extends State<ServiceBookingScreen> {
       controller: ctrl,
       maxLines: maxLines,
       keyboardType: keyboard,
+      onChanged: (_) => setState(() {}),
       style: GoogleFonts.poppins(fontSize: 13),
       decoration: InputDecoration(
         labelText: label,
