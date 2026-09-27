@@ -6,6 +6,7 @@ import '../../../core/constants/app_images.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
 import '../../jobs/screens/job_list_screen.dart';
+import '../../jobs/screens/service_jobs_screen.dart';
 import '../../requests/screens/offline_requests_screen.dart';
 import '../../earnings/screens/earnings_screen.dart';
 import '../../reviews/screens/reviews_screen.dart';
@@ -147,6 +148,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               }),
               _buildActionCard(Icons.rate_review, 'Reviews', 'Client feedback', () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const ReviewsScreen()));
+              }),
+              _buildActionCard(Icons.handyman_outlined, 'Service Jobs', 'Available', () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ServiceJobsScreen()));
               }),
               _buildActionCard(Icons.inbox_outlined, 'Maombi', 'Requests', () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const OfflineRequestsScreen()));

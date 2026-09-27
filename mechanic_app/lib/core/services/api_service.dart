@@ -354,6 +354,23 @@ class MechanicAPI {
     );
     return Map<String, dynamic>.from(data as Map);
   }
+
+  static Future<List<dynamic>> getAvailableServiceJobs() async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get('service-jobs/available/', token: token);
+    if (data is Map && data['data'] is List) return data['data'] as List;
+    return [];
+  }
+
+  static Future<Map<String, dynamic>> acceptServiceJob(int jobId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'service-jobs/\$jobId/accept/',
+      {},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 
