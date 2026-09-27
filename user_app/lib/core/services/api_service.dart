@@ -123,6 +123,22 @@ class ApiService {
     return _handle(r);
   }
 
+  static Future<dynamic> put(
+    String endpoint,
+    Map<String, dynamic> data, {
+    String? token,
+  }) async {
+    final r = await http.put(
+      Uri.parse(AppConstants.baseUrl + endpoint),
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(data),
+    );
+    return _handle(r);
+  }
+
   static Future<dynamic> patch(
     String endpoint,
     Map<String, dynamic> data, {
@@ -588,6 +604,34 @@ class MethodsAPI {
       'chat/offline-request/',
       body,
       token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// ===== AI CHAT HISTORY =====
+  static Future<Map<String, dynamic>> aiChatList() async {
+    final data = await ApiService.get('diagnosis/chat/?action=list');
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> aiChatMessages(int convId) async {
+    final data = await ApiService.get(
+      'diagnosis/chat/?action=messages&conv_id=$convId',
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> aiChatDelete(int convId) async {
+    final data = await ApiService.delete(
+      'diagnosis/chat/?conv_id=$convId',
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> aiChatRename(int convId, String title) async {
+    final data = await ApiService.put(
+      'diagnosis/chat/?conv_id=$convId',
+      {'title': title},
     );
     return Map<String, dynamic>.from(data as Map);
   }

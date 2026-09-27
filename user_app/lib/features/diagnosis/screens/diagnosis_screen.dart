@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'ai_chat_history_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
@@ -10,7 +11,8 @@ import '../../../core/state/auth_state.dart';
 import '../../mechanics/screens/mechanics_screen.dart';
 
 class DiagnosisScreen extends StatefulWidget {
-  const DiagnosisScreen({super.key});
+  final int? conversationId;
+  const DiagnosisScreen({super.key, this.conversationId});
 
   @override
   State<DiagnosisScreen> createState() => _DiagnosisScreenState();
@@ -45,7 +47,37 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    if (widget.conversationId != null) {
+      _loadSpecificConversation(widget.conversationId!);
+    } else {
+      _loadHistory();
+    }
+  }
+
+  Future<void> _loadSpecificConversation(int convId) async {
+    setState(() => _loadingHistory = true);
+    try {
+      final res = await MethodsAPI.aiChatMessages(convId);
+      if (!mounted) return;
+      final data = Map<String, dynamic>.from(res['data'] as Map);
+      final msgs = (data['messages'] as List?) ?? [];
+      setState(() {
+        _conversationId = convId;
+        _messages.clear();
+        for (final m in msgs) {
+          _messages.add(_ChatMessage(
+            role: m['role']?.toString() ?? 'assistant',
+            content: m['content']?.toString() ?? '',
+          ));
+        }
+      });
+      if (_messages.isEmpty) _addGreeting();
+      _scrollToBottom();
+    } catch (_) {
+      _addGreeting();
+    } finally {
+      if (mounted) setState(() => _loadingHistory = false);
+    }
   }
 
   Future<void> _loadHistory() async {
@@ -304,7 +336,20 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
             ),
           ],
         ),
-        actions: [],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Chats zangu',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AiChatHistoryScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Stack(
         children: [

@@ -1961,8 +1961,11 @@ class DiagnosisChatView(APIView):
 
         if not conv:
             try:
+                # Auto-title kutoka ujumbe wa kwanza
+                auto_title = (message or 'Chat')[:40].strip()
                 conv = ChatConversation.objects.create(
                     user=user,
+                    title=auto_title,
                     vehicle_make=vehicle_make,
                     vehicle_model=vehicle_model,
                     vehicle_year=vehicle_year,
@@ -2051,8 +2054,17 @@ class DiagnosisChatView(APIView):
         })
 
     def get(self, request):
-        """Pata conversation ya user (ya mwisho) pamoja na messages."""
+        """Pata conversation ya user (ya mwisho) au orodha ya zote."""
         from apps.ai_diagnosis.models import ChatConversation
+
+        # Action routing
+        action = request.query_params.get('action', 'latest')
+        conv_id = request.query_params.get('conv_id')
+
+        if action == 'list':
+            return self._list_conversations(request)
+        if action == 'messages' and conv_id:
+            return self._get_conversation_messages(request, conv_id)
 
         if not request.user.is_authenticated:
             return Response({'success': True, 'data': None})
@@ -2085,9 +2097,128 @@ class DiagnosisChatView(APIView):
             },
         })
 
-    def delete(self, request):
-        """Anzisha upya — futa conversation ya sasa."""
+
+    def _user_or_anon(self, request):
+        if request.user.is_authenticated:
+            return request.user, None
+        # Session-based anonymous ID
+        sess = request.session
+        if not sess.session_key:
+            sess.create()
+        return None, sess.session_key
+
+    def _list_conversations(self, request):
+        """Orodhesha conversations zote za user huyu."""
         from apps.ai_diagnosis.models import ChatConversation
+        user, anon = self._user_or_anon(request)
+
+        if user:
+            convs = ChatConversation.objects.filter(user=user).order_by('-updated_at')[:50]
+        else:
+            # Kwa anonymous — tumia session key kwenye title (fallback)
+            convs = ChatConversation.objects.none()
+
+        data = []
+        for conv in convs:
+            # Pata ujumbe wa mwisho
+            last_msg = conv.messages.order_by('-created_at').first()
+            preview = ''
+            if last_msg:
+                preview = (last_msg.content or '')[:80]
+            data.append({
+                'id': conv.id,
+                'title': conv.title or f"Chat #{conv.id}",
+                'vehicle': f"{conv.vehicle_make} {conv.vehicle_model}".strip() or 'Gari',
+                'preview': preview,
+                'message_count': conv.messages.count(),
+                'created_at': conv.created_at.isoformat(),
+                'updated_at': conv.updated_at.isoformat(),
+                'is_active': conv.is_active,
+            })
+
+        return Response({'success': True, 'data': data})
+
+    def _get_conversation_messages(self, request, conv_id):
+        """Pata messages zote za conversation fulani."""
+        from apps.ai_diagnosis.models import ChatConversation
+        user, _ = self._user_or_anon(request)
+
+        try:
+            conv = ChatConversation.objects.get(id=conv_id)
+        except ChatConversation.DoesNotExist:
+            return Response({'success': False, 'message': 'Conversation haipo'}, status=404)
+
+        # Security check
+        if user and conv.user_id and conv.user_id != user.id:
+            return Response({'success': False, 'message': 'Hauna ruhusa'}, status=403)
+
+        msgs = [
+            {
+                'role': m.role,
+                'content': m.content,
+                'has_image': m.has_image,
+                'created_at': m.created_at.isoformat(),
+            }
+            for m in conv.messages.all()[:200]
+        ]
+
+        return Response({
+            'success': True,
+            'data': {
+                'conversation_id': conv.id,
+                'title': conv.title or f"Chat #{conv.id}",
+                'vehicle_make': conv.vehicle_make,
+                'vehicle_model': conv.vehicle_model,
+                'vehicle_year': conv.vehicle_year,
+                'messages': msgs,
+            },
+        })
+
+    def _delete_conversation(self, request, conv_id):
+        """Futa conversation."""
+        from apps.ai_diagnosis.models import ChatConversation
+        user, _ = self._user_or_anon(request)
+
+        try:
+            conv = ChatConversation.objects.get(id=conv_id)
+        except ChatConversation.DoesNotExist:
+            return Response({'success': False, 'message': 'Conversation haipo'}, status=404)
+
+        if user and conv.user_id and conv.user_id != user.id:
+            return Response({'success': False, 'message': 'Hauna ruhusa'}, status=403)
+
+        conv.delete()
+        return Response({'success': True, 'message': 'Chat imefutwa'})
+
+    def _rename_conversation(self, request, conv_id):
+        """Badilisha title ya conversation."""
+        from apps.ai_diagnosis.models import ChatConversation
+        user, _ = self._user_or_anon(request)
+
+        try:
+            conv = ChatConversation.objects.get(id=conv_id)
+        except ChatConversation.DoesNotExist:
+            return Response({'success': False, 'message': 'Haipo'}, status=404)
+
+        if user and conv.user_id and conv.user_id != user.id:
+            return Response({'success': False, 'message': 'Hauna ruhusa'}, status=403)
+
+        title = (request.data.get('title') or '').strip()
+        if not title:
+            return Response({'success': False, 'message': 'Title ni tupu'}, status=400)
+
+        conv.title = title[:200]
+        conv.save(update_fields=['title'])
+        return Response({'success': True, 'data': {'id': conv.id, 'title': conv.title}})
+
+    def delete(self, request):
+        """Futa conversation (specific au zote za user)."""
+        from apps.ai_diagnosis.models import ChatConversation
+
+        conv_id = request.query_params.get('conv_id')
+
+        if conv_id:
+            return self._delete_conversation(request, conv_id)
 
         if not request.user.is_authenticated:
             return Response({'success': False}, status=401)
@@ -2097,6 +2228,13 @@ class DiagnosisChatView(APIView):
         ).update(is_active=False)
 
         return Response({'success': True, 'message': 'Conversation imefutwa'})
+
+    def put(self, request):
+        """Rename conversation."""
+        conv_id = request.query_params.get('conv_id')
+        if not conv_id:
+            return Response({'success': False, 'message': 'conv_id inahitajika'}, status=400)
+        return self._rename_conversation(request, conv_id)
 
 class RunMigrationsView(APIView):
     """TEMPORARY — endesha migrations. Futa baada ya kutumia."""
