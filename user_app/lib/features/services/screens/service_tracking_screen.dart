@@ -117,6 +117,105 @@ class _ServiceTrackingScreenState extends State<ServiceTrackingScreen> {
     );
   }
 
+  Future<void> _showLocationDialog() async {
+    final addrCtrl = TextEditingController();
+    double? lat, lng;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Weka Location Yako',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 15)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Weka address halisi + washa GPS',
+                  style: GoogleFonts.poppins(fontSize: 12)),
+              const SizedBox(height: 10),
+              TextField(
+                controller: addrCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Address',
+                  prefixIcon: const Icon(Icons.home_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: () async {
+                  try {
+                    LocationPermission perm = await Geolocator.checkPermission();
+                    if (perm == LocationPermission.denied) {
+                      perm = await Geolocator.requestPermission();
+                    }
+                    final pos = await Geolocator.getCurrentPosition(
+                      desiredAccuracy: LocationAccuracy.high,
+                      timeLimit: const Duration(seconds: 15),
+                    );
+                    setD(() { lat = pos.latitude; lng = pos.longitude; });
+                  } catch (_) {}
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: lat != null
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: lat != null ? Colors.green : Colors.orange),
+                  ),
+                  child: Row(children: [
+                    Icon(lat != null ? Icons.check_circle : Icons.my_location,
+                        color: lat != null ? Colors.green : Colors.orange),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(
+                      lat != null ? 'GPS: ${lat!.toStringAsFixed(5)}' : 'Washa GPS',
+                      style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600),
+                    )),
+                  ]),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Ghairi')),
+            ElevatedButton(
+              onPressed: (lat == null || addrCtrl.text.trim().isEmpty)
+                  ? null
+                  : () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: Text('Hifadhi', style: GoogleFonts.poppins(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok != true) return;
+    try {
+      await ServiceBookingAPI.updateLocation(
+        bookingId: widget.bookingId,
+        address: addrCtrl.text.trim(),
+        latitude: lat!,
+        longitude: lng!,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location imehifadhiwa ✅'), backgroundColor: Colors.green),
+      );
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imeshindwa: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _showScheduleDialog() async {
     DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
     TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
