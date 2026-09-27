@@ -35,6 +35,9 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _loading = true;
   bool _sending = false;
   Timer? _pollTimer;
+  Timer? _countdownTimer;
+  int _scheduleCountdown = 0;
+  String _scheduleInfo = '';
   // Voice note
   final _audioRecorder = AudioRecorder();
   bool _isRecording = false;
@@ -60,6 +63,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _loadMessages();
+    _loadCountdown();
     _markRead();
     _loadApprovalStatus();
     _startApprovalPolling();
@@ -717,6 +721,71 @@ class _ChatScreenState extends State<ChatScreen> {
   // ============ END ATTACHMENT PICKER ============
 
   @override
+
+  Future<void> _loadCountdown() async {
+    try {
+      final res = await ChatAPI.getReadyStatus(widget.roomId);
+      final data = res['data'] as Map? ?? {};
+      final endsAt = data['schedule_countdown_ends_at']?.toString() ??
+          data['countdown_ends_at']?.toString();
+      if (endsAt != null && endsAt.isNotEmpty) {
+        final end = DateTime.tryParse(endsAt);
+        if (end != null) {
+          final diff = end.difference(DateTime.now()).inSeconds;
+          if (diff > 0 && mounted) {
+            setState(() => _scheduleCountdown = diff);
+            _startCountdownTick();
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _startCountdownTick() {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
+      if (_scheduleCountdown <= 0) { t.cancel(); return; }
+      setState(() => _scheduleCountdown--);
+    });
+  }
+
+  Widget _countdownBanner() {
+    if (_scheduleCountdown <= 0) return const SizedBox.shrink();
+    final days = _scheduleCountdown ~/ 86400;
+    final hours = (_scheduleCountdown % 86400) ~/ 3600;
+    final mins = (_scheduleCountdown % 3600) ~/ 60;
+    final secs = _scheduleCountdown % 60;
+    String display = '';
+    if (days > 0) display = '${days}d ${hours}h ${mins}m';
+    else if (hours > 0) display = '${hours}h ${mins}m ${secs}s';
+    else display = '${mins}m ${secs}s';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      color: Colors.orange.shade100,
+      child: Row(
+        children: [
+          const Icon(Icons.timer, color: Colors.orange, size: 22),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Mechanic anakuja baada ya:',
+                    style: GoogleFonts.poppins(fontSize: 10, color: Colors.orange.shade900)),
+                Text(display,
+                    style: GoogleFonts.poppins(
+                        fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange.shade900)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void dispose() {
     _locationStream?.cancel();
     _approvalPoller?.cancel();
