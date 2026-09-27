@@ -96,25 +96,43 @@ class _NewsScreenState extends State<NewsScreen> {
         ),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                width: 90,
-                height: 90,
-                color: AppColors.surfaceAlt,
-                child: image.isNotEmpty
-                    ? Image.network(
-                        image.startsWith('http')
-                            ? image
-                            : 'http://10.0.2.2:8000$image',
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(
-                            Icons.newspaper_outlined,
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    width: 90,
+                    height: 90,
+                    color: AppColors.surfaceAlt,
+                    child: image.isNotEmpty
+                        ? Image.network(
+                            image.startsWith('http')
+                                ? image
+                                : 'http://10.0.2.2:8000$image',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                                Icons.newspaper_outlined,
+                                color: AppColors.textMuted),
+                          )
+                        : const Icon(Icons.newspaper_outlined,
                             color: AppColors.textMuted),
-                      )
-                    : const Icon(Icons.newspaper_outlined,
-                        color: AppColors.textMuted),
-              ),
+                  ),
+                ),
+                // Video badge kama news ina video
+                if (_hasVideo(n))
+                  Positioned(
+                    bottom: 4, right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.7),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.play_arrow,
+                          color: Colors.white, size: 16),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -152,6 +170,7 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   void _showDetails(Map<String, dynamic> n) {
+    final image = (n['featured_image'] ?? '').toString();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -187,6 +206,27 @@ class _NewsScreenState extends State<NewsScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              // VIDEO (kama ipo)
+              if (_hasVideo(n)) ...[
+                const SizedBox(height: 16),
+                SmartVideoPlayer(
+                  url: _getVideoUrl(n) ?? '',
+                  height: 220,
+                  autoPlay: false,
+                ),
+              ],
+              // FEATURED IMAGE (kama ipo na hakuna video)
+              if (!_hasVideo(n) && image.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    image.startsWith('http') ? image : 'http://10.0.2.2:8000$image',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               Text(
                 (n['content'] ?? n['summary'] ?? '').toString(),

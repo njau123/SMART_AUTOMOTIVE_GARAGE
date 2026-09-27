@@ -48,7 +48,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Chakata Picha',
-            toolbarColor: AppColors.primary,
+            toolbarColor: AppColors.primaryBlue,
             toolbarWidgetColor: Colors.white,
             lockAspectRatio: false,
             hideBottomControls: false,
@@ -148,7 +148,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
                           style: GoogleFonts.poppins(
                               fontWeight: FontWeight.w600)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: AppColors.primaryBlue,
                         foregroundColor: Colors.white,
                         minimumSize: const Size(0, 50),
                       ),
