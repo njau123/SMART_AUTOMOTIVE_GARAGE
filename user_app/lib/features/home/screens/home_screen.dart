@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/localization/app_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
@@ -276,6 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).t;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       drawer: const AppDrawer(),
@@ -414,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // ===== ADVERTISEMENTS =====
         if (_ads.isNotEmpty) ...[
-          _sectionHeader('Advertisements', subtitle: 'From Smart Garage'),
+          _sectionHeader(t('advertisements'), subtitle: t('advertisements_subtitle')),
           const SizedBox(height: 12),
           AdCarousel(ads: _ads, onTap: (_) => _openFree(const SparePartsScreen())),
           const SizedBox(height: 28),
@@ -422,8 +424,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // ===== SERVICES (requires login) =====
         if (_services.isNotEmpty) ...[
-          _sectionHeader('Our Services',
-              subtitle: 'Tap to explore — sign in required',
+          _sectionHeader(t('our_services'),
+              subtitle: t('our_services_subtitle'),
               action: () => _openProtected(const ServicesScreen())),
           const SizedBox(height: 12),
           SizedBox(
@@ -446,7 +448,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
 
         // ===== QUICK ACTIONS =====
-        _sectionHeader('Quick Actions', subtitle: 'Tap to access'),
+        _sectionHeader(t('quick_actions'), subtitle: t('quick_actions_subtitle')),
         const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -455,7 +457,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: _quickAction(
                   Icons.settings_outlined,
-                  'Spare Parts',
+                  t('spare_parts_section'),
                   AppColors.accent,
                   () => _openProtected(const SparePartsScreen()),
                 ),
@@ -473,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: _quickAction(
                   Icons.psychology_outlined,
-                  'AI Diagnosis',
+                  t('ai_diagnosis_section'),
                   AppColors.info,
                   () => _openProtected(const DiagnosisScreen()),
                 ),
@@ -485,8 +487,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // ===== SPARE PARTS =====
         if (_spareParts.isNotEmpty) ...[
-          _sectionHeader('Spare Parts',
-              subtitle: 'Popular car parts',
+          _sectionHeader(t('spare_parts_section'),
+              subtitle: t('spare_parts_subtitle'),
               action: () => _openProtected(const SparePartsScreen())),
           const SizedBox(height: 12),
           SizedBox(
@@ -527,7 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // ===== WHY CHOOSE US =====
         KeyedSubtree(key: _whyUsKey, child: const SizedBox(height: 1)),
-        _whyChooseUs(),
+        _whyChooseUs(context),
         const SizedBox(height: 28),
 
         // ===== LOCATION =====
@@ -684,13 +686,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ===== WHY CHOOSE US =====
-  Widget _whyChooseUs() {
+  Widget _whyChooseUs(BuildContext context) {
+    final t = AppLocalizations.of(context).t;
     final items = [
       ('Expert Mechanics', 'Verified professionals across Tanzania',
           Icons.engineering_outlined, AppColors.success),
       ('Quality Spare Parts', 'Genuine parts with warranty',
           Icons.settings_outlined, AppColors.accent),
-      ('AI Diagnosis', 'Smart detection of car problems',
+      (t('ai_diagnosis_section'), 'Smart detection of car problems',
           Icons.psychology_outlined, AppColors.info),
       ('Fast Response', 'Mechanics come to your location',
           Icons.speed_outlined, AppColors.primary),

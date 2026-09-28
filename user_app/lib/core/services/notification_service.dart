@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,9 +12,25 @@ class NotificationService {
 
   final _fcm = FirebaseMessaging.instance;
 
+  static final FlutterLocalNotificationsPlugin _localNotif =
+      FlutterLocalNotificationsPlugin();
+
   /// Request permission + register token + setup handlers.
   Future<void> init() async {
     try {
+      // 0. Init local notifications
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosInit = DarwinInitializationSettings();
+      const initSettings = InitializationSettings(
+        android: androidInit,
+        iOS: iosInit,
+      );
+      await _localNotif.initialize(initSettings);
+      await _localNotif
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+
       // 1. Request permission (iOS + Web)
       final settings = await _fcm.requestPermission(
         alert: true,
@@ -58,70 +75,60 @@ class NotificationService {
     }
   }
 
-  /// Popup ya foreground message.
+  /// Popup ya foreground message — LOCAL NOTIFICATION (pop on screen bar).
   void _onForegroundMessage(RemoteMessage msg) {
     debugPrint('FCM foreground: ${msg.notification?.title}');
-    final context = _navigatorKey.currentContext;
-    if (context == null) return;
 
-    // RING + VIBRATE — kila notification inasikika
+    // RING + VIBRATE
     _playNotificationAlert();
 
     final title = msg.notification?.title ?? 'Notification';
     final body = msg.notification?.body ?? '';
     final type = msg.data['type']?.toString() ?? '';
 
-    IconData icon = Icons.notifications_active;
-    Color color = const Color(0xFF1A73E8);
-    if (type.contains('chat')) { icon = Icons.chat_bubble; color = Colors.blue; }
-    else if (type.contains('payment') || type.contains('obd')) { icon = Icons.payments; color = Colors.green; }
-    else if (type.contains('offline_mechanic')) { icon = Icons.person_search; color = Colors.orange; }
-    else if (type.contains('ready')) { icon = Icons.handyman; color = Colors.deepOrange; }
-    else if (type.contains('service') || type.contains('order')) { icon = Icons.local_shipping; color = Colors.teal; }
-    else if (type.contains('alert') || type.contains('emergency')) { icon = Icons.warning; color = Colors.red; }
-
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 10,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
-                  child: Icon(icon, color: color, size: 26),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-              ]),
-              if (body.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Text(body, style: TextStyle(fontSize: 13, height: 1.5, color: Colors.grey.shade800)),
-              ],
-              const SizedBox(height: 20),
-              Row(children: [
-                Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Funga'))),
-                const SizedBox(width: 10),
-                Expanded(flex: 2, child: ElevatedButton(
-                  onPressed: () { Navigator.pop(ctx); _handleChatNavigation(msg); },
-                  style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white),
-                  child: const Text('Fungua'),
-                )),
-              ]),
-            ],
-          ),
-        ),
-      ),
-    );
+    _showLocalNotification(title: title, body: body, type: type);
   }
 
+  /// Onyesha local notification — inalia + inaonekana kwenye screen bar.
+  Future<void> _showLocalNotification({
+    required String title,
+    required String body,
+    required String type,
+  }) async {
+    const androidDetails = AndroidNotificationDetails(
+      'smart_garage_main',
+      'Smart Garage',
+      channelDescription: 'Smart Garage notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    try {
+      await _localNotif.show(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title,
+        body,
+        details,
+        payload: type,
+      );
+    } catch (e) {
+      debugPrint('Local notif error: $e');
+    }
+  }
 
   /// User aki-click notification.
   void _onNotificationTap(RemoteMessage msg) {
