@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'api_service.dart';
 
 /// Service ya kusimamia FCM push notifications.
+const String kVapidKey = 'BORO3-YlC8YFX9zVgZ0ddF-8O1FxbN9Q_0TnKUZNtcM2wvAFjEMwjKlufM5dwI7uc6tafGW8aZjV9ra2iLKueU0';
+
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
@@ -28,7 +30,9 @@ class NotificationService {
       }
 
       // 2. Get FCM token
-      final token = await _fcm.getToken();
+      final token = kIsWeb
+          ? await _fcm.getToken(vapidKey: kVapidKey)
+          : await _fcm.getToken();
       if (token != null && token.isNotEmpty) {
         debugPrint('FCM token: ${token.substring(0, 20)}...');
         await _registerToken(token);
@@ -157,7 +161,9 @@ class NotificationService {
   /// Unregister token (kwenye logout).
   Future<void> unregister() async {
     try {
-      final token = await _fcm.getToken();
+      final token = kIsWeb
+          ? await _fcm.getToken(vapidKey: kVapidKey)
+          : await _fcm.getToken();
       if (token != null) {
         await _fcm.deleteToken();
         debugPrint('FCM token deleted');

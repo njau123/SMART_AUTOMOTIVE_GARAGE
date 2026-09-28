@@ -44,6 +44,28 @@
     text-rendering: optimizeLegibility;
   }
 </style>
+
+  <!-- ═══════ FIREBASE FCM ═══════ -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+  <script>
+    // Config — public values tu (sio secret)
+    window.firebaseConfig = {
+      apiKey: "AIzaSyBWTqUOMT2kIqs51KyWdngnzdzy8Epafdc",
+      authDomain: "smart-automotive-garage.firebaseapp.com",
+      projectId: "smart-automotive-garage",
+      storageBucket: "smart-automotive-garage.firebasestorage.app",
+      messagingSenderId: "556100186888",
+      appId: "1:556100186888:web:0e7eaa6d91cd2dc3b6b2bd",
+    };
+    // Register service worker for FCM background
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        .then((reg) => console.log('[SW] Registered:', reg.scope))
+        .catch((err) => console.error('[SW] Failed:', err));
+    }
+  </script>
+
 </head>
 <body>
   <!--

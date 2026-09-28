@@ -1082,3 +1082,34 @@ class AdminChatAPI {
     return Map<String, dynamic>.from(data as Map);
   }
 }
+
+
+// =================== NOTIFICATION API ===================
+class NotificationAPI {
+  /// Register FCM token kwa device hii (login).
+  static Future<void> registerDeviceToken(
+    String fcmToken, {
+    String platform = 'web',
+  }) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      await ApiService.post('notifications/devices/register/', {
+        'device_token': fcmToken,
+        'device_type': platform,
+      }, token: token);
+    } catch (_) {}
+  }
+
+  /// Futa FCM token (logout).
+  static Future<void> unregisterDeviceToken(
+    String accessToken, {
+    String? deviceToken,
+  }) async {
+    try {
+      await ApiService.post('notifications/devices/unregister/', {
+        if (deviceToken != null) 'device_token': deviceToken,
+      }, token: accessToken);
+    } catch (_) {}
+  }
+}
