@@ -94,10 +94,36 @@ def unregister_device(request):
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def send_admin_notification(request):
+    """Admin anatuma notification kwa role husika (default: USER)."""
+    from apps.notifications.services import send_notification_to_role, send_notification_to_all_users
+
     title = request.data.get('title')
     message = request.data.get('message') or request.data.get('body')
+    target_role = (request.data.get('role') or 'USER').upper()
+    notification_type = request.data.get('type', 'system')
+
     if not title or not message:
         return Response({'error': 'title and message required'}, status=400)
-    devices = NotificationDevice.objects.filter(is_active=True)
-    tokens = [d.device_token for d in devices]
-    return Response({'sent': len(tokens)})
+
+    try:
+        if target_role == 'ALL':
+            results = send_notification_to_all_users(
+                title=title, message=message,
+                notification_type=notification_type,
+            )
+        else:
+            results = send_notification_to_role(
+                role=target_role, title=title, message=message,
+                notification_type=notification_type,
+            )
+
+        total_devices_sent = sum(r.get('devices_sent', 0) for r in results if r)
+        return Response({
+            'success': True,
+            'recipients': len(results),
+            'devices_sent': total_devices_sent,
+            'role': target_role,
+            'message': f'Notification imetumwa kwa {len(results)} {target_role} users',
+        })
+    except Exception as e:
+        return Response({'success': False, 'error': str(e)}, status=500)

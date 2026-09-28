@@ -1113,3 +1113,37 @@ class NotificationAPI {
     } catch (_) {}
   }
 }
+
+
+// =================== ADMIN OBD API ===================
+class AdminOBDAPI {
+  static Future<Map<String, dynamic>> list({String? status}) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final endpoint = status != null && status.isNotEmpty
+        ? 'admin/obd-payments/?status=$status'
+        : 'admin/obd-payments/';
+    final data = await ApiService.get(endpoint, token: token);
+    if (data is Map<String, dynamic>) return data;
+    return {'success': false, 'data': [], 'count': 0};
+  }
+
+  static Future<Map<String, dynamic>> verify(int id) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'admin/obd-payments/$id/verify/',
+      {'action': 'verify'},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<Map<String, dynamic>> reject(int id, {String reason = ''}) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'admin/obd-payments/$id/verify/',
+      {'action': 'reject', 'reason': reason},
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+}

@@ -4,7 +4,7 @@ from rest_framework import generics, viewsets, status
 from rest_framework.exceptions import APIException
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.decorators import action
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
@@ -2268,3 +2268,136 @@ class RunMigrationsView(APIView):
 
         return Response({'success': True, 'data': results})
 
+
+
+# ==================== ADMIN OBD VERIFY ====================
+
+class AdminOBDListView(APIView):
+    """Admin - orodha ya OBD payments zote."""
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from apps.payments.models import Payment
+        from django.utils import timezone
+
+        status_filter = request.GET.get('status', '').strip().upper()
+        qs = Payment.objects.filter(
+            purpose='OBD_DIAGNOSIS'
+        ).select_related('user').order_by('-created_at')
+
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
+        data = []
+        for p in qs[:200]:
+            remaining = 0
+            if p.expires_at and p.status in ('PENDING', 'CREATED'):
+                diff = p.expires_at - timezone.now()
+                remaining = max(0, int(diff.total_seconds()))
+
+            meta = p.metadata if isinstance(p.metadata, dict) else {}
+            data.append({
+                'id': p.id,
+                'reference': p.reference,
+                'user_id': p.user.id if p.user else 0,
+                'user_email': p.user.email if p.user else '',
+                'user_name': (p.user.get_full_name() or p.user.email) if p.user else '',
+                'user_phone': p.phone_number or '',
+                'amount': float(p.amount),
+                'currency': p.currency,
+                'status': p.status,
+                'method': p.method,
+                'provider': p.provider,
+                'detected_network': meta.get('detected_network', ''),
+                'countdown_seconds': remaining,
+                'created_at': p.created_at.isoformat() if p.created_at else None,
+                'expires_at': p.expires_at.isoformat() if p.expires_at else None,
+            })
+
+        return Response({
+            'success': True,
+            'data': data,
+            'count': len(data),
+        })
+
+
+class AdminOBDVerifyView(APIView):
+    """Admin - verify/reject OBD payment + notify user."""
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        from apps.payments.models import Payment
+        from django.utils import timezone
+        from apps.notifications.services import send_notification_to_user
+
+        try:
+            payment = Payment.objects.get(pk=pk, purpose='OBD_DIAGNOSIS')
+        except Payment.DoesNotExist:
+            return Response(
+                {'success': False, 'message': 'Payment haipo'},
+                status=404,
+            )
+
+        action = (request.data.get('action') or 'verify').lower()
+
+        if action == 'verify':
+            payment.status = 'COMPLETED'
+            payment.completed_at = timezone.now()
+            payment.save(update_fields=['status', 'completed_at', 'updated_at'])
+
+            try:
+                send_notification_to_user(
+                    user=payment.user,
+                    title='Malipo ya OBD yamethibitishwa',
+                    message=(
+                        f'Malipo yako (ref: {payment.reference}) '
+                        f'yamethibitishwa. Unaweza kutumia OBD scanner sasa.'
+                    ),
+                    notification_type='payment',
+                    data={
+                        'type': 'obd_verified',
+                        'payment_id': str(payment.id),
+                        'reference': payment.reference,
+                    },
+                )
+            except Exception as e:
+                print(f'[NOTIF ERROR] {e}')
+
+            return Response({
+                'success': True,
+                'message': 'Malipo yamethibitishwa',
+                'data': {'payment_id': payment.id, 'status': payment.status},
+            })
+
+        elif action == 'reject':
+            payment.status = 'FAILED'
+            payment.failure_reason = request.data.get('reason', 'Rejected by admin')
+            payment.save(update_fields=['status', 'failure_reason', 'updated_at'])
+
+            try:
+                send_notification_to_user(
+                    user=payment.user,
+                    title='Malipo ya OBD hayakuthibitishwa',
+                    message=(
+                        f'Malipo yako (ref: {payment.reference}) '
+                        f'hayakuweza kuthibitishwa. Tafadhali jaribu tena.'
+                    ),
+                    notification_type='payment',
+                    data={
+                        'type': 'obd_rejected',
+                        'payment_id': str(payment.id),
+                    },
+                )
+            except Exception as e:
+                print(f'[NOTIF ERROR] {e}')
+
+            return Response({
+                'success': True,
+                'message': 'Malipo yamekataliwa',
+                'data': {'payment_id': payment.id, 'status': payment.status},
+            })
+
+        return Response(
+            {'success': False, 'message': 'Action si sahihi (verify|reject)'},
+            status=400,
+        )

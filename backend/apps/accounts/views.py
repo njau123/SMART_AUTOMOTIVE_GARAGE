@@ -3,6 +3,7 @@ from django.db import transaction
 from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.decorators import api_view, permission_classes
@@ -279,3 +280,26 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     from rest_framework import filters as drf_filters
     filter_backends = [drf_filters.SearchFilter, drf_filters.OrderingFilter]
     ordering_fields = ['created_at', 'email', 'last_login']
+
+    @action(detail=True, methods=['delete', 'post'], url_path='delete')
+    def delete_user(self, request, pk=None):
+        """Soft delete: rename email + is_active=False (kuepusha PROTECT)."""
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({'success': False, 'error': 'User haipo'}, status=404)
+
+        if user.role in ('ADMIN', 'SUPER_ADMIN'):
+            return Response({'success': False, 'error': 'Hauwezi kufuta admin'}, status=403)
+
+        original_email = user.email
+        # Rename email ili kuruhusu re-registration
+        user.email = f'deleted_{user.id}_{original_email}'[:254]
+        user.is_active = False
+        user.save(update_fields=['email', 'is_active'])
+
+        return Response({
+            'success': True,
+            'message': f'User {original_email} amefutwa',
+            'id': user.id,
+        })

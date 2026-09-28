@@ -8,6 +8,7 @@ import '../../news/screens/admin_news_screen.dart';
 import '../../mechanics/screens/admin_mechanics_screen.dart';
 import '../../spare_parts/screens/admin_spare_parts_screen.dart';
 import '../../services/screens/admin_services_screen.dart';
+import '../../obd/screens/admin_obd_screen.dart';
 import '../../services/screens/admin_service_bookings_screen.dart';
 import '../../payments/screens/admin_payments_screen.dart';
 import '../../users/screens/admin_users_screen.dart';
@@ -224,10 +225,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             _statCard(
               Icons.handyman_outlined,
               'Service Bookings',
-              'Bidhaa za Service',
+              'Idadi ya Bookings',
               Colors.teal,
               small: true,
               onTap: () => _push(const AdminServiceBookingsScreen()),
+            ),
+
+            _statCard(
+              Icons.bluetooth_searching,
+              'Malipo ya OBD',
+              'OBD Scanner',
+              Colors.deepPurple,
+              small: true,
+              onTap: () => _push(const AdminOBDScreen()),
             ),
             _statCard(
               Icons.payments_outlined,
