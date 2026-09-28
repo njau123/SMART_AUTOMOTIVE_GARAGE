@@ -57,7 +57,9 @@ class Booking(models.Model):
 
     service = models.ForeignKey(
         "services.Service",
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="bookings",
     )
 

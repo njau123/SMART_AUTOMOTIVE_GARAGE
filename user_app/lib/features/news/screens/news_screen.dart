@@ -242,4 +242,34 @@ class _NewsScreenState extends State<NewsScreen> {
       ),
     );
   }
+
+  bool _hasVideo(Map<String, dynamic> n) {
+    final videoUrl = (n['video_url'] ?? '').toString();
+    final videoFile = (n['video_file'] ?? '').toString();
+    final videos = n['videos'];
+    return videoUrl.isNotEmpty ||
+        videoFile.isNotEmpty ||
+        (videos is List && videos.isNotEmpty);
+  }
+
+  String? _getVideoUrl(Map<String, dynamic> n) {
+    final videoUrl = (n['video_url'] ?? '').toString();
+    if (videoUrl.isNotEmpty) return videoUrl;
+
+    final videoFile = (n['video_file'] ?? '').toString();
+    if (videoFile.isNotEmpty) {
+      return videoFile.startsWith('http')
+          ? videoFile
+          : 'https://smart-garage-backend.onrender.com$videoFile';
+    }
+
+    final videos = n['videos'];
+    if (videos is List && videos.isNotEmpty) {
+      final v = videos.first.toString();
+      return v.startsWith('http')
+          ? v
+          : 'https://smart-garage-backend.onrender.com$v';
+    }
+    return null;
+  }
 }
