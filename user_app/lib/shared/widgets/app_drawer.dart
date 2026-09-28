@@ -6,10 +6,8 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/state/auth_state.dart';
-import '../../features/services/screens/services_screen.dart';
 import '../../features/bookings/screens/my_bookings_screen.dart';
 import '../../features/spare_parts/screens/spare_parts_screen.dart';
-import '../../features/spare_parts/screens/my_orders_screen.dart';
 import '../../features/services/screens/my_service_bookings_screen.dart';
 import '../../features/news/screens/news_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
@@ -135,7 +133,7 @@ class AppDrawer extends StatelessWidget {
                       _item(Icons.shopping_cart_outlined, 'Nunua Vipuri',
                           () => _push(context, const SparePartsScreen())),
 //                       _item(Icons.receipt_long_outlined, 'Vipuri Zangu',
-                          () => _push(context, const MyOrdersScreen())),
+                      //     () => _push(context, const MyOrdersScreen())),
                       _item(Icons.handyman_outlined, 'Service Zangu',
                           () => _push(context, const MyServiceBookingsScreen())),
                       _item(Icons.engineering_outlined, 'Wafundi',

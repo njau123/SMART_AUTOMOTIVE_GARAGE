@@ -38,6 +38,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+
+  /// Language helper — tafsiri ya strings.
+  String t(String key) => AppLocalizations.of(context).t(key);
+
   final _homeKey = GlobalKey();
   final _aboutKey = GlobalKey();
   final _whyUsKey = GlobalKey();
@@ -277,7 +281,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context).t;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       drawer: const AppDrawer(),
@@ -687,7 +690,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ===== WHY CHOOSE US =====
   Widget _whyChooseUs(BuildContext context) {
-    final t = AppLocalizations.of(context).t;
     final items = [
       ('Expert Mechanics', 'Verified professionals across Tanzania',
           Icons.engineering_outlined, AppColors.success),
