@@ -43,6 +43,9 @@ from apps.spare_parts.views import (
     OrderCreateView, OrderListView, OrderDetailView,
     OrderUpdateDeliveryView, OrderDeleteView,
     AdminOrderListView, AdminOrderUpdateStatusView,
+    OrderConfirmReceiptView,
+    OrderExtendTimeView,
+    OrderSetEtaView,
 )
 from .views import (
     AdminServiceBookingListView,
@@ -170,6 +173,8 @@ urlpatterns += [
     path('spare-parts/orders/<int:pk>/', OrderDetailView.as_view(), name='order-detail'),
     path('spare-parts/orders/<int:pk>/status/', OrderStatusView.as_view(), name='order-status'),
     path('spare-parts/orders/<int:pk>/feedback/', OrderFeedbackView.as_view(), name='order-feedback'),
+    path('spare-parts/orders/<int:pk>/confirm-receipt/', OrderConfirmReceiptView.as_view(), name='order-confirm-receipt'),
+    path('spare-parts/orders/<int:pk>/extend-time/', OrderExtendTimeView.as_view(), name='order-extend-time'),
     path('spare-parts/orders/<int:pk>/delivery/', OrderUpdateDeliveryView.as_view(), name='order-delivery'),
     path('spare-parts/orders/<int:pk>/set-delivery-gps/', OrderSetDeliveryGpsView.as_view(), name='order-set-delivery-gps'),
     path('spare-parts/orders/<int:pk>/pay-deposit/', OrderPayDepositView.as_view(), name='order-pay-deposit'),
@@ -202,6 +207,7 @@ urlpatterns += [
     path('admin/service-bookings/list/', AdminServiceBookingListView.as_view(), name='admin-service-bookings-list'),
     path('admin/service-bookings/<int:pk>/verify/', AdminServiceBookingVerifyView.as_view(), name='admin-service-bookings-verify'),
     path('admin/spare-parts/orders/<int:pk>/verify/', AdminOrderVerifyView.as_view(), name='admin-order-verify'),
+    path('admin/spare-parts/orders/<int:pk>/set-eta/', OrderSetEtaView.as_view(), name='order-set-eta'),
     # ============ ADMIN OBD PAYMENTS ============
     path('admin/obd-payments/', AdminOBDListView.as_view(), name='admin-obd-list'),
     path('admin/obd-payments/<int:pk>/verify/', AdminOBDVerifyView.as_view(), name='admin-obd-verify'),
