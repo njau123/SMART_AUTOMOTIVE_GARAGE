@@ -168,6 +168,8 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
   Future<void> _showAttachOptions() async {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
