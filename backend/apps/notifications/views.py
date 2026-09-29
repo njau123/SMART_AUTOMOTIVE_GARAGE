@@ -75,20 +75,23 @@ def register_device(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def unregister_device(request):
-    """Futa FCM token ya device hii (logout)."""
+    """Futa FCM token ya device hii + clear ZOTE za user (bug fix)."""
     token = request.data.get('device_token')
     user = request.user
 
     if token:
-        # Futa token maalum
+        # Futa token maalum + zote za user (safety cleanup)
         NotificationDevice.objects.filter(
             user=user, device_token=token,
         ).delete()
-    else:
-        # Futa devices zote za user huyu
-        NotificationDevice.objects.filter(user=user).delete()
+    
+    # MUHIMU: Futa devices ZOTE za user huyu — kuepusha notification leak
+    total_deleted, _ = NotificationDevice.objects.filter(user=user).delete()
 
-    return Response({'success': True, 'message': 'Devices zimeondolewa'})
+    return Response({
+        'success': True,
+        'message': f'Devices {total_deleted} zimeondolewa',
+    })
 
 
 @api_view(['POST'])

@@ -1,9 +1,11 @@
+import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'api_service.dart';
+import '../constants/app_constants.dart';
 
 /// Service ya kusimamia FCM push notifications.
 class NotificationService {
@@ -159,6 +161,24 @@ class NotificationService {
         try { HapticFeedback.mediumImpact(); } catch (_) {}
       });
     } catch (_) {}
+  }
+
+  /// Clear ALL devices za user (logout safety).
+  Future<void> clearAllDevices() async {
+    try {
+      final token = await TokenStorage.getAccessToken();
+      if (token == null || token.isEmpty) return;
+      await http.post(
+        Uri.parse('${AppConstants.baseUrl}notifications/devices/clear-all/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      debugPrint('FCM: All devices cleared for user');
+    } catch (e) {
+      debugPrint('FCM clear-all error: $e');
+    }
   }
 
   /// Unregister token (kwenye logout).

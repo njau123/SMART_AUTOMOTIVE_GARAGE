@@ -1,3 +1,4 @@
+import '../services/notification_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
@@ -55,12 +56,9 @@ class AuthState extends ChangeNotifier {
   }
 
   Future<void> logout({bool showMessage = true}) async {
-    // 1. Futa FCM token kwa device hii (backend + device)
+    // 1. Futa FCM token + ALL devices za user (safety cleanup)
     try {
-      final token = await TokenStorage.getAccessToken();
-      if (token != null && token.isNotEmpty) {
-        await NotificationAPI.unregisterDeviceToken(token);
-      }
+      await NotificationService.instance.clearAllDevices();
     } catch (_) {}
 
     // 2. Futa FCM token kwenye device yenyewe
