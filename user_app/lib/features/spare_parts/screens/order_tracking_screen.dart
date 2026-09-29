@@ -24,6 +24,10 @@ class OrderTrackingScreen extends StatefulWidget {
 }
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
+  bool _isPaid = false;
+  bool _paymentPending = false;
+  int _paymentCountdown = 0;
+
   Timer? _pollTimer;
   Timer? _localTick;
   Map<String, dynamic>? _status;
@@ -55,15 +59,17 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       final res = await SparePartOrderAPI.getOrderStatus(widget.orderId);
       if (!mounted) return;
       final data = Map<String, dynamic>.from(res['data'] as Map? ?? {});
+      final pStatus = (data['payment_status'] ?? '').toString().toUpperCase();
+      final oStatus = (data['status'] ?? '').toString().toUpperCase();
       setState(() {
         _status = data;
+        _isPaid = pStatus == 'PAID' || oStatus == 'PAID' || oStatus == 'PROCESSING' || oStatus == 'OUT_FOR_DELIVERY' || oStatus == 'DELIVERED';
+        _paymentPending = !_isPaid && (oStatus == 'PENDING_PAYMENT' || pStatus == 'PENDING' || pStatus == 'UNPAID');
+        _paymentCountdown = int.tryParse(data['payment_countdown_seconds']?.toString() ?? '0') ?? 0;
         _localSeconds = int.tryParse(
               data['delivery_countdown_seconds']?.toString() ?? '0',
             ) ??
-            int.tryParse(
-              data['payment_countdown_seconds']?.toString() ?? '0',
-            ) ??
-            0;
+            _paymentCountdown;
         _loading = false;
       });
 

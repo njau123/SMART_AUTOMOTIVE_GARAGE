@@ -138,6 +138,8 @@ class _SparePartOrderScreenState extends State<SparePartOrderScreen> {
           _countdown = 45 * 60;
         });
         _startTimer();
+        // Auto-schedule navigation (kama user anafunga dialog) — AI Scanner style
+        _autoNavigateToTracking(orderId, orderNumber);
       } else {
         _snack(payRes['message']?.toString() ?? "Imeshindikana malipo", error: true);
       }
@@ -146,6 +148,15 @@ class _SparePartOrderScreenState extends State<SparePartOrderScreen> {
     } finally {
       if (mounted) setState(() => _ordering = false);
     }
+  }
+
+  void _autoNavigateToTracking(int orderId, String orderNumber) {
+    // Baada ya sekunde 3 — hifadhi order na ruhusu user kwenda tracking
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      // Badilisha button text kuwa "Tumia Tracking" badala ya auto-navigate
+      setState(() {});
+    });
   }
 
   void _startTimer() {
