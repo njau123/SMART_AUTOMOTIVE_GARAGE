@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -12,6 +13,9 @@ class AdminOrdersScreen extends StatefulWidget {
 }
 
 class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
+  Timer? _refreshTimer;
+  int _tick = 0;
+
   List<dynamic> _orders = [];
   bool _loading = true;
   String? _error;
@@ -31,6 +35,15 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   void initState() {
     super.initState();
     _load();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) _load();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -48,6 +61,78 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           _loading = false;
         });
       }
+    }
+  }
+
+  Future<void> _verifyPayment(dynamic order) async {
+    try {
+      final res = await AdminOrderAPI.verify(order['id'] as int);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(res['message']?.toString() ?? 'Imethibitishwa'),
+        backgroundColor: Colors.green,
+      ));
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.toString()),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  Future<void> _rejectPayment(dynamic order) async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Kataa malipo?'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(labelText: 'Sababu', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Ghairi')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Kataa')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final res = await AdminOrderAPI.reject(order['id'] as int, reason: ctrl.text.trim());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(res['message']?.toString() ?? 'Imekataliwa'),
+        backgroundColor: Colors.orange,
+      ));
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.toString()),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  String _fmtCountdown(int seconds) {
+    if (seconds <= 0) return 'Imeisha';
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    if (h > 0) return '${h}h ${m}m';
+    if (m > 0) return '${m}m ${s}s';
+    return '${s}s';
+  }
+
+  Color _statusColor(String s) {
+    switch (s.toUpperCase()) {
+      case 'PAID': case 'DELIVERED': case 'COMPLETED': return Colors.green;
+      case 'PENDING_PAYMENT': return Colors.orange;
+      case 'PROCESSING': case 'OUT_FOR_DELIVERY': return Colors.blue;
+      case 'CANCELLED': case 'FAILED': return Colors.red;
+      default: return Colors.grey;
     }
   }
 
@@ -202,18 +287,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     );
   }
 
-  Color _statusColor(String s) {
-    switch (s) {
-      case 'PAID': return Colors.blue;
-      case 'PROCESSING': return Colors.orange;
-      case 'OUT_FOR_DELIVERY': return Colors.purple;
-      case 'DELIVERED': return Colors.green;
-      case 'CANCELLED': return Colors.red;
-      default: return Colors.grey;
-    }
-  }
-
-  @override
+    @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(

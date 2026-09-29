@@ -1043,6 +1043,26 @@ class AdminOrderAPI {
     );
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
+
+  static Future<Map<String, dynamic>> verify(int id) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'admin/spare-parts/orders/$id/verify/',
+      {'action': 'verify'},
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  static Future<Map<String, dynamic>> reject(int id, {String reason = ''}) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'admin/spare-parts/orders/$id/verify/',
+      {'action': 'reject', 'reason': reason},
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
 }
 
 // =================== ADMIN CHAT API ===================
