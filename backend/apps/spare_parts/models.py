@@ -277,3 +277,29 @@ class SparePartOrder(models.Model):
 
     def __str__(self):
         return f"{self.order_number} - {self.spare_part.name}"
+
+
+class OrderFeedback(models.Model):
+    """Feedback ya user baada ya kupokea spare part."""
+    RATING_CHOICES = [
+        ('poor', 'Poor'),
+        ('bad', 'Bad'),
+        ('good', 'Good'),
+        ('excellent', 'Excellent'),
+    ]
+
+    order = models.OneToOneField(
+        SparePartOrder, on_delete=models.CASCADE, related_name='feedback'
+    )
+    user = models.ForeignKey(
+        'accounts.User', on_delete=models.CASCADE, related_name='order_feedbacks'
+    )
+    rating = models.CharField(max_length=20, choices=RATING_CHOICES)
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'order_feedbacks'
+
+    def __str__(self):
+        return f'Feedback {self.order.order_number} - {self.rating}'

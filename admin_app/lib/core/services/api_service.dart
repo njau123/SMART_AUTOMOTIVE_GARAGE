@@ -1063,6 +1063,26 @@ class AdminOrderAPI {
     );
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
+
+  static Future<Map<String, dynamic>> setEta({
+    required int orderId,
+    required int hours,
+    required int minutes,
+    double? distanceKm,
+  }) async {
+    final token = await AdminTokenStorage.getAccessToken();
+    final body = <String, dynamic>{
+      'hours': hours,
+      'minutes': minutes,
+    };
+    if (distanceKm != null) body['distance_km'] = distanceKm;
+    final data = await ApiService.post(
+      'admin/spare-parts/orders/$orderId/set-eta/',
+      body,
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
 }
 
 // =================== ADMIN CHAT API ===================

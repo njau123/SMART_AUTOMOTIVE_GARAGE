@@ -298,11 +298,218 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
     if (answer == 'yes') {
       await _confirmReceipt('yes');
+      // Fungua feedback form baada ya mafanikio
+      await _showFeedbackDialog();
     } else if (answer == 'no') {
-      await _showExtensionDialog();
+      // Onyesha apology + auto +15 min
+      await _showApologyAndExtend();
     } else {
       _actioning = false;
     }
+  }
+
+  Future<void> _showApologyAndExtend() async {
+    // 1. Onyesha apology message
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.sentiment_dissatisfied, color: Colors.orange),
+            const SizedBox(width: 8),
+            Text('Samahani',
+                style: GoogleFonts.poppins(
+                    fontSize: 15, fontWeight: FontWeight.w700)),
+          ],
+        ),
+        content: Text(
+          'Samahani kwa usumbufu. Tutatoa taarifa kwa Smart Automotive Garage wakuletee mzigo wako.\n\nTafadhali subiri dakika 15 (emergency).',
+          style: GoogleFonts.poppins(fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: Text('Sawa, subiri 15 min',
+                style: GoogleFonts.poppins(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    // 2. Auto-extend 15 min
+    try {
+      await SparePartOrderAPI.extendOrderTime(
+        orderId: widget.orderId,
+        minutes: 15,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Dakika 15 za emergency zimeongezwa'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      _actioning = false;
+      await _load();
+    } catch (e) {
+      _actioning = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imeshindwa: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _showFeedbackDialog() async {
+    String? rating;
+    final commentCtrl = TextEditingController();
+    bool submitting = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.star_rate, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text('Unaonaje huduma yetu?',
+                  style: GoogleFonts.poppins(
+                      fontSize: 15, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Chagua rating:',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _ratingChip('Poor', '😡', Colors.red, rating == 'poor',
+                        (v) => setS(() => rating = 'poor')),
+                    _ratingChip('Bad', '😕', Colors.orange, rating == 'bad',
+                        (v) => setS(() => rating = 'bad')),
+                    _ratingChip('Good', '😊', Colors.blue, rating == 'good',
+                        (v) => setS(() => rating = 'good')),
+                    _ratingChip('Excellent', '🤩', Colors.green,
+                        rating == 'excellent',
+                        (v) => setS(() => rating = 'excellent')),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text('Maoni yako (si lazima):',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: commentCtrl,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Andika maoni yako...',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.pop(ctx),
+              child: Text('Baadaye', style: GoogleFonts.poppins()),
+            ),
+            ElevatedButton(
+              onPressed: submitting
+                  ? null
+                  : () async {
+                      if (rating == null) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(
+                              content: Text('Chagua rating kwanza'),
+                              backgroundColor: Colors.orange),
+                        );
+                        return;
+                      }
+                      setS(() => submitting = true);
+                      try {
+                        await SparePartOrderAPI.submitFeedback(
+                          orderId: widget.orderId,
+                          rating: rating!,
+                          comment: commentCtrl.text.trim(),
+                        );
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Asante kwa maoni yako!'),
+                              backgroundColor: Colors.green),
+                        );
+                      } catch (e) {
+                        setS(() => submitting = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(
+                                  content: Text('Imeshindwa: $e'),
+                                  backgroundColor: Colors.red));
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: submitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : Text('Tuma',
+                      style: GoogleFonts.poppins(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _ratingChip(String label, String emoji, Color color, bool selected,
+      Function(bool) onTap) {
+    return GestureDetector(
+      onTap: () => onTap(true),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.2) : Colors.grey.shade100,
+          border: Border.all(
+            color: selected ? color : Colors.grey.shade300,
+            width: selected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 22)),
+            const SizedBox(height: 2),
+            Text(label,
+                style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? color : Colors.grey.shade700)),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _showExtensionDialog() async {

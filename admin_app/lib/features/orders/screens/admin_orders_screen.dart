@@ -438,8 +438,132 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 ],
               ),
             ),
+          // Set ETA button — kama payment ni PAID na delivery haijaanza
+          if (['PAID', 'PROCESSING'].contains(status))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showSetEtaDialog(order),
+                  icon: const Icon(Icons.timer, size: 16),
+                  label: Text('Weka Muda wa Delivery (ETA)',
+                      style: GoogleFonts.poppins(
+                          fontSize: 12, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  Future<void> _showSetEtaDialog(dynamic order) async {
+    final hoursCtrl = TextEditingController(text: '0');
+    final minsCtrl = TextEditingController(text: '30');
+    final distCtrl = TextEditingController();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Weka Muda wa Delivery',
+            style: GoogleFonts.poppins(
+                fontSize: 15, fontWeight: FontWeight.w700)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Order: ${order['order_number']}',
+                style: GoogleFonts.poppins(fontSize: 12)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: hoursCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Masaa',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: minsCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Dakika',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: distCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Umbali (km) - si lazima',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Ghairi', style: GoogleFonts.poppins()),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: Text('Weka ETA',
+                style: GoogleFonts.poppins(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final hours = int.tryParse(hoursCtrl.text.trim()) ?? 0;
+    final mins = int.tryParse(minsCtrl.text.trim()) ?? 0;
+    final total = hours * 60 + mins;
+    if (total <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Weka muda zaidi ya 0'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    try {
+      await AdminOrderAPI.setEta(
+        orderId: order['id'] as int,
+        hours: hours,
+        minutes: mins,
+        distanceKm: double.tryParse(distCtrl.text.trim()),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('ETA ya dakika \$total imewekwa'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Imeshindwa: \$e'), backgroundColor: Colors.red),
+      );
+    }
   }
 }

@@ -1485,6 +1485,21 @@ class SparePartOrderAPI {
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
 
+  /// Tuma feedback (rating + comment).
+  static Future<Map<String, dynamic>> submitFeedback({
+    required int orderId,
+    required String rating,
+    String comment = '',
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'spare-parts/orders/$orderId/feedback/',
+      {'rating': rating, 'comment': comment},
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
   /// Ongeza +15 min extension.
   static Future<Map<String, dynamic>> extendOrderTime({
     required int orderId,

@@ -828,3 +828,63 @@ class OrderSetEtaView(APIView):
                 "delivery_countdown_ends_at": order.delivery_countdown_ends_at.isoformat(),
             },
         })
+
+
+class OrderFeedbackView(APIView):
+    """User anatuma feedback baada ya kupokea bidhaa."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        from .models import OrderFeedback
+        try:
+            order = SparePartOrder.objects.get(pk=pk, user=request.user)
+        except SparePartOrder.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Oda haipo",
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        rating = (request.data.get('rating') or '').lower().strip()
+        comment = (request.data.get('comment') or '').strip()
+
+        valid_ratings = ['poor', 'bad', 'good', 'excellent']
+        if rating not in valid_ratings:
+            return Response({
+                "success": False,
+                "message": "Chagua rating: poor, bad, good, au excellent",
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        feedback, created = OrderFeedback.objects.update_or_create(
+            order=order,
+            defaults={
+                'user': request.user,
+                'rating': rating,
+                'comment': comment,
+            },
+        )
+
+        # Notify admin
+        try:
+            from apps.notifications.services import send_notification_to_user
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            rating_emoji = {'poor': '😡', 'bad': '😕', 'good': '😊', 'excellent': '🤩'}
+            for admin in User.objects.filter(is_staff=True, is_active=True):
+                try:
+                    send_notification_to_user(
+                        user=admin,
+                        title=f"{rating_emoji.get(rating, '⭐')} Feedback — {order.order_number}",
+                        message=f"{order.user.email}: {rating.upper()}\n{comment[:100]}",
+                        notification_type='system',
+                        data={'type': 'order_feedback', 'order_id': str(order.id)},
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        return Response({
+            "success": True,
+            "message": "Asante kwa maoni yako!",
+            "data": {"rating": rating, "comment": comment, "created": created},
+        })
