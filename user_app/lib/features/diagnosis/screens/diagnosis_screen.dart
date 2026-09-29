@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'ai_chat_history_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_images.dart';
 import '../../../core/services/api_service.dart';
@@ -36,6 +37,8 @@ class _ChatMessage {
 }
 
 class _DiagnosisScreenState extends State<DiagnosisScreen> {
+  XFile? _pickedImage;
+
   final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final _messages = <_ChatMessage>[];
@@ -149,6 +152,88 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
           'Unaweza kuniambia kwa **Kiswahili** au **English** — '
           'au tuma picha ya sehemu ya gari. 📷',
     ));
+  }
+
+  void _snack(String m, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(m),
+        backgroundColor: error ? Colors.red : AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _showAttachOptions() async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.primary),
+              title: Text('Kamera', style: GoogleFonts.poppins()),
+              onTap: () async {
+                Navigator.pop(context);
+                final picker = ImagePicker();
+                final img = await picker.pickImage(
+                  source: ImageSource.camera,
+                  maxWidth: 1600,
+                  imageQuality: 80,
+                );
+                if (img != null) {
+                  setState(() => _pickedImage = img);
+                  _snack('Picha imechaguliwa. Tuma ujumbe.');
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.primary),
+              title: Text('Gallery', style: GoogleFonts.poppins()),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.attach_file, color: AppColors.primary),
+              title: Text('Dokumenti (PDF, DOC, Excel)',
+                  style: GoogleFonts.poppins()),
+              onTap: () async {
+                Navigator.pop(context);
+                final result = await FilePicker.platform.pickFiles(
+                  type: FileType.custom,
+                  allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'],
+                  allowMultiple: false,
+                );
+                if (result != null && result.files.isNotEmpty) {
+                  final file = result.files.first;
+                  _snack('Dokumenti: ${file.name}');
+                  // TODO: handle document upload kama unahitaji
+                }
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _pickImage() async {
@@ -312,31 +397,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.smart_toy_outlined,
-                  color: AppColors.primary, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Mechanic AI',
-                    style: GoogleFonts.poppins(
-                        fontSize: 15, fontWeight: FontWeight.bold)),
-                Text('Online • Multi-language',
-                    style: GoogleFonts.poppins(
-                        fontSize: 10, color: AppColors.textMuted)),
-              ],
-            ),
-          ],
-        ),
+        title: const SizedBox.shrink(),
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
