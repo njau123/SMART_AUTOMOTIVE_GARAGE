@@ -287,7 +287,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     );
   }
 
-    @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -350,38 +350,95 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   Widget _card(dynamic order) {
     final status = order['status']?.toString() ?? 'PENDING_PAYMENT';
     final color = _statusColor(status);
+    final isPending = status == 'PENDING_PAYMENT';
+    final countdown = int.tryParse(order['countdown_seconds']?.toString() ?? '0') ?? 0;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        onTap: () => _showDetails(order),
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.15),
-          child: Icon(Icons.shopping_bag, color: color, size: 22),
-        ),
-        title: Text(order['order_number']?.toString() ?? '—',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(order['spare_part_name']?.toString() ?? '',
-                style: GoogleFonts.poppins(fontSize: 12)),
-            Text('${order['user_full_name']} • TSh ${order['total_price']}',
-                style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
-          ],
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            onTap: () => _showDetails(order),
+            leading: CircleAvatar(
+              backgroundColor: color.withValues(alpha: 0.15),
+              child: Icon(Icons.shopping_bag, color: color, size: 22),
+            ),
+            title: Text(order['order_number']?.toString() ?? '—',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(order['spare_part_name']?.toString() ?? '',
+                    style: GoogleFonts.poppins(fontSize: 12)),
+                Text('${order['user_full_name'] ?? ''} • TSh ${order['total_price'] ?? 0}',
+                    style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
+              ],
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                status.replaceAll('_', ' '),
+                style: GoogleFonts.poppins(
+                    fontSize: 9, fontWeight: FontWeight.w700, color: color),
+              ),
+            ),
           ),
-          child: Text(
-            status.replaceAll('_', ' '),
-            style: GoogleFonts.poppins(
-                fontSize: 9, fontWeight: FontWeight.w700, color: color),
-          ),
-        ),
+          if (isPending && countdown > 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.timer, size: 14, color: Colors.orange),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Countdown: ${_fmtCountdown(countdown)}',
+                    style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.orange.shade900),
+                  ),
+                ],
+              ),
+            ),
+          if (isPending)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _rejectPayment(order),
+                      icon: const Icon(Icons.close, size: 16),
+                      label: Text('Kataa',
+                          style: GoogleFonts.poppins(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _verifyPayment(order),
+                      icon: const Icon(Icons.check, size: 16),
+                      label: Text('Thibitisha',
+                          style: GoogleFonts.poppins(
+                              fontSize: 12, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
