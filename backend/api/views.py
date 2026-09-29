@@ -1781,32 +1781,35 @@ class OBDPaymentInitiateView(APIView):
             },
         )
 
-        # === Notify admin wote ===
+        # === Notify admin wote — FCM PUSH + DB ===
         try:
-            from apps.notifications.models import Notification
             from django.contrib.auth import get_user_model
+            from apps.notifications.services import send_notification_to_user
             User = get_user_model()
             admins = User.objects.filter(is_staff=True, is_active=True)
             for admin in admins:
                 try:
-                    Notification.objects.create(
-                        recipient=admin,
-                        notification_type="payment",
-                        title=f"💰 Malipo ya OBD — {payment.reference}",
+                    send_notification_to_user(
+                        user=admin,
+                        title=f"💰 Malipo ya OBD — TSh {amount:,.0f}",
                         message=(
                             f"User: {request.user.email}\n"
-                            f"Kiasi: TSh {amount:,.0f}\n"
                             f"Mtandao: {detected_network}\n"
                             f"Namba: {phone_number}\n"
-                            f"Reference: {reference}"
+                            f"Ref: {reference}\n"
+                            f"Bonyeza kuthibitisha."
                         ),
-                        is_sent=True,
-                        metadata={"payment_id": payment.id, "type": "OBD_DIAGNOSIS"},
+                        notification_type="payment",
+                        data={
+                            "type": "obd_payment_pending",
+                            "payment_id": str(payment.id),
+                            "reference": reference,
+                        },
                     )
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as e:
+                    print(f'[ADMIN NOTIF ERROR] {e}')
+        except Exception as e:
+            print(f'[ADMIN NOTIF FATAL] {e}')
 
         # Bank instructions kama payment ni BANK
         bank_instructions = None
@@ -2345,19 +2348,18 @@ class AdminOBDVerifyView(APIView):
             payment.completed_at = timezone.now()
             payment.save(update_fields=['status', 'completed_at', 'updated_at'])
 
+            # FCM push kwa user — inalia kwenye simu
             try:
                 send_notification_to_user(
                     user=payment.user,
-                    title='Malipo ya OBD yamethibitishwa',
-                    message=(
-                        f'Malipo yako (ref: {payment.reference}) '
-                        f'yamethibitishwa. Unaweza kutumia OBD scanner sasa.'
-                    ),
+                    title='✅ Malipo ya OBD yamethibitishwa!',
+                    message='Unaweza kutumia OBD Scanner sasa. Fungua app.',
                     notification_type='payment',
                     data={
                         'type': 'obd_verified',
                         'payment_id': str(payment.id),
                         'reference': payment.reference,
+                        'action': 'open_obd',
                     },
                 )
             except Exception as e:
