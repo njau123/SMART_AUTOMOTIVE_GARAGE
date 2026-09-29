@@ -67,8 +67,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       });
     } catch (e) {
       if (!mounted) return;
+      final msg = e.toString().replaceAll('Exception: ', '');
       setState(() {
-        _errorBookings = e.toString().replaceAll('Exception: ', '');
+        _errorBookings = msg;
+        _bookings = [];
         _loadingBookings = false;
       });
     }

@@ -587,38 +587,21 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
                 ),
               if (paidConfirmed)
                 TextButton(
-                  onPressed: () async {
+                  onPressed: () {
                     countdownTimer?.cancel();
                     Navigator.pop(context, false);
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Angalia Bookings Zangu → OBD tab kwa status.'),
-                          backgroundColor: Colors.blue,
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const MyBookingsScreen(),
                         ),
                       );
                     }
                   },
                   child: const Text('Angalia Hali'),
                 ),
-              if (false)
-                TextButton(
-                  onPressed: () async {
-                    countdownTimer?.cancel();
-                    final approved = await _pollForApproval();
-                    if (!mounted) return;
-                    Navigator.pop(context, approved);
-                    if (approved) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('✅ Malipo yamethibitishwa! Unaweza kutumia scanner.'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Angalia Hali'),
-                ),
+
             ],
           );
         },

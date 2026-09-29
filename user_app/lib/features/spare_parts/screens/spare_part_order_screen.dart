@@ -523,7 +523,42 @@ class _SparePartOrderScreenState extends State<SparePartOrderScreen> {
             ),
           ],
           const SizedBox(height: 14),
-          if (!_paidConfirmed)
+          if (!_paidConfirmed) ...[
+            // Ghairi + Spare Part buttons (mbili)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.close, size: 16),
+                    label: Text('Ghairi',
+                        style: GoogleFonts.poppins(fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      minimumSize: const Size(0, 46),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.shopping_bag, size: 16),
+                    label: Text('Spare Part',
+                        style: GoogleFonts.poppins(fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      minimumSize: const Size(0, 46),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             ElevatedButton.icon(
               onPressed: expired ? null : () => setState(() => _paidConfirmed = true),
               icon: const Icon(Icons.check),
@@ -535,6 +570,7 @@ class _SparePartOrderScreenState extends State<SparePartOrderScreen> {
                 minimumSize: const Size(0, 50),
               ),
             ),
+          ],
           if (_paidConfirmed) ...[
             Container(
               padding: const EdgeInsets.all(12),
