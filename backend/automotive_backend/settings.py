@@ -36,8 +36,6 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '.o
 
 # Application definition
 INSTALLED_APPS = [
-    'cloudinary_storage',
-    'cloudinary',
 
     'api',
     'django.contrib.admin',
@@ -141,25 +139,9 @@ STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Media files
-# ============ CLOUDINARY CONFIG ============
-import cloudinary
-
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': env('CLOUDINARY_CLOUD_NAME', default=''),
-    'API_KEY': env('CLOUDINARY_API_KEY', default=''),
-    'API_SECRET': env('CLOUDINARY_API_SECRET', default=''),
-}
-
-cloudinary.config(
-    cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
-    api_key=CLOUDINARY_STORAGE['API_KEY'],
-    api_secret=CLOUDINARY_STORAGE['API_SECRET'],
-    secure=True,
-)
-
-# Media files → Cloudinary (haifutwa kwenye redeploy)
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-MEDIA_URL = '/media/'  # fallback kwa local dev
+# Tunatumia cloudinary.uploader.upload() moja kwa moja kwenye views.py
+# (kama chat na spare parts uploads)
+MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # === UPLOAD LIMITS (kwa chat, media, n.k.) ===
