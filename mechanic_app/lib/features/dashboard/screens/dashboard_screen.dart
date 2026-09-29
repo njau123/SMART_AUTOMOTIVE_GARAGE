@@ -115,7 +115,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               image: DecorationImage(
                 image: AssetImage(AppImages.backgroundMechanic),
                 fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.4), BlendMode.darken),
+                colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.15), BlendMode.darken),
               ),
               borderRadius: BorderRadius.circular(30),
               boxShadow: [BoxShadow(color: AppTheme.primary.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10))],
