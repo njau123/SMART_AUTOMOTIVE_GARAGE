@@ -202,6 +202,34 @@ class OrderPayDepositView(APIView):
             },
         )
 
+        # === FCM PUSH kwa admin ===
+        try:
+            from django.contrib.auth import get_user_model
+            from apps.notifications.services import send_notification_to_user
+            User = get_user_model()
+            for admin in User.objects.filter(is_staff=True, is_active=True):
+                try:
+                    send_notification_to_user(
+                        user=admin,
+                        title=f"📦 Malipo ya Order — {order.order_number}",
+                        message=(
+                            f"User: {request.user.email}\n"
+                            f"Bidhaa: {order.spare_part.name}\n"
+                            f"Kiasi: TSh {order.total_price:,.0f}\n"
+                            f"Bonyeza kuthibitisha."
+                        ),
+                        notification_type="payment",
+                        data={
+                            "type": "spare_part_payment_pending",
+                            "order_id": str(order.id),
+                            "order_number": order.order_number,
+                        },
+                    )
+                except Exception as e:
+                    print(f'[ADMIN NOTIF ERROR] {e}')
+        except Exception as e:
+            print(f'[ADMIN NOTIF FATAL] {e}')
+
         # Update order
         order.payment_reference = reference
         order.payment_method = method

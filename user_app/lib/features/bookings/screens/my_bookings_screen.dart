@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/notification_service.dart';
 import 'booking_detail_screen.dart';
 import '../../obd/screens/obd_scanner_screen.dart';
 
@@ -34,6 +35,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     _tabs = TabController(length: 2, vsync: this);
     _loadBookings();
     _loadObd();
+    notificationRefreshNotifier.addListener(_onFcmNotification);
     // Auto-refresh OBD kila 10s (kupata admin verify)
     _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted) _loadObd(silent: true);
@@ -42,6 +44,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   @override
   void dispose() {
+    notificationRefreshNotifier.removeListener(_onFcmNotification);
     _tabs.dispose();
     _obdTimer?.cancel();
     _refreshTimer?.cancel();
@@ -109,6 +112,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       setState(() {
         _loadingObd = false;
       });
+    }
+  }
+
+  void _onFcmNotification() {
+    final type = notificationRefreshNotifier.value;
+    if (type == 'obd_verified' || type == 'service_verified' || type == 'payment') {
+      _loadObd(silent: true);
     }
   }
 

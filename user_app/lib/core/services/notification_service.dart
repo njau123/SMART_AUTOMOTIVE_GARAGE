@@ -8,6 +8,10 @@ import 'api_service.dart';
 import '../constants/app_constants.dart';
 
 /// Service ya kusimamia FCM push notifications.
+/// Global notifier — screens zinaweza kusikiliza FCM refresh
+final ValueNotifier<String> notificationRefreshNotifier =
+    ValueNotifier<String>('');
+
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
@@ -87,6 +91,9 @@ class NotificationService {
     final title = msg.notification?.title ?? 'Notification';
     final body = msg.notification?.body ?? '';
     final type = msg.data['type']?.toString() ?? '';
+
+    // Trigger notifier kwa screens kusikiliza
+    notificationRefreshNotifier.value = type;
 
     _showLocalNotification(title: title, body: body, type: type);
   }

@@ -10,6 +10,7 @@ import '../../../core/obd/dtc_decoder.dart';
 import '../../../core/obd/obd_service.dart';
 import '../../../core/obd/pid_decoder.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/notification_service.dart';
 
 class ObdScannerScreen extends StatefulWidget {
   final int? vehicleId;
@@ -42,6 +43,15 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
     super.initState();
     _requestPermissions();
     _checkPaymentStatus();
+    // Sikiliza FCM notifications
+    notificationRefreshNotifier.addListener(_onFcmNotification);
+  }
+
+  void _onFcmNotification() {
+    final type = notificationRefreshNotifier.value;
+    if (type == 'obd_verified' || type == 'payment') {
+      _forceRefreshPaymentStatus();
+    }
   }
 
   Future<void> _checkPaymentStatus() async {
@@ -61,6 +71,7 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
 
   @override
   void dispose() {
+    notificationRefreshNotifier.removeListener(_onFcmNotification);
     _scanSub?.cancel();
     _obd.stopScan();
     _obd.disconnect();
@@ -578,19 +589,52 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
 
 
   Future<bool> _pollForApproval() async {
-    // Poll kila sekunde 5 kwa dakika 1
-    for (int i = 0; i < 12; i++) {
-      await Future.delayed(const Duration(seconds: 5));
+    // Poll kila sekunde 3 kwa dakika 15 (300x3s = 900s = 15 min)
+    // Continuous mpaka verify au expire
+    for (int i = 0; i < 300; i++) {
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return false;
       try {
         final res = await OBDAPI.getOBDPaymentStatus();
         final data = res['data'] as Map? ?? {};
         if (data['is_paid'] == true) {
-          if (mounted) setState(() => _hasPaid = true);
+          if (mounted) {
+            setState(() => _hasPaid = true);
+            // Show success popup
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Malipo yamethibitishwa! Unaweza kutumia scanner.'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
           return true;
         }
+        // Kama expired, ondoka
+        if (data['is_expired'] == true) return false;
       } catch (_) {}
     }
     return false;
+  }
+
+  /// Reload status mara moja (FCM callback).
+  Future<void> _forceRefreshPaymentStatus() async {
+    try {
+      final hasPaid = await OBDAPI.hasPaid();
+      if (mounted && hasPaid != _hasPaid) {
+        setState(() => _hasPaid = hasPaid);
+        if (hasPaid) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Malipo yamethibitishwa! Fungua scanner.'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _requestPermissions() async {
