@@ -2401,3 +2401,134 @@ class AdminOBDVerifyView(APIView):
             {'success': False, 'message': 'Action si sahihi (verify|reject)'},
             status=400,
         )
+
+
+# ==================== ADMIN SERVICE BOOKING VERIFY ====================
+
+class AdminServiceBookingListView(APIView):
+    """Admin — service bookings zote."""
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from apps.services.models import ServiceBooking
+        from django.utils import timezone
+        status_filter = request.GET.get('status', '').strip().upper()
+        qs = ServiceBooking.objects.select_related('user', 'service').order_by('-created_at')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        data = []
+        for b in qs[:200]:
+            remaining = 0
+            if hasattr(b, 'payment_expires_at') and b.payment_expires_at:
+                diff = b.payment_expires_at - timezone.now()
+                remaining = max(0, int(diff.total_seconds()))
+            data.append({
+                'id': b.id,
+                'user_id': b.user.id if b.user else 0,
+                'user_email': b.user.email if b.user else '',
+                'user_name': (b.user.get_full_name() or b.user.email) if b.user else '',
+                'user_phone': getattr(b.user, 'phone_number', '') if b.user else '',
+                'service_name': b.service.name if b.service else (getattr(b, 'custom_service_name', '') or 'Custom'),
+                'status': b.status,
+                'payment_status': b.payment_status,
+                'amount': float(b.service_price or 0),
+                'deposit_amount': float(getattr(b, 'deposit_amount', 0) or 0),
+                'scheduled_date': str(b.scheduled_date) if b.scheduled_date else None,
+                'scheduled_time': str(b.scheduled_time) if b.scheduled_time else None,
+                'address': getattr(b, 'service_address', '') or '',
+                'countdown_seconds': remaining,
+                'created_at': b.created_at.isoformat() if b.created_at else None,
+            })
+        return Response({'success': True, 'data': data, 'count': len(data)})
+
+
+class AdminServiceBookingVerifyView(APIView):
+    """Admin — verify service booking payment."""
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        from apps.services.models import ServiceBooking
+        from django.utils import timezone
+        from apps.notifications.services import send_notification_to_user
+        try:
+            b = ServiceBooking.objects.get(pk=pk)
+        except ServiceBooking.DoesNotExist:
+            return Response({'success': False, 'message': 'Booking haipo'}, status=404)
+        action = (request.data.get('action') or 'verify').lower()
+        if action == 'verify':
+            b.payment_status = 'PAID'
+            b.status = 'CONFIRMED'
+            if hasattr(b, 'deposit_paid_at'):
+                b.deposit_paid_at = timezone.now()
+            b.save()
+            try:
+                send_notification_to_user(
+                    user=b.user,
+                    title='✅ Malipo yamethibitishwa',
+                    message=f'Malipo ya {b.service.name if b.service else "service"} yamethibitishwa.',
+                    notification_type='payment',
+                    data={'type': 'service_verified', 'booking_id': str(b.id)},
+                )
+            except Exception as e:
+                print(f'[NOTIF ERROR] {e}')
+            return Response({'success': True, 'message': 'Imethibitishwa', 'data': {'id': b.id}})
+        elif action == 'reject':
+            b.payment_status = 'FAILED'
+            b.save()
+            try:
+                send_notification_to_user(
+                    user=b.user,
+                    title='❌ Malipo hayakuthibitishwa',
+                    message=f'Malipo ya service hayakuthibitishwa.',
+                    notification_type='payment',
+                    data={'type': 'service_rejected', 'booking_id': str(b.id)},
+                )
+            except Exception as e:
+                print(f'[NOTIF ERROR] {e}')
+            return Response({'success': True, 'message': 'Imekataliwa'})
+        return Response({'success': False, 'message': 'Action si sahihi'}, status=400)
+
+
+class AdminOrderVerifyView(APIView):
+    """Admin — verify spare part order payment."""
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        from apps.spare_parts.models import SparePartOrder
+        from django.utils import timezone
+        from apps.notifications.services import send_notification_to_user
+        try:
+            order = SparePartOrder.objects.get(pk=pk)
+        except SparePartOrder.DoesNotExist:
+            return Response({'success': False, 'message': 'Order haipo'}, status=404)
+        action = (request.data.get('action') or 'verify').lower()
+        if action == 'verify':
+            order.payment_status = 'PAID'
+            order.status = 'PAID'
+            order.save()
+            try:
+                send_notification_to_user(
+                    user=order.user,
+                    title='✅ Malipo ya order yamethibitishwa',
+                    message=f'Order {order.order_number} imethibitishwa. Chagua tarehe ya delivery.',
+                    notification_type='payment',
+                    data={'type': 'order_verified', 'order_id': str(order.id)},
+                )
+            except Exception as e:
+                print(f'[NOTIF ERROR] {e}')
+            return Response({'success': True, 'message': 'Imethibitishwa', 'data': {'id': order.id}})
+        elif action == 'reject':
+            order.payment_status = 'FAILED'
+            order.save()
+            try:
+                send_notification_to_user(
+                    user=order.user,
+                    title='❌ Order imekataliwa',
+                    message=f'Order {order.order_number} imekataliwa.',
+                    notification_type='payment',
+                    data={'type': 'order_rejected', 'order_id': str(order.id)},
+                )
+            except Exception as e:
+                print(f'[NOTIF ERROR] {e}')
+            return Response({'success': True, 'message': 'Imekataliwa'})
+        return Response({'success': False, 'message': 'Action si sahihi'}, status=400)

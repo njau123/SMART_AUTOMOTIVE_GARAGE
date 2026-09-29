@@ -43,6 +43,9 @@ from apps.spare_parts.views import (
     AdminOrderListView, AdminOrderUpdateStatusView,
 )
 from .views import (
+    AdminServiceBookingListView,
+    AdminServiceBookingVerifyView,
+    AdminOrderVerifyView,
     AdminOBDListView,
     AdminOBDVerifyView,
     DiagnosisChatView,
@@ -192,6 +195,9 @@ urlpatterns += [
     path('admin/payments/', AdminPaymentListView.as_view()),
     path('admin/payments/<int:payment_id>/verify/', AdminPaymentVerifyView.as_view()),
     path('admin/bookings/', AdminBookingsListView.as_view()),
+    path('admin/service-bookings/list/', AdminServiceBookingListView.as_view(), name='admin-service-bookings-list'),
+    path('admin/service-bookings/<int:pk>/verify/', AdminServiceBookingVerifyView.as_view(), name='admin-service-bookings-verify'),
+    path('admin/spare-parts/orders/<int:pk>/verify/', AdminOrderVerifyView.as_view(), name='admin-order-verify'),
     # ============ ADMIN OBD PAYMENTS ============
     path('admin/obd-payments/', AdminOBDListView.as_view(), name='admin-obd-list'),
     path('admin/obd-payments/<int:pk>/verify/', AdminOBDVerifyView.as_view(), name='admin-obd-verify'),
