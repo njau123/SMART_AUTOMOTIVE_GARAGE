@@ -36,6 +36,7 @@ from .password_reset_views import (
 from apps.news.views import NewsViewSet as NewNewsViewSet
 from apps.advertisements.views import AdvertisementViewSet as NewAdvertisementViewSet
 from apps.spare_parts.views import (
+    OrderStatusView,
     OrderSetDeliveryGpsView,
     OrderPayDepositView,
     OrderCreateView, OrderListView, OrderDetailView,
@@ -166,6 +167,7 @@ urlpatterns += [
     path('spare-parts/orders/create/', OrderCreateView.as_view(), name='order-create'),
     path('spare-parts/orders/my/', OrderListView.as_view(), name='order-list'),
     path('spare-parts/orders/<int:pk>/', OrderDetailView.as_view(), name='order-detail'),
+    path('spare-parts/orders/<int:pk>/status/', OrderStatusView.as_view(), name='order-status'),
     path('spare-parts/orders/<int:pk>/delivery/', OrderUpdateDeliveryView.as_view(), name='order-delivery'),
     path('spare-parts/orders/<int:pk>/set-delivery-gps/', OrderSetDeliveryGpsView.as_view(), name='order-set-delivery-gps'),
     path('spare-parts/orders/<int:pk>/pay-deposit/', OrderPayDepositView.as_view(), name='order-pay-deposit'),
