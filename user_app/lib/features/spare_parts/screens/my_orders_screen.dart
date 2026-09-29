@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -14,6 +15,8 @@ class MyOrdersScreen extends StatefulWidget {
 }
 
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
+  Timer? _refreshTimer;
+
   bool _loading = true;
   String? _error;
   List<dynamic> _orders = [];
@@ -22,6 +25,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   void initState() {
     super.initState();
     _load();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) _load();
+    });
   }
 
   Future<void> _load() async {
@@ -43,6 +49,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         _loading = false;
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Color _statusColor(String s) {

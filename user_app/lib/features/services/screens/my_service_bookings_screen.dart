@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +14,10 @@ class MyServiceBookingsScreen extends StatefulWidget {
 }
 
 class _MyServiceBookingsScreenState extends State<MyServiceBookingsScreen> {
+  Timer? _refreshTimer;
+  Timer? _tickTimer;
+  int _tick = 0;
+
   bool _loading = true;
   List<dynamic> _bookings = [];
 
@@ -20,6 +25,7 @@ class _MyServiceBookingsScreenState extends State<MyServiceBookingsScreen> {
   void initState() {
     super.initState();
     _load();
+    _startTimers();
   }
 
   Future<void> _load() async {
@@ -33,6 +39,34 @@ class _MyServiceBookingsScreenState extends State<MyServiceBookingsScreen> {
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _startTimers() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) _load();
+    });
+    _tickTimer?.cancel();
+    _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _tick++);
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    _tickTimer?.cancel();
+    super.dispose();
+  }
+
+  String _fmtCountdown(int seconds) {
+    if (seconds <= 0) return '—';
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    if (h > 0) return '${h}h ${m}m';
+    if (m > 0) return '${m}m ${s}s';
+    return '${s}s';
   }
 
   Color _statusColor(String s) {
