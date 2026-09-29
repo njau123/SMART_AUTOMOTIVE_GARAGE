@@ -657,6 +657,44 @@ class ChatAPI {
     );
     return Map<String, dynamic>.from(data as Map);
   }
+
+  static Future<Map<String, dynamic>> requestLocation(int roomId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/request-location/',
+      {},
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  static Future<Map<String, dynamic>> setEta(
+    int roomId, {
+    double? etaHours,
+    String? etaDate,
+    String? etaTime,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final body = <String, dynamic>{};
+    if (etaHours != null) body['eta_hours'] = etaHours;
+    if (etaDate != null) body['eta_date'] = etaDate;
+    if (etaTime != null) body['eta_time'] = etaTime;
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/set-eta/',
+      body,
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  static Future<Map<String, dynamic>> getEtaStatus(int roomId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'chat/rooms/$roomId/eta-status/',
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
 }
 
 

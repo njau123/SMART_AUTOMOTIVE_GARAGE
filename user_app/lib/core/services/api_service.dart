@@ -1004,6 +1004,47 @@ class NotificationAPI {
 
 // =================== CHAT API ===================
 class ChatAPI {
+  /// Mechanic anaomba location ya user kwenye room.
+  static Future<Map<String, dynamic>> requestLocation(int roomId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/request-location/',
+      {},
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  /// Mechanic ana-set ETA.
+  static Future<Map<String, dynamic>> setEta(
+    int roomId, {
+    double? etaHours,
+    String? etaDate,
+    String? etaTime,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final body = <String, dynamic>{};
+    if (etaHours != null) body['eta_hours'] = etaHours;
+    if (etaDate != null) body['eta_date'] = etaDate;
+    if (etaTime != null) body['eta_time'] = etaTime;
+    final data = await ApiService.post(
+      'chat/rooms/$roomId/set-eta/',
+      body,
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
+  /// Angalia ETA status ya room.
+  static Future<Map<String, dynamic>> getEtaStatus(int roomId) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.get(
+      'chat/rooms/$roomId/eta-status/',
+      token: token,
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }
+
   /// Upload attachment (image, video, audio, document) kwenye message.
   static Future<Map<String, dynamic>> uploadAttachment({
     required int messageId,

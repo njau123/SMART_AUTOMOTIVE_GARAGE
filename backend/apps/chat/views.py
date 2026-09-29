@@ -903,6 +903,169 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
 
 
+    @action(detail=True, methods=['post'], url_path='request-location')
+    def request_location(self, request, pk=None):
+        """Mechanic anatuma request ya location kwa user."""
+        from apps.chat.models import Message
+        from apps.notifications.services import send_notification_to_user
+        
+        room = self.get_object()
+        requester = request.user
+        
+        # Unda message ya aina location_request
+        target = None
+        for p in room.participants.all():
+            if p != requester:
+                target = p
+                break
+        
+        if not target:
+            return Response(
+                {'success': False, 'message': 'Hakuna mtu mwingine kwenye chat'},
+                status=400,
+            )
+        
+        message = Message.objects.create(
+            room=room,
+            sender=requester,
+            content='Mechanic anaomba location yako ili akufikie.',
+            message_type='location',
+            metadata={'action': 'location_request', 'pending': True},
+        )
+        room.update_last_message(message)
+        
+        # Notify target
+        try:
+            send_notification_to_user(
+                user=target,
+                title='Ombi la Location',
+                message=f'{requester.get_full_name() or requester.email} anaomba location yako.',
+                notification_type='chat',
+                data={
+                    'type': 'location_request',
+                    'room_id': str(room.id),
+                    'message_id': str(message.id),
+                },
+            )
+        except Exception as e:
+            print(f'[NOTIF ERROR] {e}')
+        
+        from apps.chat.serializers import MessageSerializer
+        return Response({
+            'success': True,
+            'message': 'Ombi limetumwa',
+            'data': MessageSerializer(message, context={'request': request}).data,
+        })
+    
+    @action(detail=True, methods=['post'], url_path='set-eta')
+    def set_eta(self, request, pk=None):
+        """Mechanic ana-set ETA — tarehe+muda atakayofika."""
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        room = self.get_object()
+        eta_hours = request.data.get('eta_hours')
+        eta_date = request.data.get('eta_date')  # YYYY-MM-DD (optional)
+        eta_time = request.data.get('eta_time')  # HH:MM (optional)
+        
+        if not eta_hours and not (eta_date and eta_time):
+            return Response(
+                {'success': False, 'message': 'ETA inahitajika (eta_hours au eta_date+eta_time)'},
+                status=400,
+            )
+        
+        # Calculate ETA time
+        if eta_hours:
+            eta_minutes = int(float(eta_hours) * 60)
+            eta_at = timezone.now() + timedelta(minutes=eta_minutes)
+        else:
+            try:
+                from datetime import datetime
+                dt_str = f'{eta_date} {eta_time}'
+                eta_at = timezone.make_aware(
+                    datetime.strptime(dt_str, '%Y-%m-%d %H:%M'),
+                    timezone.get_current_timezone(),
+                )
+                eta_minutes = int((eta_at - timezone.now()).total_seconds() / 60)
+            except Exception as e:
+                return Response(
+                    {'success': False, 'message': f'Format mbovu: {e}'},
+                    status=400,
+                )
+        
+        # Hifadhi kwenye room metadata
+        meta = room.metadata or {}
+        meta['eta_at'] = eta_at.isoformat()
+        meta['eta_minutes'] = eta_minutes
+        meta['eta_set_by'] = request.user.id
+        meta['eta_set_at'] = timezone.now().isoformat()
+        room.metadata = meta
+        room.save(update_fields=['metadata', 'updated_at'])
+        
+        # Notify user + admin
+        from apps.notifications.services import send_notification_to_user
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        for p in room.participants.all():
+            if p == request.user:
+                continue
+            try:
+                send_notification_to_user(
+                    user=p,
+                    title='Mechanic ameseti ETA',
+                    message=f'Mechanic atakufikia baada ya {eta_minutes} dakika ({eta_hours}h).',
+                    notification_type='chat',
+                    data={
+                        'type': 'eta_set',
+                        'room_id': str(room.id),
+                        'eta_at': eta_at.isoformat(),
+                        'eta_minutes': str(eta_minutes),
+                    },
+                )
+            except Exception as e:
+                print(f'[NOTIF ERROR] {e}')
+        
+        return Response({
+            'success': True,
+            'message': 'ETA imesetiwa',
+            'data': {
+                'room_id': room.id,
+                'eta_at': eta_at.isoformat(),
+                'eta_minutes': eta_minutes,
+                'countdown_seconds': eta_minutes * 60,
+            },
+        })
+    
+    @action(detail=True, methods=['get'], url_path='eta-status')
+    def eta_status(self, request, pk=None):
+        """User au mechanic anaangalia ETA status."""
+        from django.utils import timezone
+        room = self.get_object()
+        meta = room.metadata or {}
+        
+        eta_at_str = meta.get('eta_at')
+        if not eta_at_str:
+            return Response({'success': True, 'data': {'has_eta': False}})
+        
+        try:
+            eta_at = timezone.datetime.fromisoformat(eta_at_str.replace('Z', '+00:00'))
+        except Exception:
+            return Response({'success': True, 'data': {'has_eta': False}})
+        
+        remaining = max(0, int((eta_at - timezone.now()).total_seconds()))
+        
+        return Response({
+            'success': True,
+            'data': {
+                'has_eta': True,
+                'eta_at': eta_at.isoformat(),
+                'eta_minutes': meta.get('eta_minutes', 0),
+                'countdown_seconds': remaining,
+                'is_expired': remaining <= 0,
+            },
+        })
+    
     @action(detail=True, methods=['post'], url_path='share-location')
     def share_location(self, request, pk=None):
         """User au mechanic anatuma location yake kwenye room."""

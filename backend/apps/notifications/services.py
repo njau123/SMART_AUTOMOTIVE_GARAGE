@@ -83,12 +83,26 @@ def send_push_notification(
             )
         )
 
+        webpush_config = messaging.WebpushConfig(
+            notification=messaging.WebpushNotification(
+                title=title,
+                body=message,
+                icon=image if image else None,
+                badge=image if image else None,
+                require_interaction=True,
+            ),
+            fcm_options=messaging.WebpushFCMOptions(
+                link='/',
+            ),
+        )
+
         message_obj = messaging.Message(
             notification=notification_payload,
             data=fcm_data,
             token=device_token,
             android=android_config,
             apns=apns_config,
+            webpush=webpush_config,
         )
 
         response = messaging.send(message_obj)

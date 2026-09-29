@@ -149,9 +149,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _buildActionCard(Icons.handyman_outlined, 'Kazi za Huduma', 'Zilizothibitishwa', () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const ServiceJobsScreen()));
               }),
-              _buildActionCard(Icons.inbox_outlined, 'Maombi ya Wateja', 'Nje ya Mtandao', () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const OfflineRequestsScreen()));
-              }),
+//               _buildActionCard(Icons.inbox_outlined, 'Maombi ya Wateja', 'Nje ya Mtandao', () {
+//                 Navigator.push(context, MaterialPageRoute(builder: (_) => const OfflineRequestsScreen()));
+//               }),
               _buildActionCard(Icons.settings, 'Mipangilio', 'Mipangilio ya App', () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
               }),

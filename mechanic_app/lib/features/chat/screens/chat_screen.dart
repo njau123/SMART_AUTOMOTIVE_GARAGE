@@ -30,6 +30,10 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  Timer? _etaTimerMechanic;
+  int _etaSecondsMechanic = 0;
+  bool _hasEtaMechanic = false;
+
   final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   List<dynamic> _messages = [];
@@ -461,6 +465,16 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Text(widget.roomName),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.my_location),
+            tooltip: 'Omba location ya user',
+            onPressed: _requestLocationMechanic,
+          ),
+          IconButton(
+            icon: const Icon(Icons.schedule),
+            tooltip: 'Set ETA',
+            onPressed: _showSetEtaDialog,
+          ),
         ],
       ),
       body: Column(
@@ -469,6 +483,7 @@ class _ChatScreenState extends State<ChatScreen> {
           // READY BANNER
           if (_hasPendingReady) _readyRequestBanner(),
           if (_readyAccepted) _readyCountdownBanner(),
+          _etaBannerMechanic(),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -1668,6 +1683,120 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
       ],
+    );
+  }
+
+
+  // ══════════════ GPS/ETA METHODS ══════════════
+
+  Future<void> _loadEtaMechanic() async {
+    try {
+      final res = await ChatAPI.getEtaStatus(widget.roomId);
+      final data = res['data'] as Map? ?? {};
+      if (!mounted) return;
+      setState(() {
+        _hasEtaMechanic = data['has_eta'] == true;
+        _etaSecondsMechanic = int.tryParse(data['countdown_seconds']?.toString() ?? '0') ?? 0;
+      });
+    } catch (_) {}
+  }
+
+  void _startEtaTimerMechanic() {
+    _etaTimerMechanic?.cancel();
+    _etaTimerMechanic = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) _loadEtaMechanic();
+    });
+  }
+
+  Future<void> _requestLocationMechanic() async {
+    try {
+      final res = await ChatAPI.requestLocation(widget.roomId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(res['message']?.toString() ?? 'Ombi limetumwa'),
+        backgroundColor: Colors.green,
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Kosa: $e'), backgroundColor: Colors.red));
+    }
+  }
+
+  Future<void> _showSetEtaDialog() async {
+    final ctrl = TextEditingController(text: '1');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Set ETA'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Masaa (mfano: 1 au 0.5)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Ghairi')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Set')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final hours = double.tryParse(ctrl.text.trim());
+    if (hours == null || hours <= 0) return;
+    try {
+      final res = await ChatAPI.setEta(widget.roomId, etaHours: hours);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(res['message']?.toString() ?? 'ETA imesetiwa'),
+        backgroundColor: Colors.green,
+      ));
+      _loadEtaMechanic();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Kosa: $e'), backgroundColor: Colors.red));
+    }
+  }
+
+  String _fmtEtaM(int s) {
+    if (s <= 0) return '0s';
+    final h = s ~/ 3600;
+    final m = (s % 3600) ~/ 60;
+    final sec = s % 60;
+    if (h > 0) return '${h}h ${m}m';
+    if (m > 0) return '${m}m ${sec}s';
+    return '${sec}s';
+  }
+
+  Widget _etaBannerMechanic() {
+    if (!_hasEtaMechanic || _etaSecondsMechanic <= 0) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [Colors.orange.shade700, Colors.orange.shade400]),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.timer, color: Colors.white, size: 26),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Unakwenda kwa user',
+                    style: GoogleFonts.poppins(color: Colors.white.withValues(alpha: 0.9), fontSize: 11)),
+                Text(_fmtEtaM(_etaSecondsMechanic),
+                    style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

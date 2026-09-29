@@ -29,6 +29,10 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  Timer? _etaTimer;
+  int _etaSeconds = 0;
+  bool _hasEta = false;
+
   final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   List<dynamic> _messages = [];
@@ -815,6 +819,7 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           _approvalBanner(),
+          _etaBanner(),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -1820,6 +1825,72 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
       ],
+    );
+  }
+
+
+  // ══════════════ ETA METHODS ══════════════
+
+  Future<void> _loadEta() async {
+    try {
+      final res = await ChatAPI.getEtaStatus(widget.roomId);
+      final data = res['data'] as Map? ?? {};
+      if (!mounted) return;
+      setState(() {
+        _hasEta = data['has_eta'] == true;
+        _etaSeconds = int.tryParse(data['countdown_seconds']?.toString() ?? '0') ?? 0;
+      });
+    } catch (_) {}
+  }
+
+  void _startEtaTimer() {
+    _etaTimer?.cancel();
+    _etaTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      if (!mounted) return;
+      await _loadEta();
+    });
+  }
+
+  String _fmtEta(int s) {
+    if (s <= 0) return 'Sasa hivi';
+    final h = s ~/ 3600;
+    final m = (s % 3600) ~/ 60;
+    final sec = s % 60;
+    if (h > 0) return '${h}h ${m}m';
+    if (m > 0) return '${m}m ${sec}s';
+    return '${sec}s';
+  }
+
+  Widget _etaBanner() {
+    if (!_hasEta || _etaSeconds <= 0) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.orange.shade700, Colors.orange.shade400],
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.timer, color: Colors.white, size: 26),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Mechanic anakuja',
+                    style: GoogleFonts.poppins(
+                        color: Colors.white.withValues(alpha: 0.9), fontSize: 11)),
+                Text(_fmtEta(_etaSeconds),
+                    style: GoogleFonts.poppins(
+                        color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

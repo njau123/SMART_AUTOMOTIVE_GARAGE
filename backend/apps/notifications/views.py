@@ -127,3 +127,15 @@ def send_admin_notification(request):
         })
     except Exception as e:
         return Response({'success': False, 'error': str(e)}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def clear_all_user_devices(request):
+    """Futa devices ZOTE za user (safety cleanup)."""
+    count, _ = NotificationDevice.objects.filter(user=request.user).delete()
+    return Response({
+        'success': True,
+        'deleted': count,
+        'message': f'Devices {count} zimeondolewa',
+    })
