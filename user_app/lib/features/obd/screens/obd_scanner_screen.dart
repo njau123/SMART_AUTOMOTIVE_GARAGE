@@ -10,6 +10,7 @@ import '../../../core/obd/dtc_decoder.dart';
 import '../../../core/obd/obd_service.dart';
 import '../../../core/obd/pid_decoder.dart';
 import '../../../core/services/api_service.dart';
+import '../../bookings/screens/my_bookings_screen.dart';
 import '../../../core/services/notification_service.dart';
 
 class ObdScannerScreen extends StatefulWidget {
@@ -57,12 +58,30 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
   Future<void> _checkPaymentStatus() async {
     setState(() => _checkingPayment = true);
     try {
-      final hasPaid = await OBDAPI.hasPaid();
+      final res = await OBDAPI.getOBDPaymentStatus();
+      final data = res['data'] as Map? ?? {};
+      final isPaid = data['is_paid'] == true;
+      final isPending = data['status']?.toString().toUpperCase() == 'PENDING';
       if (mounted) {
         setState(() {
-          _hasPaid = hasPaid;
+          _hasPaid = isPaid;
           _checkingPayment = false;
         });
+        // Kama payment ipo PENDING — onyesha SnackBar + rudi
+        if (isPending && !isPaid) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Malipo yako yanasubiri uthibitisho wa admin. Angalia Bookings Zangu → OBD tab.'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 5),
+                ),
+              );
+              Navigator.pop(context);
+            }
+          });
+        }
       }
     } catch (_) {
       if (mounted) setState(() => _checkingPayment = false);
@@ -529,7 +548,22 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
                 )
               else if (!paidConfirmed && paymentResult != null && !expired)
                 ElevatedButton(
-                  onPressed: () => setDialogState(() => paidConfirmed = true),
+                  onPressed: () {
+                    countdownTimer?.cancel();
+                    Navigator.pop(context, false);
+                    // Nenda Bookings → OBD tab moja kwa moja
+                    if (mounted) {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const MyBookingsScreen()));
+                      // Fallback kama route haipo
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Malipo yanasubiri uthibitisho. Angalia Bookings Zangu → OBD tab.'),
+                          backgroundColor: Colors.blue,
+                          duration: Duration(seconds: 4),
+                        ),
+                      );
+                    }
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
@@ -555,7 +589,22 @@ class _ObdScannerScreenState extends State<ObdScannerScreen> {
                 TextButton(
                   onPressed: () async {
                     countdownTimer?.cancel();
-                    // Poll kwa 60s
+                    Navigator.pop(context, false);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Angalia Bookings Zangu → OBD tab kwa status.'),
+                          backgroundColor: Colors.blue,
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Angalia Hali'),
+                ),
+              if (false)
+                TextButton(
+                  onPressed: () async {
+                    countdownTimer?.cancel();
                     final approved = await _pollForApproval();
                     if (!mounted) return;
                     Navigator.pop(context, approved);

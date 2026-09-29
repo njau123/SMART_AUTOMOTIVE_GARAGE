@@ -5,6 +5,7 @@ class AppImages {
   // Backgrounds
   static const String homepageBg = 'assets/images/homepage_bg.jpg';
   static const String obdScannerBg = 'assets/images/obd_scanner_bg.jpg';
+  static const String aiDiagnosisBg = 'assets/images/ai_diagnosis_bg.jpg';
   static const String findMechanicsBg = 'assets/images/find_mechanics_bg.jpg';
   static const String sparePartsBg = 'assets/images/spare_parts_bg.jpg';
   static const String servicesBg = 'assets/images/services_bg.jpg';

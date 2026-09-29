@@ -6,6 +6,7 @@ import 'ai_chat_history_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_images.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/state/auth_state.dart';
 import '../../mechanics/screens/mechanics_screen.dart';
@@ -353,23 +354,17 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
       ),
       body: Stack(
         children: [
-          // Background image
+          // Background image — local asset, wazi
           Positioned.fill(
-            child: CachedNetworkImage(
-              imageUrl:
-                  'https://i.pinimg.com/736x/fe/0c/af/fe0cafcf1119d5a2429644bdf628e9fe.jpg',
+            child: Image.asset(
+              AppImages.aiDiagnosisBg,
               fit: BoxFit.cover,
-              placeholder: (_, __) => Container(color: AppColors.background),
-              errorWidget: (_, __, ___) =>
+              errorBuilder: (_, __, ___) =>
                   Container(color: AppColors.background),
             ),
           ),
-          // Dark overlay kwa maandishi kusomeka
-          Positioned.fill(
-            child: Container(
-              color: Colors.black.withValues(alpha: 0.15),
-            ),
-          ),
+          // Hakuna overlay — picha wazi
+          // (Ikiwa maandishi hayasomeki, ongeza: Colors.black.withValues(alpha: 0.03))
           // Content
           Column(
             children: [
