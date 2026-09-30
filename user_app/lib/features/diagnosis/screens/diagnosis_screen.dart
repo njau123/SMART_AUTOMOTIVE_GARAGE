@@ -426,12 +426,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                   Container(color: AppColors.background),
             ),
           ),
-          // LIGHTEN — white overlay 40% ili picha ionekane wazi na maandishi yasomeke
-          Positioned.fill(
-            child: Container(
-              color: Colors.white.withValues(alpha: 0.4),
-            ),
-          ),
+          // Hakuna overlay — picha wazi kabisa
           // Content
           Column(
             children: [

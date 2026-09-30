@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/google_auth_service.dart';
+import 'complete_profile_screen.dart';
 import '../../../core/state/auth_state.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
@@ -193,6 +194,25 @@ class _LoginScreenState extends State<LoginScreen> {
             Map<String, dynamic>.from(data['user'] as Map),
           );
         }
+        if (!mounted) return;
+
+        // Angalia kama profile imekamilika
+        final profileComplete = data['profile_complete'] == true;
+
+        if (!profileComplete) {
+          // Nenda CompleteProfileScreen
+          final done = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const CompleteProfileScreen(),
+            ),
+          );
+          if (done != true) {
+            if (mounted) setState(() => _googleLoading = false);
+            return;
+          }
+        }
+
         if (!mounted) return;
         SessionGuard.instance.start(context);
         if (widget.returnOnSuccess) {

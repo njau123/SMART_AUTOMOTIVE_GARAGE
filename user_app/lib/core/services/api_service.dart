@@ -376,6 +376,30 @@ class AuthAPI {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  static Future<Map<String, dynamic>> completeProfile({
+    required String phoneNumber,
+    required String region,
+    required String vehicleMake,
+    required String vehicleModel,
+    required String vehicleYear,
+    required String vehicleRegistration,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    final data = await ApiService.post(
+      'auth/complete-profile/',
+      {
+        'phone_number': phoneNumber,
+        'region': region,
+        'vehicle_make': vehicleMake,
+        'vehicle_model': vehicleModel,
+        'vehicle_year': vehicleYear,
+        'vehicle_registration': vehicleRegistration,
+      },
+      token: token,
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   static Future<Map<String, dynamic>> googleLogin(String idToken) async {
     final data = await ApiService.post('auth/google/', {'id_token': idToken});
     return Map<String, dynamic>.from(data as Map);
