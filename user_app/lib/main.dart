@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'core/services/web_cache_buster.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -17,6 +18,9 @@ import 'features/splash/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // CACHE BUSTER — futa service worker ya zamani
+  await WebCacheBuster.checkAndClear();
 
   // FCM background handler — lazima iwe kabla ya Firebase
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
