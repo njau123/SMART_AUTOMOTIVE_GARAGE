@@ -222,18 +222,29 @@ def google_sign_in(request):
             },
         )
 
+        # Angalia kama profile imekamilika: phone + region
+        profile_complete = bool(
+            user.phone_number and
+            user.region and
+            user.phone_number.strip() and
+            user.region.strip()
+        )
+
         refresh = RefreshToken.for_user(user)
         return Response({
             'success': True,
             'access': str(refresh.access_token),
             'refresh': str(refresh),
             'created': created,
+            'profile_complete': profile_complete,
             'user': {
                 'id': user.id,
                 'email': user.email,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
                 'role': getattr(user, 'role', 'USER'),
+                'phone_number': user.phone_number or '',
+                'region': user.region or '',
             },
         })
     except Exception as e:
@@ -302,4 +313,68 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             'success': True,
             'message': f'User {original_email} amefutwa',
             'id': user.id,
+        })
+
+
+class CompleteProfileView(APIView):
+    """User anakamilisha profile baada ya Google Sign-In."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        phone_number = (request.data.get('phone_number') or '').strip()
+        region = (request.data.get('region') or '').strip()
+        vehicle_make = (request.data.get('vehicle_make') or '').strip()
+        vehicle_model = (request.data.get('vehicle_model') or '').strip()
+        vehicle_year = (request.data.get('vehicle_year') or '').strip()
+        vehicle_reg = (request.data.get('vehicle_registration') or '').strip()
+
+        # Validation
+        errors = {}
+        if not phone_number:
+            errors['phone_number'] = 'Namba ya simu inahitajika'
+        if not region:
+            errors['region'] = 'Chagua mkoa'
+        if not vehicle_make:
+            errors['vehicle_make'] = 'Chagua aina ya gari'
+        if not vehicle_reg:
+            errors['vehicle_registration'] = 'Weka namba ya gari'
+
+        if errors:
+            return Response({
+                'success': False,
+                'message': 'Kamilisha taarifa zote',
+                'errors': errors,
+            }, status=400)
+
+        # Update user
+        user.phone_number = phone_number
+        user.region = region
+        user.save(update_fields=['phone_number', 'region'])
+
+        # Unda vehicle (kama haipo)
+        try:
+            from apps.vehicles.models import Vehicle
+            Vehicle.objects.get_or_create(
+                owner=user,
+                registration_number=vehicle_reg,
+                defaults={
+                    'make': vehicle_make,
+                    'model': vehicle_model,
+                    'year': vehicle_year or None,
+                },
+            )
+        except Exception as e:
+            print(f'[VEHICLE ERROR] {e}')
+
+        return Response({
+            'success': True,
+            'message': 'Profile imekamilika!',
+            'data': {
+                'id': user.id,
+                'email': user.email,
+                'phone_number': user.phone_number,
+                'region': user.region,
+            },
         })
