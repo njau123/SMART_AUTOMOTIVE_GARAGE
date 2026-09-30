@@ -426,8 +426,12 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                   Container(color: AppColors.background),
             ),
           ),
-          // Hakuna overlay — picha wazi
-          // (Ikiwa maandishi hayasomeki, ongeza: Colors.black.withValues(alpha: 0.03))
+          // LIGHTEN — white overlay 40% ili picha ionekane wazi na maandishi yasomeke
+          Positioned.fill(
+            child: Container(
+              color: Colors.white.withValues(alpha: 0.4),
+            ),
+          ),
           // Content
           Column(
             children: [
@@ -558,7 +562,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                     : Border.all(color: AppColors.border),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: Colors.transparent,
                     blurRadius: 4,
                     offset: const Offset(0, 1),
                   ),
