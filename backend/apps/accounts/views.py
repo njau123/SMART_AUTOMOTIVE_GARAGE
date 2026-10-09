@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser, AllowAny
+from rest_framework.permissions import IsAdminUser, AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -357,12 +357,12 @@ class CompleteProfileView(APIView):
         try:
             from apps.vehicles.models import Vehicle
             Vehicle.objects.get_or_create(
-                owner=user,
+                user=user,
                 registration_number=vehicle_reg,
                 defaults={
                     'make': vehicle_make,
                     'model': vehicle_model,
-                    'year': vehicle_year or None,
+                    'year': int(vehicle_year) if vehicle_year and vehicle_year.isdigit() else None,
                 },
             )
         except Exception as e:
