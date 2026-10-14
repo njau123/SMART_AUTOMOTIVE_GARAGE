@@ -13,7 +13,7 @@ dependencies:
   shared_preferences: ^2.5.5
   google_fonts: ^8.2.1
   image_picker: ^1.1.2
-  file_picker: ^8.1.2
+  file_picker: ^10.1.9
   intl: ^0.18.1
   video_player: ^2.14.0
   firebase_messaging: ^16.7.0
