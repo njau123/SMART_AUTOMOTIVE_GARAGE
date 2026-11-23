@@ -323,3 +323,12 @@ SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # siku 7
 
+
+# ================= CORS SETTINGS =================
+CORS_ALLOWED_ORIGINS = [
+    "https://userapp-three-weld.vercel.app",
+    "https://adminapp-red.vercel.app",
+    "https://smart-garage-mechanic.vercel.app",
+]
+CORS_ALLOW_CREDENTIALS = True
+# =================================================
